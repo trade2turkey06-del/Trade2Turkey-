@@ -28,7 +28,7 @@ interface ClientLead {
   decisionMakerName?: string;
   decisionMakerTitle?: string;
   contactInfo?: string;
-  status: "Devam Ediyor" | "Olumsuz Sonuçlandı" | "Olumlu Sonuçlandı" | "İlk Temas" | "Teklif Aşaması" | "Nitelikli Talep" | "Görüşülüyor" | "Reddedildi";
+  status: "In Progress" | "Unsuccessful" | "Successful" | "Initial Contact" | "Proposal Stage" | "Qualified Request" | "In Discussion" | "Rejected";
   assignedScouterId?: string;
   assignedTo?: string;
   userId?: string;
@@ -50,12 +50,12 @@ interface ClientLead {
   };
   website?: string;
   linkedinProfile?: string;
-  companyType?: "Distribütör" | "İthalatçı" | "Toptancı" | "Perakende Zinciri" | "E-Ticaret Satıcısı";
+  companyType?: "Distributor" | "Importer" | "Wholesaler" | "Retail Chain" | "E-Commerce Seller";
   decisionMakerEmail?: string;
   decisionMakerPhone?: string;
   productCategory?: string;
   technicalSpecs?: string;
-  urgency?: "Hemen" | "1-3 Ay İçinde" | "1 yıl" | "1 yıldan uzun";
+  urgency?: "Immediate" | "Within 1-3 Months" | "1 year" | "Longer than 1 year";
   estimatedVolume?: string;
   targetPrice?: string;
   paymentTerms?: string;
@@ -68,19 +68,19 @@ interface ClientLead {
 }
 
 export const freelanceSOPData = [
-  { step: "B.1", task: "NCNDA Sözleşmesi", kpi: "Taraflarca İmzalanmış ve Doğrulanmış NCNDA Belgesinin Yüklenmesi", storage: "Ortak Klasör - Aşama B.1" },
-  { step: "B.2", task: "Tedarikçi Bilgisi Aktarımı", kpi: "Tedarikçi verilerinin ve analizlerinin sisteme eksiksiz girilmesi", storage: "Ortak Klasör - Aşama B.2" },
-  { step: "B.3", task: "Potansiyel müşterinin sisteme girilmesi", kpi: "Min. 1 Uygun satın alma potansiyel tespiti", storage: "Ortak Klasör - Aşama B.3" },
-  { step: "B.4", task: "Gizlilik Sözleşmesi (NDA) (Alıcı ile)", kpi: "Taraflarca İmzalanmış ve Doğrulanmış 1 NDA Belgesi", storage: "Ortak Klasör - Aşama B.4" },
-  { step: "B.5", task: "İlk İletişim ve Tanıtım", kpi: "30 gün içinde potansiyel müşteriden dönüş", storage: "Ortak Klasör - Aşama B.5" },
-  { step: "B.7", task: "Yurt dışı alıcılardan toplanan teklif talepleri", kpi: "Fiyat teklifi yapılması", storage: "Ortak Klasör - Aşama B.7" },
-  { step: "B.8", task: "Alıcılarla yapılan ilk tanışma toplantısı", kpi: "Sunum Sonrası Toplantı Tutanaklarının %100 Eksiksiz Girilmesi", storage: "Ortak Klasör - Aşama B.8" },
-  { step: "B.9", task: "Numune Gönderimi", kpi: "Müşteri Tarafından İmzalanmış Numune Talep Formu", storage: "Ortak Klasör - Aşama B.9" },
-  { step: "B.10", task: "Numune Geri Bildirimi ve Revizyon Güncellemesi", kpi: "Müşteri Geri Bildirim Skoru ve Revizyon Listesinin Netleşmesi", storage: "Ortak Klasör - Aşama B.10" },
-  { step: "B.11", task: "Nihai Ambalaj ve Etiketlemenin belirtilmesi", kpi: "İlgili Standartlar göre %100 Paketleme Uyumluluğu", storage: "Ortak Klasör - Aşama B.11" },
-  { step: "B.12", task: "Nihai Özellikler ve son maliyetlendirme", kpi: "Hedef ve Nihai Maliyet Arasındaki Fark", storage: "Ortak Klasör - Aşama B.12" },
-  { step: "B.13", task: "Sipariş Öncesi Uyum Toplantısı", kpi: "Sipariş Öncesi Teslimat ve Şartlarında Tam Mutabakat", storage: "Ortak Klasör - Aşama B.13" },
-  { step: "B.14", task: "Satın Alma Siparişi (PO) ve Proforma Fatura (PI)", kpi: "Onaylı PO Belgesi ve Onaylı Proforma Faturanın sisteme yüklenmesi", storage: "Ortak Klasör - Aşama B.14" }
+  { step: "B.1", task: "NCNDA Agreement", kpi: "Upload the signed and verified NCNDA document by both parties", storage: "Shared Folder - Stage B.1" },
+  { step: "B.2", task: "Supplier Information Transfer", kpi: "Complete entry of supplier data and analysis into the system", storage: "Shared Folder - Stage B.2" },
+  { step: "B.3", task: "Add potential customer to the system", kpi: "Identify at least 1 viable procurement opportunity", storage: "Shared Folder - Stage B.3" },
+  { step: "B.4", task: "Confidentiality Agreement (NDA) (with buyer)", kpi: "One NDA signed and verified by both parties", storage: "Shared Folder - Stage B.4" },
+  { step: "B.5", task: "Initial Contact and Introduction", kpi: "A response from a potential customer within 30 days", storage: "Shared Folder - Stage B.5" },
+  { step: "B.7", task: "RFQ requests collected from overseas buyers", kpi: "Submit pricing quotes", storage: "Shared Folder - Stage B.7" },
+  { step: "B.8", task: "Initial introduction meeting with buyers", kpi: "100% complete documentation of post-presentation meeting notes", storage: "Shared Folder - Stage B.8" },
+  { step: "B.9", task: "Sample Dispatch", kpi: "Sample request form signed by the customer", storage: "Shared Folder - Stage B.9" },
+  { step: "B.10", task: "Sample feedback and revision update", kpi: "Clarify customer feedback score and revision list", storage: "Shared Folder - Stage B.10" },
+  { step: "B.11", task: "Final packaging and labeling", kpi: "100% packaging compliance with relevant standards", storage: "Shared Folder - Stage B.11" },
+  { step: "B.12", task: "Final specifications and cost optimization", kpi: "Gap between target and final cost", storage: "Shared Folder - Stage B.12" },
+  { step: "B.13", task: "Pre-order alignment meeting", kpi: "Full alignment on delivery and terms before order", storage: "Shared Folder - Stage B.13" },
+  { step: "B.14", task: "Purchase Order (PO) and Proforma Invoice (PI)", kpi: "Upload approved PO and approved Proforma Invoice", storage: "Shared Folder - Stage B.14" }
 ];
 
 export default function FreelancerDashboard({ currentUser, onLogout, auditMode = false, auditEmail }: FreelancerDashboardProps) {
@@ -132,7 +132,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
     }
   }, [assignedProjects, selectedProjectId]);
 
-  const activeProjId = selectedProjectId || "PROJE-UNLU MAMÜLLER";
+  const activeProjId = selectedProjectId || "PROJECT-UNLU MAMÜLLER";
 
   // Onboarding form state
   const [formData, setFormData] = useState({
@@ -165,7 +165,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.companyName.trim() || !formData.contactPerson.trim() || !formData.cellPhone.trim()) {
-      setFeedback("Lütfen gerekli alanları (Firma/Şahıs Adı, İletişim Yetkilisi, Cep Telefonu) doldurun.");
+      setFeedback("Please fill in the required fields (Company/Individual Name, Authorized Contact, Mobile Phone).");
       return;
     }
     setSaving(true);
@@ -188,7 +188,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
       }
     } catch (err) {
       console.error("Onboarding save failed:", err);
-      setFeedback("Profil güncellenirken bir hata oluştu. Lütfen tekrar deneyin.");
+      setFeedback("An error occurred while updating the profile. Please try again.");
       setSaving(false);
     }
   };
@@ -279,7 +279,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
         projectId: activeProjId,
         companyName: newLeadCompanyName.trim(),
         createdAt: new Date().toISOString(),
-        status: "Devam Ediyor",
+        status: "In Progress",
         // Deep copy empty 15 steps
         sop_steps: freelanceSOPData.map(s => ({
           step: s.step,
@@ -295,7 +295,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
       setNewLeadCompanyName("");
     } catch (err) {
       console.error("Failed to add new B2B Lead:", err);
-      setAddLeadError("Müşteri adayı eklenirken bir hata oluştu. Lütfen tekrar deneyin.");
+      setAddLeadError("An error occurred while adding the customer prospect. Please try again.");
     } finally {
       setAddingLead(false);
     }
@@ -307,12 +307,12 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
     setDeletingLead(true);
     try {
       await deleteDoc(doc(db, "leads", leadToDelete.id));
-      setDeleteFeedback("Müşteri kaydı başarıyla silindi.");
+      setDeleteFeedback("Customer record deleted successfully.");
       setTimeout(() => setDeleteFeedback(null), 5000);
       setLeadToDelete(null);
     } catch (err) {
       console.error("Failed to delete lead document:", err);
-      setDeleteFeedback("Hata: Aday silinirken bir hata oluştu.");
+      setDeleteFeedback("Error: An error occurred while deleting the prospect.");
       setTimeout(() => setDeleteFeedback(null), 5000);
     } finally {
       setDeletingLead(false);
@@ -374,9 +374,9 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
         (l.country || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         (l.decisionMakerName || "").toLowerCase().includes(searchTerm.toLowerCase());
       
-      const mappedStatus = ["Devam Ediyor", "Olumlu Sonuçlandı", "Olumsuz Sonuçlandı"].includes(l.status)
+      const mappedStatus = ["In Progress", "Successful", "Unsuccessful"].includes(l.status)
         ? l.status
-        : "Olumsuz Sonuçlandı";
+        : "Unsuccessful";
 
       const matchesStatus = statusFilter === "Hepsi" || mappedStatus === statusFilter;
       return matchesSearch && matchesStatus;
@@ -389,15 +389,15 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
       const fallbackLead: ClientLead = {
         id: `fallback_${activeProjId}`,
         projectId: activeProjId,
-        companyName: "Aktif Satış ve Pazarlık Projesi (Tedarik Hattı)",
+        companyName: "Active Sales and Negotiation Project (Supply Line)",
         country: "Türkiye",
-        decisionMakerName: "Saha Koordinatörü",
-        decisionMakerTitle: "Saha Koordinatörü",
+        decisionMakerName: "Field Coordinator",
+        decisionMakerTitle: "Field Coordinator",
         contactInfo: "N/A",
         assignedScouterId: activeUser?.id ?? "",
         lastUpdateDays: 0,
-        demandNotes: "Önceden kurgulanan kurumsal aktif proje bağlamıdır.",
-        status: "Devam Ediyor",
+        demandNotes: "This is a preconfigured active project context for the corporate workflow.",
+        status: "In Progress",
         userId: activeUser?.id ?? "",
         assignedTo: activeUser?.id ?? "",
         score: 100,
@@ -415,7 +415,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
       const matchesSearch = 
         fallbackLead.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         fallbackLead.projectId.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === "Hepsi" || statusFilter === "Devam Ediyor";
+      const matchesStatus = statusFilter === "Hepsi" || statusFilter === "In Progress";
       if (matchesSearch && matchesStatus) {
         actualFiltered.push(fallbackLead);
       }
@@ -484,9 +484,9 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
         <div className="relative max-w-md bg-slate-900/85 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 space-y-6 shadow-2xl">
           <Loader2 className="h-8 w-8 animate-spin text-teal-400 mx-auto" />
           <div className="space-y-2">
-            <h2 className="text-lg font-black text-white font-display">Yükleniyor</h2>
+            <h2 className="text-lg font-black text-white font-display">Loading</h2>
             <p className="text-xs text-slate-400 leading-relaxed font-sans font-mono">
-              Saha portalı ve kullanıcı atamaları sorgulanıyor...
+              Loading the sales partner portal and user assignments...
             </p>
           </div>
         </div>
@@ -505,13 +505,13 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
           <div className="text-center space-y-2 select-none border-b border-slate-800 pb-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/25 text-teal-400 text-xs font-bold font-mono tracking-wider uppercase">
               <ShieldCheck className="h-4 w-4" />
-              PROFİL TAMAMLAMA (ONBOARDING)
+              PROFILE COMPLETION (ONBOARDING)
             </div>
             <h2 className="text-xl md:text-2xl font-black text-white font-display tracking-tight leading-tight">
-              Saha Satış Temsilcisi Kaydı
+              Sales Partner Registration
             </h2>
             <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-              Tedarik hattı platformunu kullanabilmek için lütfen saha satış temsilcisi profil bilgilerinizi eksiksiz tamamlayın.
+              Please complete your sales partner profile information in full to access the sourcing platform.
             </p>
           </div>
 
@@ -524,30 +524,30 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               
-              {/* Firma veya Şahıs Adı */}
+              {/* Company or Individual Name */}
               <div className="space-y-1.5 font-sans">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  Firma veya Şahıs Adı *
+                  Company or Individual Name *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Örn: Wahkr veya Zulqarnain Deen"
+                  placeholder="e.g. Wahkr or Zulqarnain Deen"
                   value={formData.companyName}
                   onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-teal-500 transition"
                 />
               </div>
 
-              {/* İletişim Kurulacak Yetkili */}
+              {/* Authorized Contact */}
               <div className="space-y-1.5 font-sans">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  İletişim Kurulacak Yetkili *
+                  Authorized Contact *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Örn: Zulqarnain Deen"
+                  placeholder="e.g. Zulqarnain Deen"
                   value={formData.contactPerson}
                   onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-teal-500 transition"
@@ -557,21 +557,21 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
               {/* Unvan */}
               <div className="space-y-1.5 font-sans">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  Unvan (Title)
+                  Title
                 </label>
                 <input
                   type="text"
-                  placeholder="Örn: Satış Temsilcisi"
+                  placeholder="e.g. Sales Representative"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-teal-500 transition"
                 />
               </div>
 
-              {/* Ana E-posta (Salt Okunur) */}
+              {/* Primary Email (Read-Only) */}
               <div className="space-y-1.5 font-sans opacity-70">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  Ana E-posta (Salt Okunur)
+                  Primary Email (Read-Only)
                 </label>
                 <input
                   type="email"
@@ -582,57 +582,57 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                 />
               </div>
 
-              {/* İkincil E-posta */}
+              {/* Secondary Email */}
               <div className="space-y-1.5 font-sans">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  İkincil E-posta
+                  Secondary Email
                 </label>
                 <input
                   type="email"
-                  placeholder="Örn: yetkili@ikincil.com"
+                  placeholder="e.g. contact@secondary.com"
                   value={formData.secondaryEmail}
                   onChange={(e) => setFormData({ ...formData, secondaryEmail: e.target.value })}
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-teal-500 transition font-mono"
                 />
               </div>
 
-              {/* İş Telefonu */}
+              {/* Work Phone */}
               <div className="space-y-1.5 font-sans">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  İş Telefonu
+                  Work Phone
                 </label>
                 <input
                   type="text"
-                  placeholder="Örn: +90 212 111 2233"
+                  placeholder="e.g. +90 212 111 2233"
                   value={formData.workPhone}
                   onChange={(e) => setFormData({ ...formData, workPhone: e.target.value })}
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-teal-500 transition font-mono"
                 />
               </div>
 
-              {/* Cep Telefonu */}
+              {/* Mobile Phone */}
               <div className="space-y-1.5 font-sans">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  Cep Telefonu *
+                  Mobile Phone *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Örn: +90 532 111 2233"
+                  placeholder="e.g. +90 532 111 2233"
                   value={formData.cellPhone}
                   onChange={(e) => setFormData({ ...formData, cellPhone: e.target.value })}
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-teal-500 transition font-mono"
                 />
               </div>
 
-              {/* Web Sitesi */}
+              {/* Website */}
               <div className="space-y-1.5 font-sans">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  Web Sitesi
+                  Website
                 </label>
                 <input
                   type="text"
-                  placeholder="Örn: https://wahkr.com"
+                  placeholder="e.g. https://wahkr.com"
                   value={formData.website}
                   onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-teal-500 transition font-mono"
@@ -647,7 +647,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                 onClick={onLogout}
                 className="px-4 py-2 border border-slate-800 hover:border-red-500/30 hover:bg-red-950/10 text-xs font-bold text-slate-400 hover:text-red-400 rounded-xl transition cursor-pointer"
               >
-                Çıkış Yap
+                Log Out
               </button>
               
               <button
@@ -682,16 +682,16 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
             <AlertTriangle className="h-6 w-6" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-lg font-black text-white font-display">Henüz Atanmış Proje Yok</h2>
+            <h2 className="text-lg font-black text-white font-display">No Assigned Project Yet</h2>
             <p className="text-xs text-slate-400 leading-relaxed font-sans">
-              Saha satış portalını görüntüleyebilmek için yöneticiniz tarafından en az bir projeye atanmanız gerekmektedir. Lütfen yöneticinizle iletişime geçin.
+              You need to be assigned to at least one project by your manager to view the sales portal. Please contact your manager.
             </p>
           </div>
           <button
             onClick={onLogout}
             className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-xl transition cursor-pointer text-white border border-slate-700/50"
           >
-            Çıkış Yap
+            Log Out
           </button>
         </div>
       </div>
@@ -712,11 +712,11 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                 <span className="text-teal-400 font-bold">2</span>
                 <span>Turkey</span>
                 <span className="text-[9px] bg-teal-500/10 text-teal-400 font-extrabold px-1.5 py-0.5 rounded font-mono tracking-wider uppercase border border-teal-500/20">
-                  FREE-SATICI
+                  SALES PARTNER
                 </span>
               </h1>
               <p className="text-[9px] font-bold text-slate-500 mt-1 uppercase tracking-widest font-mono">
-                Saha Temsilcisi İzole Paneli
+                Sales Partner Isolated Panel
               </p>
             </div>
           </div>
@@ -733,11 +733,11 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-800 hover:border-red-500/30 hover:bg-red-950/10 text-xs font-bold text-slate-400 hover:text-red-400 transition cursor-pointer"
               >
                 <LogOut className="h-3.5 w-3.5" />
-                <span>Güvenli Çıkış</span>
+                <span>Secure Logout</span>
               </button>
             ) : (
               <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-xs font-bold text-amber-400 font-mono">
-                🔒 DENETİM GÖRÜNÜMÜ
+                🔒 AUDIT VIEW
               </div>
             )}
           </div>
@@ -753,18 +753,18 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
           <div className="space-y-3">
             <span className="bg-teal-500/10 text-teal-400 text-[10px] font-extrabold uppercase font-mono px-3 py-1 rounded-full tracking-wider border border-teal-500/20 flex items-center gap-1.5 w-fit">
               <ShieldCheck className="h-3.5 w-3.5" />
-              Kişisel Saha Satış Portalı
+              Personal Sales Partner Portal
             </span>
             <h2 className="text-2xl md:text-3xl font-black font-display tracking-tight leading-tight">
-              Hoş Geldiniz{getUserDisplayName() ? `, ${getUserDisplayName()}` : ""}
+              Welcome{getUserDisplayName() ? `, ${getUserDisplayName()}` : ""}
             </h2>
             <p className="text-xs md:text-sm text-slate-400 leading-relaxed max-w-3xl">
-              Tedarik hattı için bulduğunuz ithalatçı ve distribütör adaylarını aşağıdan yönetebilirsiniz. Tüm veri tabanı sorgulamalarınız ve kayıtlarınız **tamamen sizin kimliğinizle ({activeUser?.id ?? ""}) izole edilmiştir.** Admin dışındaki kullanıcılar bu verilere erişemez.
+              You can manage the importer and distributor prospects you identify for the sourcing line below. All database queries and records are fully isolated to your identity ({activeUser?.id ?? ""}). Users outside the admin scope cannot access this data.
             </p>
 
             {assignedProjects.length > 1 ? (
               <div className="mt-4 flex items-center gap-2 bg-slate-950/40 p-2 rounded-xl border border-slate-800 w-fit">
-                <span className="text-[10px] font-bold text-slate-455 font-mono pl-1">ÇALIŞTIĞINIZ PROJE:</span>
+                <span className="text-[10px] font-bold text-slate-455 font-mono pl-1">ACTIVE PROJECTCT:</span>
                 <select
                   value={selectedProjectId}
                   onChange={(e) => setSelectedProjectId(e.target.value)}
@@ -777,7 +777,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
               </div>
             ) : (
               <div className="mt-4 text-xs font-bold text-slate-400 font-mono bg-slate-955/40 px-3 py-2 rounded-xl border border-slate-800/80 w-fit">
-                ÇALIŞTIĞINIZ PROJE: {getProjectName(assignedProjects[0] || activeProjId)}
+                ACTIVE PROJECTCT: {getProjectName(assignedProjects[0] || activeProjId)}
               </div>
             )}
           </div>
@@ -793,7 +793,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
               : "border-transparent text-slate-500 hover:text-slate-200"
           }`}
         >
-          📋 Adaylar & Performans
+          📋 Candidates & Performance
         </button>
         <button
           onClick={() => setActiveTab("insights")}
@@ -803,58 +803,58 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
               : "border-transparent text-slate-500 hover:text-slate-200"
           }`}
         >
-          🔍 Pazar Araştırması (Market Insights)
+          🔍 Market Research (Market Insights)
         </button>
       </div>
 
       {activeTab === "leads" ? (
         <>
-          {/* Satış Performans Analitiği (Global KPI Dashboard) */}
+          {/* Sales Performance Analytics (Global KPI Dashboard) */}
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-4">
             <div>
               <h4 className="text-sm font-black text-white uppercase tracking-wider font-mono flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-teal-400" />
-                Satış Performans Analitiği
+                Sales Performance Analytics
               </h4>
               <p className="text-[10px] text-slate-400 mt-1">
-                Tüm müşterilerinizdeki kritik satış ve keşif adımlarının genel performans durumunu izleyin.
+                Monitor the overall performance of critical sales and discovery steps across your pipeline.
               </p>
             </div>
             
             {/* Time Filter Dropdown */}
             <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
-              <span className="text-[10px] font-bold text-slate-500 font-mono">ZAMAN ARALIĞI:</span>
+              <span className="text-[10px] font-bold text-slate-500 font-mono">TIME RANGE:</span>
               <select
                 value={timeRange}
                 onChange={(e) => setTimeRange(e.target.value)}
                 className="bg-transparent text-xs text-teal-400 font-bold focus:outline-none cursor-pointer font-mono"
               >
-                <option value="all" className="bg-slate-900 text-slate-200">Tüm Zamanlar</option>
-                <option value="30" className="bg-slate-900 text-slate-200">Son 30 Gün</option>
-                <option value="60" className="bg-slate-900 text-slate-200">Son 60 Gün</option>
-                <option value="90" className="bg-slate-900 text-slate-200">Son 90 Gün</option>
-                <option value="180" className="bg-slate-900 text-slate-200">Son 180 Gün</option>
-                <option value="365" className="bg-slate-900 text-slate-200">Son 1 Yıl</option>
+                <option value="all" className="bg-slate-900 text-slate-200">All Time</option>
+                <option value="30" className="bg-slate-900 text-slate-200">Last 30 Days</option>
+                <option value="60" className="bg-slate-900 text-slate-200">Last 60 Days</option>
+                <option value="90" className="bg-slate-900 text-slate-200">Last 90 Days</option>
+                <option value="180" className="bg-slate-900 text-slate-200">Last 180 Days</option>
+                <option value="365" className="bg-slate-900 text-slate-200">Last 1 Year</option>
               </select>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* B.3 Potansiyel Müşteri */}
+            {/* B.3 Potansiyel Customer */}
             <div className="bg-slate-955 p-5 rounded-2xl border border-emerald-500/30 text-emerald-400 bg-emerald-950/10 flex flex-col justify-between">
-              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest font-mono">B.3 - POTANSİYEL MÜŞTERİ</span>
+              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest font-mono">B.3 - POTENTIAL CUSTOMER</span>
               <div className="py-4">
                 <span className="text-3xl font-black text-white font-mono tracking-tight">{globalKpis.totalRegisteredLeads}</span>
               </div>
-              <span className="text-[9px] text-slate-500 font-semibold font-mono">(Sisteme Girilen Toplam Müşteri)</span>
+              <span className="text-[9px] text-slate-500 font-semibold font-mono">(Total Customers Added to the System)</span>
             </div>
 
             {/* Breakdown Cards */}
             {[
-              { key: "B.7", title: "Teklif Talebi", color: "border-purple-500/20 text-purple-400 bg-purple-950/10", subtitle: "(Toplanan Teklif Talepleri)" },
-              { key: "B.8", title: "Tanışma Toplantısı", color: "border-yellow-500/20 text-yellow-400 bg-yellow-950/10", subtitle: "(Yapılan Tanışma Toplantıları)" },
-              { key: "B.9", title: "Numune Gönderimi", color: "border-rose-500/20 text-rose-400 bg-rose-950/10", subtitle: "(Gerçekleşen Numune Gönderimleri)" }
+              { key: "B.7", title: "RFQ Request", color: "border-purple-500/20 text-purple-400 bg-purple-950/10", subtitle: "(Collected RFQ Requests)" },
+              { key: "B.8", title: "Intro Meeting", color: "border-yellow-500/20 text-yellow-400 bg-yellow-950/10", subtitle: "(Intro Meetings Conducted)" },
+              { key: "B.9", title: "Sample Dispatch", color: "border-rose-500/20 text-rose-400 bg-rose-950/10", subtitle: "(Sample Shipments Completed)" }
             ].map(item => (
               <div key={item.key} className={`border p-5 rounded-2xl flex flex-col justify-between ${item.color}`}>
                 <span className="text-[10px] font-bold uppercase tracking-widest font-mono">{item.key} - {item.title}</span>
@@ -873,7 +873,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h3 className="text-base font-black text-white uppercase tracking-wider font-mono flex items-center gap-2">
               <Compass className="h-5 w-5 text-teal-400" />
-              Aday İthalatçılar & B2B Fırsatları
+              Prospective Importers & B2B Opportunities
             </h3>
             {!auditMode && (
               <button
@@ -903,7 +903,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
             <input 
               type="text"
-              placeholder="Arama yapın..."
+              placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 pr-4 py-2 w-full border border-slate-800 bg-slate-950 rounded-lg text-xs font-semibold focus:outline-none focus:border-teal-500 text-white"
@@ -915,10 +915,10 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-2 border border-slate-800 bg-slate-950 rounded-lg text-xs font-semibold text-slate-400 focus:outline-none cursor-pointer w-full md:w-auto"
           >
-            <option value="Hepsi">Tüm Durumlar</option>
-            <option value="Devam Ediyor">Devam Ediyor</option>
-            <option value="Olumlu Sonuçlandı">Olumlu Sonuçlandı</option>
-            <option value="Olumsuz Sonuçlandı">Olumsuz Sonuçlandı</option>
+            <option value="Hepsi">All Statuses</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Successful">Successful</option>
+            <option value="Unsuccessful">Unsuccessful</option>
           </select>
         </div>
 
@@ -927,17 +927,17 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
           {loadingLeads ? (
             <div className="p-12 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
-              <span className="text-xs font-mono">Size özel veri tabanı yükleniyor...</span>
+              <span className="text-xs font-mono">Loading your private database...</span>
             </div>
           ) : filteredLeads.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm border-collapse min-w-[900px]">
                 <thead>
                   <tr className="bg-slate-900/80 border-b border-slate-850 text-[10px] text-slate-400 uppercase tracking-widest font-mono">
-                    <th className="p-4">MÜŞTERİ FİRMA ADI</th>
-                    <th className="p-4">PROJE</th>
-                    <th className="p-4">DURUM</th>
-                    <th className="p-4 text-center">Eylemler</th>
+                    <th className="p-4">CLIENT COMPANY</th>
+                    <th className="p-4">PROJECT</th>
+                    <th className="p-4">STATUS</th>
+                    <th className="p-4 text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-850">
@@ -959,23 +959,23 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                           </td>
                           <td className="p-4" onClick={(e) => e.stopPropagation()}>
                             {(() => {
-                              const currentStatus = ["Devam Ediyor", "Olumlu Sonuçlandı", "Olumsuz Sonuçlandı"].includes(lead.status) 
+                              const currentStatus = ["In Progress", "Successful", "Unsuccessful"].includes(lead.status) 
                                 ? lead.status 
-                                : "Olumsuz Sonuçlandı";
+                                : "Unsuccessful";
                               return (
                                 <select
                                   disabled={auditMode || lead.id.startsWith("fallback_")}
                                   value={currentStatus}
                                   onChange={(e) => handleUpdateStatus(lead.id, e.target.value as any)}
                                   className={`text-[10px] font-black px-2.5 py-1.5 rounded-full font-mono uppercase tracking-wider border cursor-pointer focus:outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
-                                    currentStatus === "Olumlu Sonuçlandı" ? "bg-emerald-950/20 text-emerald-400 border-emerald-500/30" :
-                                    currentStatus === "Devam Ediyor" ? "bg-blue-950/20 text-blue-400 border-blue-500/30" :
+                                    currentStatus === "Successful" ? "bg-emerald-950/20 text-emerald-400 border-emerald-500/30" :
+                                    currentStatus === "In Progress" ? "bg-blue-950/20 text-blue-400 border-blue-500/30" :
                                     "bg-red-950/20 text-red-400 border-red-500/30"
                                   }`}
                                 >
-                                  <option value="Devam Ediyor" className="bg-slate-900 text-slate-200">Devam Ediyor</option>
-                                  <option value="Olumlu Sonuçlandı" className="bg-slate-900 text-slate-200">Olumlu Sonuçlandı</option>
-                                  <option value="Olumsuz Sonuçlandı" className="bg-slate-900 text-slate-200">Olumsuz Sonuçlandı</option>
+                                  <option value="In Progress" className="bg-slate-900 text-slate-200">In Progress</option>
+                                  <option value="Successful" className="bg-slate-900 text-slate-200">Successful</option>
+                                  <option value="Unsuccessful" className="bg-slate-900 text-slate-200">Unsuccessful</option>
                                 </select>
                               );
                             })()}
@@ -987,7 +987,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                                 className="text-xs font-bold text-slate-400 hover:text-white transition flex items-center gap-1 cursor-pointer"
                               >
                                 {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                <span>Detaylar</span>
+                                <span>Details</span>
                               </button>
                               
                               {!auditMode && (
@@ -995,10 +995,10 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                                   disabled={lead.id.startsWith("fallback_")}
                                   onClick={() => setLeadToDelete(lead)}
                                   className="text-xs font-bold text-red-500 hover:text-red-400 disabled:opacity-30 disabled:hover:text-red-500 transition flex items-center gap-1 cursor-pointer font-mono"
-                                  title="Adayı Sil"
+                                  title="Delete"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
-                                  <span>Sil</span>
+                                  <span>Delete</span>
                                 </button>
                               )}
                             </div>
@@ -1011,7 +1011,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                             <td colSpan={4} className="p-6 border-b border-slate-850">
                               <div className="space-y-4">
                                 
-                                 {/* Müşteri KPI Özeti */}
+                                 {/* Client KPI Summary */}
                                 {(() => {
                                   const criticalSteps = ["B.3", "B.7", "B.8", "B.9", "B.14"];
                                   const completedCriticalCount = (lead.sop_steps || [])
@@ -1023,10 +1023,10 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                                     <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-3">
                                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                                         <span className="text-xs font-black text-slate-200 uppercase tracking-wider font-mono">
-                                          📊 Müşteri KPI Özeti (Kritik Aşamalar)
+                                          📊 Client KPI Summary (Critical Stages)
                                         </span>
                                         <span className="text-xs font-bold text-teal-400 font-mono">
-                                          Kritik Başarı Adımları: {completedCriticalCount} / {criticalSteps.length} (%{progressPercent})
+                                          Critical Success Steps: {completedCriticalCount} / {criticalSteps.length} (%{progressPercent})
                                         </span>
                                       </div>
                                       
@@ -1052,7 +1052,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                                                   : "bg-slate-950 text-slate-500 border-slate-850"
                                               }`}
                                             >
-                                              {stepKey}: {stepObj?.task || "Kritik Görev"} {isDone ? "✓" : "○"}
+                                              {stepKey}: {stepObj?.task || "Critical Task"} {isDone ? "✓" : "○"}
                                             </span>
                                           );
                                         })}
@@ -1063,13 +1063,13 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
 
                                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900/60 border border-slate-850 p-4 rounded-xl">
                                   <span className="bg-teal-500/10 text-teal-400 text-[10px] font-extrabold px-3 py-1.5 rounded-lg border border-teal-500/20 uppercase tracking-wider font-mono">
-                                    {getProjectName(lead.projectId)} - Satış ve Keşif Aşamaları ({freelanceSOPData.length} Adım)
+                                    {getProjectName(lead.projectId)} - Sales and Discovery Stages ({freelanceSOPData.length} Steps)
                                   </span>
                                   <div className="relative w-full sm:w-64">
                                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                                     <input
                                       type="text"
-                                      placeholder="Satış aşamalarını arayın..."
+                                      placeholder="Search sales stages..."
                                       value={sopSearchTerm}
                                       onChange={(e) => setSopSearchTerm(e.target.value)}
                                       className="pl-9 pr-4 py-2 w-full border border-slate-800 bg-slate-955 rounded-lg text-xs font-semibold focus:outline-none focus:border-teal-500 text-white"
@@ -1082,13 +1082,13 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                                     <table className="w-full text-left text-sm border-collapse min-w-[900px]">
                                       <thead>
                                         <tr className="bg-slate-900/80 border-b border-slate-850 text-[10px] text-slate-400 uppercase tracking-widest font-mono">
-                                          <th className="p-4 w-24">Aşama</th>
-                                          <th className="p-4 w-[28%]">Görev Faaliyeti</th>
-                                          <th className="p-4">Sorumlu</th>
-                                          <th className="p-4">KPI / Standart Metrik</th>
+                                          <th className="p-4 w-24">Stage</th>
+                                          <th className="p-4 w-[28%]">Task Activity</th>
+                                          <th className="p-4">Owner</th>
+                                          <th className="p-4">KPI / Standard Metric</th>
                                           <th className="p-4">Durum</th>
-                                          <th className="p-4">Kanıt Depolama</th>
-                                          <th className="p-4 text-center">Etkileşimli Alan</th>
+                                          <th className="p-4">Evidence Storage</th>
+                                          <th className="p-4 text-center">Interactive Area</th>
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y divide-slate-850 text-xs">
@@ -1150,7 +1150,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                                                   >
                                                     <td className="p-4 font-mono font-bold">
                                                       <span className={`text-[11px] tracking-tight border px-2.5 py-1 rounded ${colors.badge}`}>
-                                                        Aşama {displayStep}
+                                                        Stage {displayStep}
                                                       </span>
                                                     </td>
                                                     <td className="p-4">
@@ -1168,11 +1168,11 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                                                             </span>
                                                           )}
                                                         </div>
-                                                        <div className="text-[10px] text-slate-500 font-mono mt-0.5">Bölüm B: Satış ve Müşteri Keşfi</div>
+                                                        <div className="text-[10px] text-slate-500 font-mono mt-0.5">Section B: Sales and Customer Discovery</div>
                                                       </div>
                                                     </td>
                                                     <td className="p-4 text-slate-300 font-semibold">
-                                                      Freelance Satıcı
+                                                      Sales Partner
                                                     </td>
                                                     <td className="p-4 text-slate-400 max-w-[240px] leading-relaxed">
                                                       {templateStep.kpi}
@@ -1189,10 +1189,10 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                                                           "bg-slate-950 text-slate-500 border-slate-850"
                                                         }`}
                                                       >
-                                                        <option value="Pending" className="bg-slate-955 text-slate-350">Başlanmadı</option>
-                                                        <option value="In Progress" className="bg-slate-955 text-slate-350">Devam Ediyor</option>
-                                                        <option value="Completed" className="bg-slate-955 text-slate-355">Tamamlandı</option>
-                                                        <option value="Rejected" className="bg-slate-955 text-slate-355">Tamamlanmadı</option>
+                                                        <option value="Pending" className="bg-slate-955 text-slate-350">Not Started</option>
+                                                        <option value="In Progress" className="bg-slate-955 text-slate-350">In Progress</option>
+                                                        <option value="Completed" className="bg-slate-955 text-slate-355">Completed</option>
+                                                        <option value="Rejected" className="bg-slate-955 text-slate-355">Not Completed</option>
                                                       </select>
                                                     </td>
                                                     <td className="p-4">
@@ -1209,7 +1209,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                                                         className="text-xs font-bold text-slate-400 hover:text-white transition flex items-center justify-center gap-1 mx-auto"
                                                       >
                                                         {isStepExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                                        <span>Çözücüyü Aç</span>
+                                                        <span>Open Details</span>
                                                       </button>
                                                     </td>
                                                   </tr>
@@ -1221,69 +1221,69 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                                                         {(() => {
                                                           const guideMapping: { [key: string]: { aim: string; todo: string; file: string } } = {
                                                             "B.1": {
-                                                              aim: "Komisyon haklarını koruma altına almak.",
-                                                              todo: "İki tarafın haklarını koruyan NCNDA (Non-Circumvention Non-Disclosure Agreement) sözleşmesini alıcı ve fabrikaya imzalatın.",
-                                                              file: "Taraflarca imzalanmış NCNDA Sözleşmesi (PDF)"
+                                                              aim: "Protect commission rights.",
+                                                              todo: "Have both parties sign the NCNDA (Non-Circumvention Non-Disclosure Agreement) that safeguards both sides' rights.",
+                                                              file: "Signed NCNDA Agreement (PDF)"
                                                             },
                                                             "B.2": {
-                                                              aim: "Tedarikçinin yetkinliklerini alıcıya sunacak şekilde hazırlamak.",
-                                                              todo: "Üretici fabrikanın üretim kapasitesi, sertifikaları ve kataloglarını içeren tanıtım dosyasını derleyip aktarın.",
-                                                              file: "Fabrika Tanıtım Sunumu ve Kataloglar (PDF/ZIP)"
+                                                              aim: "Prepare the supplier's capabilities for buyer presentation.",
+                                                              todo: "Compile and transfer the manufacturer's production capacity, certifications, and catalog information into a presentation file.",
+                                                              file: "Factory Presentation and Catalogs (PDF/ZIP)"
                                                             },
                                                             "B.3": {
-                                                              aim: "Hedef pazardaki potansiyel müşteriyi sisteme tanımlamak.",
-                                                              todo: "Satın alma yapabilecek ithalatçı veya distribütör adayı firmayı sisteme yeni aday (Lead) olarak kaydedin.",
-                                                              file: "Aday Firma Kartı ve Web Sitesi Detayları"
+                                                              aim: "Define the target market prospect in the system.",
+                                                              todo: "Register a viable importer or distributor prospect as a new lead in the system.",
+                                                              file: "Prospect Card and Website Details"
                                                             },
                                                             "B.4": {
-                                                              aim: "Ticari sırları ve ürün detaylarını güvenceye almak.",
-                                                              todo: "Ürün spesifikasyonları paylaşılmadan önce alıcı firma ile karşılıklı Gizlilik Sözleşmesi'ni (NDA) imzalayıp sisteme ekleyin.",
-                                                              file: "Alıcı tarafından İmzalanmış Gizlilik Sözleşmesi (NDA) (PDF)"
+                                                              aim: "Protect trade secrets and product details.",
+                                                              todo: "Before sharing product specifications, sign a mutual NDA with the buyer and upload it to the system.",
+                                                              file: "Buyer-Signed Confidentiality Agreement (NDA) (PDF)"
                                                             },
                                                             "B.5": {
-                                                              aim: "Alıcı ile ilk teması başlatmak ve ilgi uyandırmak.",
-                                                              todo: "Alıcı firmanın satın alma müdürüne gönderdiğiniz ilk tanıtım yazısını, e-postayı veya LinkedIn görüşmesini belgeleyin.",
-                                                              file: "Gönderilen Tanıtım E-postası Ekran Görüntüsü veya Görüşme Notları"
+                                                              aim: "Start the first contact and create interest.",
+                                                              todo: "Document the first outreach message, email, or LinkedIn conversation sent to the buyer's procurement manager.",
+                                                              file: "Sent Intro Email Screenshot or Meeting Notes"
                                                             },
                                                             "B.7": {
-                                                              aim: "Alıcıdan resmi fiyat talebi toplamak.",
-                                                              todo: "Alıcı firmanın talep ettiği ürünler için gönderdiği resmi Teklif Talebi (RFQ) belgesini sisteme yükleyin.",
-                                                              file: "Resmi RFQ Belgesi veya Fiyat Talebini İçeren E-posta Görseli"
+                                                              aim: "Collect an official price request from the buyer.",
+                                                              todo: "Upload the official RFQ request document sent by the buyer for the requested products.",
+                                                              file: "Official RFQ Document or Quote Request Email Screenshot"
                                                             },
                                                             "B.8": {
-                                                              aim: "Alıcı ve tedarikçiyi ilk tanışma toplantısında buluşturmak.",
-                                                              todo: "Alıcı ve fabrika yetkilileri arasında Zoom/Teams üzerinden tanışma ve ilk teknik detay toplantısını organize edin ve tutanak tutun.",
-                                                              file: "Toplantı Ekran Görüntüsü ve Görüşme Karar Tutanakları (PDF)"
+                                                              aim: "Bring the buyer and supplier together at the first meeting.",
+                                                              todo: "Organize and document the first Zoom/Teams introduction and technical meeting between buyer and manufacturer.",
+                                                              file: "Meeting Screenshot and Discussion Minutes (PDF)"
                                                             },
                                                             "B.9": {
-                                                              aim: "Alıcının ürünü test etmesini sağlamak.",
-                                                              todo: "Fabrika tarafından üretilen veya hazırlanan numuneleri alıcı adrese kargolayın ve gönderim kanıtını ekleyin.",
-                                                              file: "Kargo Gönderi Takip Fişi veya Numune Teslim Teslim Tutanakları"
+                                                              aim: "Let the buyer test the product.",
+                                                              todo: "Ship the sample products to the buyer and upload shipping proof to the system.",
+                                                              file: "Courier Tracking Slip or Sample Delivery Acknowledgment"
                                                             },
                                                             "B.10": {
-                                                              aim: "Numune sonuçlarına göre gerekli iyileştirmeleri yapmak.",
-                                                              todo: "Alıcının numuneyi inceledikten sonra sunduğu geri bildirim raporunu ve varsa revizyon isteklerini sisteme aktarın.",
-                                                              file: "Müşteri Numune Değerlendirme Raporu veya Revizyon Talep Yazışması"
+                                                              aim: "Implement improvements based on sample feedback.",
+                                                              todo: "Upload the buyer's sample feedback report and any revision requests to the system.",
+                                                              file: "Customer Sample Evaluation Report or Revision Request"
                                                             },
                                                             "B.11": {
-                                                              aim: "Nihai ürün ambalaj ve etiket tasarımlarını onaylatmak.",
-                                                              todo: "Ürünün etiket tasarımı, kutu ölçüleri, koli içi adetleri ve paletleme şeması gibi paketleme detaylarını netleştirin.",
-                                                              file: "Müşteri Onaylı Ambalaj ve Etiket Tasarım Şablonları (PDF/Görsel)"
+                                                              aim: "Approve final packaging and label design.",
+                                                              todo: "Clarify labeling, box dimensions, unit counts, and palletization details before finalizing packaging.",
+                                                              file: "Buyer-Approved Packaging and Label Templates (PDF/Visual)"
                                                             },
                                                             "B.12": {
-                                                              aim: "Tüm lojistik ve ek maliyetler dahil nihai birim fiyatı belirlemek.",
-                                                              todo: "Fabrikanın sunduğu nihai fiyat teklif tablosunu (maliyet kırılımlarıyla birlikte) oluşturup klasöre ekleyin.",
-                                                              file: "Nihai Fiyat Teklif Tablosu / Cost Sheet (PDF/Excel)"
+                                                              aim: "Set the final unit price including logistics and added costs.",
+                                                              todo: "Create and upload the manufacturer's final price offer table with cost breakdowns.",
+                                                              file: "Final Price Offer / Cost Sheet (PDF/Excel)"
                                                             },
                                                             "B.13": {
-                                                              aim: "Sipariş öncesi son lojistik ve idari detaylarda mutabakat sağlamak.",
-                                                              todo: "Teslim süresi, gümrükleme, yükleme tarihi ve ödeme vadelerinin son kez konuşulduğu sipariş öncesi toplantıyı gerçekleştirin.",
-                                                              file: "Sipariş Öncesi Uyum Toplantısı Karar Defteri/Tutanak Çıktısı"
+                                                              aim: "Reach final agreement on pre-order logistics and administrative details.",
+                                                              todo: "Hold the final pre-order meeting covering delivery timing, customs, loading dates, and payment terms.",
+                                                              file: "Pre-Order Alignment Meeting Minutes / Decision Record"
                                                             },
                                                             "B.14": {
-                                                              aim: "Satışı resmi olarak kapatıp siparişi başlatmak.",
-                                                              todo: "Alıcıdan gelen resmi imzalı Satın Alma Siparişi (PO) ve üreticinin düzenlediği Proforma Faturayı (PI) sisteme yükleyerek süreci tamamlayın.",
-                                                              file: "İmzalı Satın Alma Siparişi (PO) ve Proforma Fatura (PI) (PDF)"
+                                                              aim: "Formally close the sale and launch the order.",
+                                                              todo: "Upload the buyer's signed Purchase Order (PO) and the manufacturer's Proforma Invoice (PI) to complete the process.",
+                                                              file: "Signed Purchase Order (PO) and Proforma Invoice (PI) (PDF)"
                                                             }
                                                           };
 
@@ -1294,24 +1294,24 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                                                             <div className="bg-slate-900/60 border border-teal-500/20 p-4.5 rounded-2xl space-y-2.5 text-xs">
                                                               <div className="flex items-center gap-2">
                                                                 <span className="text-[10px] bg-teal-500/10 text-teal-400 font-extrabold px-2 py-0.5 rounded border border-teal-500/20 font-mono uppercase tracking-wider">
-                                                                  💡 AŞAMA KILAVUZU
+                                                                  💡 STAGE GUIDE
                                                                 </span>
                                                                 <span className="font-bold text-slate-200">
-                                                                  {displayStep}: {templateStep.task} nasıl tamamlanır?
+                                                                  {displayStep}: {templateStep.task} completion guide
                                                                 </span>
                                                               </div>
                                                               
                                                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1 font-sans text-slate-350 text-[11px] leading-relaxed">
                                                                 <div className="space-y-1">
-                                                                  <span className="block text-[9px] font-black uppercase text-slate-500 font-mono tracking-wider">Aşama Amacı</span>
+                                                                  <span className="block text-[9px] font-black uppercase text-slate-500 font-mono tracking-wider">Stage Purpose</span>
                                                                   <p>{guide.aim}</p>
                                                                 </div>
                                                                 <div className="space-y-1">
-                                                                  <span className="block text-[9px] font-black uppercase text-slate-500 font-mono tracking-wider">Yapılması Gerekenler</span>
+                                                                  <span className="block text-[9px] font-black uppercase text-slate-500 font-mono tracking-wider">Required Actions</span>
                                                                   <p>{guide.todo}</p>
                                                                 </div>
                                                                 <div className="space-y-1">
-                                                                  <span className="block text-[9px] font-black uppercase text-slate-500 font-mono tracking-wider">Kanıt Dosyası</span>
+                                                                  <span className="block text-[9px] font-black uppercase text-slate-500 font-mono tracking-wider">Evidence File</span>
                                                                   <p className="text-teal-400 font-mono">{guide.file}</p>
                                                                 </div>
                                                               </div>
@@ -1350,7 +1350,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
             <div className="p-12 text-center text-slate-500">
               <AlertOctagon className="h-8 w-8 mx-auto mb-2 text-slate-700" />
               <p className="text-xs font-semibold">
-                {activeProjId ? "Kayıtlı aday bulunamadı." : "Proje bulunamadı."}
+                {activeProjId ? "No registered candidates found." : "Project not found."}
               </p>
             </div>
           )}
@@ -1364,8 +1364,8 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
 
       {/* FOOTER */}
       <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-600 font-mono">
-        <div>Trade2Turkey Co-op Ltd. • Serbest Satıcı Çalışma Alanı</div>
-        <div className="text-[10px] text-slate-755 mt-1">Katı veri izolasyon kuralı `freelancerEmail == {activeUser?.email ?? ""}` devrededir.</div>
+        <div>Trade2Turkey Co-op Ltd. • Sales Partner Workspace</div>
+        <div className="text-[10px] text-slate-755 mt-1">Strict data isolation rule `freelancerEmail == {activeUser?.email ?? ""}` is active.</div>
       </footer>
 
       {/* ADD LEAD MODAL */}
@@ -1377,7 +1377,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
             <div className="flex justify-between items-start border-b border-slate-800 pb-4">
               <div>
                 <h3 className="text-base font-black text-white font-display">
-                  Yeni Aday İthalatçı Ekle
+                  Add New Prospective Importer
                 </h3>
                 <p className="text-[10px] text-slate-500 mt-1 font-mono uppercase">
                   {getProjectName(activeProjId)}
@@ -1401,12 +1401,12 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
             <form onSubmit={handleCreateLead} className="space-y-4">
               <div className="space-y-1.5 font-sans">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  Firma Adı / İthalatçı Adı *
+                  Importer / Company Name *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Örn: Tesco UK"
+                  placeholder="e.g. Tesco UK"
                   value={newLeadCompanyName}
                   onChange={(e) => setNewLeadCompanyName(e.target.value)}
                   className="w-full px-3.5 py-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-teal-500 transition"
@@ -1420,7 +1420,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                   onClick={() => setShowAddLeadModal(false)}
                   className="px-4 py-2 border border-slate-800 hover:bg-slate-800 text-xs font-bold text-slate-400 rounded-xl transition cursor-pointer"
                 >
-                  Vazgeç
+                  Cancel
                 </button>
                 
                 <button
@@ -1428,7 +1428,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                   disabled={addingLead || !newLeadCompanyName.trim()}
                   className="px-6 py-2.5 bg-teal-500 hover:bg-teal-600 disabled:opacity-50 text-slate-950 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-2 font-mono"
                 >
-                  {addingLead ? "Kaydediliyor..." : "Kaydet ve Başlat"}
+                  {addingLead ? "Kaydediliyor..." : "Save and Start"}
                 </button>
               </div>
             </form>
@@ -1448,7 +1448,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
               </div>
               <div>
                 <h3 className="text-base font-black text-white font-display">
-                  Adayı Silmeyi Onayla
+                  Confirm Deletion
                 </h3>
                 <p className="text-[10px] text-slate-500 font-mono uppercase mt-0.5">
                   {leadToDelete.companyName}
@@ -1458,7 +1458,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
 
             {/* Modal Body */}
             <div className="text-xs text-slate-300 leading-relaxed font-sans">
-              Bu aday ithalatçıyı ve ona ait 15 adımlık tüm iş akışı (SOP) verilerini kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+              Are you sure you want to permanently delete this importer prospect and all associated 15-step workflow (SOP) data? This action cannot be undone.
             </div>
 
             {/* Modal Footer */}
@@ -1469,7 +1469,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                 onClick={() => setLeadToDelete(null)}
                 className="px-4 py-2 border border-slate-800 hover:bg-slate-800 text-xs font-bold text-slate-400 rounded-xl transition cursor-pointer"
               >
-                İptal
+                Cancel
               </button>
               
               <button
@@ -1478,7 +1478,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                 onClick={handleConfirmDelete}
                 className="px-6 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-2 font-mono"
               >
-                {deletingLead ? "Siliniyor..." : "Evet, Sil"}
+                {deletingLead ? "Deleteiniyor..." : "Evet, Delete"}
               </button>
             </div>
           </div>
