@@ -1,0 +1,21 @@
+{
+  "entities": {
+    "placeholder": {
+      "title": "Placeholder",
+      "description": "Placeholder schema to satisfy Firebase Integration initialization",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": ["id"]
+    }
+  },
+  "firestore": {
+    "placeholders/{placeholderId}": {
+      "schema": "placeholder",
+      "description": "A placeholder collection to satisfy integration specifications"
+    }
+  }
+}

@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (Auth UID)
+    // Fields:
+    //   - id: string (required, size < 100)
+    //   - email: string (required, size < 100, email pattern)
+    //   - companyName: string (required, size < 100)
+    //   - role: string (required, 'client' or 'owner')
+    //   - projectId: string (required, size < 50)
+    //   - driveFolderName: string (required, size < 200)
+    //
+    // Collection: [sopSteps, targetSpecs, rfqs, valueChain, rfqMatrix, recipes, shipments, inventory, fulfillmentOrders, driveFiles]
+    // Document ID: projectId + "_" + resourceId
+    // Fields:
+    //   - projectId: string (required, scopes the B2B context)
+    //   - other fields (strongly typed, checked for logical sizes)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Fetch profile data of the currently logged-in user
+    function getMyProfile() {
+      return get(/
+      allow update: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidShipment(request.resource.data);
+      allow delete: if isSystemOwner();
+    }
+
+    // 10. Inventory Items Collection
+    match /inventory/{inventoryDocId} {
+      allow read: if isAuthenticated() && isAssignedToProject(resource.data.projectId);
+      allow create: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidInventory(request.resource.data);
+      allow update: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidInventory(request.resource.data);
+      allow delete: if isSystemOwner();
+    }
+
+    // 11. Fulfillment Orders Collection
+    match /fulfillmentOrders/{orderDocId} {
+      allow read: if isAuthenticated() && isAssignedToProject(resource.data.projectId);
+      allow create: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidOrder(request.resource.data);
+      allow update: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidOrder(request.resource.data);
+      allow delete: if isSystemOwner();
+    }
+
+    // 12. Drive Files Collection
+    match /driveFiles/{fileDocId} {
+      allow read: if isAuthenticated() && isAssignedToProject(resource.data.projectId);
+      allow create: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidDriveFile(request.resource.data);
+      allow update: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidDriveFile(request.resource.data);
+      allow delete: if isSystemOwner() || (isAuthenticated() && isAssignedToProject(resource.data.projectId)); // allow deleting drive files for same project
+    }
+  }
+}
