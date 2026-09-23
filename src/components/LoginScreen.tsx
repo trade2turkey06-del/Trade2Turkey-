@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { UserTenant, PRESET_CREDENTIALS, INITIAL_TENANTS } from "../data/usersData";
-import { ShieldCheck, Lock, Mail, ChevronRight, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Lock, Mail, ChevronRight, Eye, EyeOff, Loader2 } from "lucide-react";
 import BrandLogo from "./BrandLogo";
 import { auth, db } from "../lib/firebase";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { doc, getDoc, setDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc, collection, getDocs, query, where } from "firebase/firestore";
 
 interface LoginScreenProps {
   onLoginSuccess: (user: UserTenant) => void;
@@ -16,82 +16,11 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [signUpName, setSignUpName] = useState("");
-
-  const handleSignUpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!signUpName.trim() || !email.trim() || !password) {
-      setErrorMessage("Lütfen tüm alanları doldurun.");
-      return;
-    }
-
-    setErrorMessage(null);
-    setLoading(true);
-
-    const lowerEmail = email.trim().toLowerCase();
-
-    try {
-      // 1. Check if the email exists in the users collection with pending_auth status
-      const userInviteQuery = query(collection(db, "users"), where("email", "==", lowerEmail));
-      const userInviteSnap = await getDocs(userInviteQuery);
-
-      if (userInviteSnap.empty) {
-        setErrorMessage("Bu e-posta adresi davet edilmemiş. Lütfen yöneticinizden davet isteyin.");
-        setLoading(false);
-        return;
-      }
-
-      const inviteDoc = userInviteSnap.docs[0];
-      const inviteData = inviteDoc.data() as UserTenant;
-      if (inviteData.status !== "pending_auth") {
-        setErrorMessage("Bu e-posta adresi zaten kayıtlı veya aktif durumda.");
-        setLoading(false);
-        return;
-      }
-
-      // 2. Register in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, lowerEmail, password);
-      await updateProfile(userCredential.user, { displayName: signUpName.trim() });
-
-      // 3. Update/Merge the user's invite document in users collection
-      const updatedProfile: Partial<UserTenant> = {
-        uid: userCredential.user.uid,
-        id: userCredential.user.uid,
-        name: signUpName.trim(),
-        displayName: signUpName.trim(),
-        onboardingCompleted: false,
-        status: "pending_auth" // stays pending_auth until they fill in onboarding form
-      };
-      await setDoc(inviteDoc.ref, updatedProfile, { merge: true });
-
-      const finalProfile: UserTenant = {
-        ...inviteData,
-        ...updatedProfile
-      } as UserTenant;
-
-      setLoading(false);
-      onLoginSuccess(finalProfile);
-    } catch (signUpError: any) {
-      console.error("Freelancer Sign-up failed:", signUpError);
-      setLoading(false);
-      let msg = "Kayıt işlemi başarısız oldu. Lütfen tekrar deneyin.";
-      if (signUpError.code === "auth/email-already-in-use") {
-        msg = "Bu e-posta adresi zaten kullanımda.";
-      } else if (signUpError.code === "auth/weak-password") {
-        msg = "Şifre en az 6 karakter olmalıdır.";
-      } else if (signUpError.message) {
-        msg = signUpError.message;
-      }
-      setErrorMessage(msg);
-    }
-  };
-
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      setErrorMessage("Lütfen hem e-posta hem de şifre girin.");
+      setErrorMessage("Please enter both your email and password.");
       return;
     }
 
@@ -162,15 +91,15 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       console.error("Firebase Auth sign-in failed:", signInError);
       setLoading(false);
       
-      let friendlyMessage = "Kimlik doğrulama başarısız oldu. Lütfen bilgilerinizi kontrol edin.";
+      let friendlyMessage = "Authentication failed. Please check your credentials.";
       if (
         signInError.code === "auth/invalid-credential" || 
         signInError.code === "auth/wrong-password" || 
         signInError.code === "auth/user-not-found"
       ) {
-        friendlyMessage = "Geçersiz e-posta veya şifre. Lütfen tekrar deneyin.";
+        friendlyMessage = "Invalid email or password. Please try again.";
       } else if (signInError.code === "auth/invalid-email") {
-        friendlyMessage = "Lütfen geçerli bir e-posta adresi girin.";
+        friendlyMessage = "Please enter a valid email address.";
       } else if (signInError.message) {
         friendlyMessage = signInError.message;
       }
@@ -181,45 +110,15 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
   return (
     <div id="login-layout-wrapper" className="min-h-screen bg-neutral-950 flex items-center justify-center p-4 selection:bg-navy selection:text-white relative overflow-hidden">
-      {/* Background radial soft light blobs of Navy Ink */}
       <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-navy/20 blur-[130px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-navy/15 blur-[130px] pointer-events-none" />
 
       <div id="login-card-container" className="relative w-full max-w-lg bg-neutral-900/80 backdrop-blur-xl rounded-3xl border border-neutral-800 p-8 shadow-2xl space-y-8">
-        
-        {/* Brand Logotype & Vector Custom Globe */}
         <div className="text-center space-y-3 pb-2 select-none">
           <BrandLogo size="lg" layout="full" theme="dark" />
           <p className="text-xs italic text-neutral-400 max-w-sm mx-auto font-sans leading-relaxed">
-            "Verinin üretim gerçeğiyle buluştuğu yer."
+            "Where data meets production reality."
           </p>
-        </div>
-
-        <div className="flex border-b border-neutral-800">
-          <button
-            type="button"
-            onClick={() => {
-              setIsSignUp(false);
-              setErrorMessage(null);
-            }}
-            className={`flex-1 pb-3 text-sm font-semibold text-center border-b-2 transition ${
-              !isSignUp ? "border-navy text-white font-bold" : "border-transparent text-neutral-500 hover:text-neutral-300"
-            }`}
-          >
-            Giriş Yap
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setIsSignUp(true);
-              setErrorMessage(null);
-            }}
-            className={`flex-1 pb-3 text-sm font-semibold text-center border-b-2 transition ${
-              isSignUp ? "border-navy text-white font-bold" : "border-transparent text-neutral-500 hover:text-neutral-300"
-            }`}
-          >
-            Kayıt Ol (Freelancer)
-          </button>
         </div>
 
         {errorMessage && (
@@ -228,27 +127,9 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           </div>
         )}
 
-        <form onSubmit={isSignUp ? handleSignUpSubmit : handleLoginSubmit} className="space-y-4">
-          
-          {isSignUp && (
-            <div className="space-y-1.5 font-sans animate-fadeIn">
-              <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider font-mono">Ad Soyad *</label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500 font-bold text-xs select-none">✎</span>
-                <input
-                  type="text"
-                  required
-                  placeholder="Test Satıcı"
-                  value={signUpName}
-                  onChange={(e) => setSignUpName(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-neutral-950 border border-neutral-800 rounded-xl text-sm text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-navy focus:ring-1 focus:ring-navy/30 transition font-sans"
-                />
-              </div>
-            </div>
-          )}
-
+        <form onSubmit={handleLoginSubmit} className="space-y-4">
           <div className="space-y-1.5 font-sans">
-            <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider font-mono">Kurumsal E-posta Adresi</label>
+            <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider font-mono">Business email</label>
             <div className="relative">
               <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
               <input
@@ -264,7 +145,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           </div>
 
           <div className="space-y-1.5 font-sans">
-            <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider font-mono">Güvenli Erişim Şifresi</label>
+            <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider font-mono">Secure access password</label>
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
               <input
@@ -295,18 +176,15 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           >
             {loading ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin text-white" /> {isSignUp ? "Hesap Oluşturuluyor..." : "Güvenli Çalışma Alanı Yükleniyor..."}
+                <Loader2 className="h-4 w-4 animate-spin text-white" /> Loading secure workspace...
               </>
             ) : (
               <>
-                {isSignUp ? "Kaydı Tamamla" : "Kurumsal Kimliği Doğrula"} <ChevronRight className="h-4 w-4" />
+                Verify corporate identity <ChevronRight className="h-4 w-4" />
               </>
             )}
           </button>
         </form>
-
-
-
       </div>
     </div>
   );
