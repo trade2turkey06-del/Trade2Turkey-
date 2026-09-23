@@ -200,7 +200,7 @@ export default function BrandLogo({
             <span className={theme === "dark" || theme === "light" && navbarThemeStyle(theme) === "dark" ? "text-white" : "text-slate-900"}>Turkey</span>
           </h1>
           <p className="text-[9px] font-bold text-slate-450 mt-1 uppercase tracking-widest font-mono">
-            Digital Workflows
+            DIGITAL AND TRANSPARENT SOURCING
           </p>
         </div>
       </div>
@@ -224,7 +224,7 @@ export default function BrandLogo({
         </h2>
         
         <p className={`${dims.sub} font-semibold ${theme === "dark" ? "text-slate-300" : "text-slate-700"} uppercase tracking-wider font-sans`}>
-          Digital Workflows, Disciplined Sourcing
+          DIGITAL AND TRANSPARENT SOURCING
         </p>
         
         <p className="text-xs font-black tracking-[0.25em] text-cyan-600 font-sans uppercase">
