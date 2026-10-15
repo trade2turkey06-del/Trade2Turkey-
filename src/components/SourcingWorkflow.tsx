@@ -1,6 +1,18 @@
 import { ClipboardList, Clock, CornerUpLeft, FileText, ShieldCheck } from "lucide-react";
 import { sourcingWorkflow } from "../data/sourcingWorkflow";
 import { INITIAL_SOP_STEPS } from "../types";
+import { useEffect, useRef, useState } from "react";
+import { collection, doc, onSnapshot, query, serverTimestamp, setDoc, where } from "firebase/firestore";
+import { db } from "../lib/firebase";
+
+const statuses = {
+  not_started: { label: "Başlanmadı", style: "bg-slate-100 text-slate-600" },
+  in_progress: { label: "Devam ediyor", style: "bg-blue-50 text-blue-700" },
+  incomplete: { label: "Tamamlanmadı", style: "bg-amber-50 text-amber-800" },
+  completed: { label: "Tamamlandı", style: "bg-emerald-50 text-emerald-700" },
+} as const;
+type WorkflowStatus = keyof typeof statuses;
+const isStatus = (value: unknown): value is WorkflowStatus => typeof value === "string" && Object.hasOwn(statuses, value);
 
 const roles: Record<string, string> = {
   "General Manager": "Genel Müdür",
@@ -8,7 +20,51 @@ const roles: Record<string, string> = {
   "Sourcing Manager": "Tedarik Yöneticisi",
 };
 
-export default function SourcingWorkflow() {
+export default function SourcingWorkflow({ projectId }: { projectId: string }) {
+  const [stepStatuses, setStepStatuses] = useState<Record<string, WorkflowStatus>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<string[]>([]);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    mounted.current = true;
+    const unsubscribe = onSnapshot(query(collection(db, "sopSteps"), where("projectId", "==", projectId)), snapshot => {
+      const next: Record<string, WorkflowStatus> = {};
+      snapshot.docs.forEach(item => {
+        const data = item.data();
+        if (data.workflow === "sourcing" && isStatus(data.workflowStatus)) next[data.stepId] = data.workflowStatus;
+      });
+      setStepStatuses(next);
+      setLoading(false);
+      setError("");
+    }, () => {
+      setLoading(false);
+      setError("İş akışı durumları yüklenemedi. Bağlantınızı ve erişim yetkinizi kontrol edin.");
+    });
+    return () => { mounted.current = false; unsubscribe(); };
+  }, [projectId]);
+
+  const updateStatus = async (step: typeof sourcingWorkflow[number], value: WorkflowStatus) => {
+    setSaving(previous => [...previous, step.id]);
+    setNotice("");
+    try {
+      await setDoc(doc(db, "sopSteps", `${projectId}_sourcing-${step.id}`), {
+        id: `sourcing-${step.id}`, projectId, workflow: "sourcing", stepId: step.id,
+        section: "A", subsection: step.id.startsWith("A.A.") ? "Keşif ve Fizibilite" : "Teklif, Kalite ve Uyumluluk",
+        task: step.task.trim(), requester: step.requester, taskOwner: step.owner,
+        kpiMetric: step.metric.trim(), kpiTimeDays: step.days,
+        status: value === "completed" ? "Completed" : value === "in_progress" ? "In Progress" : "Pending",
+        workflowStatus: value, updatedAt: serverTimestamp(),
+      }, { merge: true });
+      if (mounted.current) setNotice(`${step.id}: ${statuses[value].label} kaydedildi.`);
+    } catch {
+      if (mounted.current) setNotice(`${step.id} kaydedilemedi. Bağlantınızı ve erişim yetkinizi kontrol edip yeniden deneyin.`);
+    } finally {
+      if (mounted.current) setSaving(previous => previous.filter(id => id !== step.id));
+    }
+  };
   return (
     <section aria-labelledby="sourcing-workflow-title" className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-100 bg-slate-50 p-6">
@@ -19,8 +75,11 @@ export default function SourcingWorkflow() {
         <p className="mt-2 text-sm text-slate-600">Proje başlangıcından ticari sözleşmeye kadar SOP adımları, sorumlular ve gerekli çıktılar.</p>
         <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
           <span className="rounded-full bg-indigo-100 px-3 py-1 text-indigo-700">21 adım</span>
-          <span className="rounded-full bg-white px-3 py-1 text-slate-600">SOP süreç şablonu</span>
+          <span className="rounded-full bg-white px-3 py-1 text-slate-600">{loading ? "Durumlar yükleniyor…" : `${Object.values(stepStatuses).filter(value => value === "completed").length} / 21 tamamlandı`}</span>
         </div>
+        <p className="mt-3 text-xs text-slate-500">Durumlar seçili proje için kaydedilir. Henüz güncellenmeyen adımlar başlanmadı olarak görünür.</p>
+        {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
+        <p role="status" aria-live="polite" className="mt-2 text-sm text-slate-600">{notice}</p>
       </div>
       <div className="space-y-8 p-4 sm:p-6">
         {[
@@ -35,6 +94,20 @@ export default function SourcingWorkflow() {
                 const translated = INITIAL_SOP_STEPS.find(item => item.id === step.id);
                 return (
                   <li key={step.id}>
+                    <div className="mb-2 flex items-center justify-end gap-2">
+                      <label htmlFor={`status-${step.id}`} className="text-xs text-slate-500">Durum</label>
+                      <select
+                        id={`status-${step.id}`}
+                        aria-label={`${step.id} ${translated?.task || step.task} durumu`}
+                        value={stepStatuses[step.id] || "not_started"}
+                        disabled={loading || !!error || saving.includes(step.id)}
+                        onChange={event => { if (isStatus(event.target.value)) void updateStatus(step, event.target.value); }}
+                        className={`max-w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 ${statuses[stepStatuses[step.id] || "not_started"].style}`}
+                      >
+                        {Object.entries(statuses).map(([value, status]) => <option key={value} value={value}>{status.label}</option>)}
+                      </select>
+                      {saving.includes(step.id) && <span className="text-xs text-slate-500">Kaydediliyor…</span>}
+                    </div>
                     <details className="group rounded-2xl border border-slate-200 open:border-indigo-200">
                       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 rounded-2xl p-4 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 [&::-webkit-details-marker]:hidden">
                         <span className="rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-bold text-indigo-700">{step.id}</span>

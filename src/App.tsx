@@ -914,8 +914,8 @@ export default function App() {
 
           {/* SOURCING FLOW (SECTION A) TAB VIEW */}
           {currentTab === "sourcing" && (
-            <div className="space-y-6">
-              {currentUser.role === "admin" && <SourcingWorkflow />}
+            <div key={activeProjectId} className="space-y-6">
+              {currentUser.role === "admin" && <SourcingWorkflow projectId={activeProjectId} />}
               <ProjectDocumentVault currentProjectId={activeProjectId} />
             </div>
           )}
