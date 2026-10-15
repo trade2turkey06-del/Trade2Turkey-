@@ -7,6 +7,7 @@ import React, { useState, useEffect } from "react";
 import Navbar from "./components/Navbar";
 import MinorSheets from "./components/MinorSheets";
 import ProjectDocumentVault from "./components/ProjectDocumentVault";
+import SourcingWorkflow from "./components/SourcingWorkflow";
 import LogisticsSOP from "./components/LogisticsSOP";
 import ClientDiscovery from "./components/ClientDiscovery";
 import ReportGenerator from "./components/ReportGenerator";
@@ -913,7 +914,10 @@ export default function App() {
 
           {/* SOURCING FLOW (SECTION A) TAB VIEW */}
           {currentTab === "sourcing" && (
-            <ProjectDocumentVault currentProjectId={activeProjectId} />
+            <div className="space-y-6">
+              {currentUser.role === "admin" && <SourcingWorkflow />}
+              <ProjectDocumentVault currentProjectId={activeProjectId} />
+            </div>
           )}
 
           {/* STRATEGIC COORDINATION & LOGISTICS (SECTION B) */}
