@@ -387,7 +387,7 @@ export default function App() {
   const allCurrentTenantsList = customUsers;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans antialiased">
+    <div className="workspace-app min-h-screen bg-slate-50 flex flex-col font-sans antialiased">
       
       {/* Dynamic Navigation bar header */}
       <Navbar 
@@ -410,7 +410,7 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
         {/* Trade2Turkey Welcome Hero Billboard Jumbotron */}
-        <div className="bg-gradient-to-r from-navy via-navy-light to-black rounded-3xl p-6 md:p-8 text-white shadow-xl shadow-navy/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+        <div className="workspace-hero bg-navy rounded-3xl p-6 md:p-8 text-white shadow-xl shadow-navy/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
           {/* Subtle geometric lines */}
           <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-white/5 skew-x-12 transform origin-top-right pointer-events-none" />
           
@@ -421,12 +421,12 @@ export default function App() {
             </span>
             <h2 className="text-2xl md:text-3xl font-black font-display tracking-tight leading-tight">
               {currentUser.role === "admin" 
-                ? "Tedarik Hattı Denetçi Komuta Paneli" 
+                ? "Tedarikten teslimata, her adım kontrolünüzde."
                 : `${currentUser.companyName} Belge Kasası`}
             </h2>
             <p className="text-xs md:text-sm text-slate-300 leading-relaxed font-normal">
               {currentUser.role === "admin"
-                ? "Kurumsal tedarik hatlarını izleyin, belirli Google Drive klasör senkronizasyonlarını gözden geçirin, özel çalışma alanları ekleyin ve Türk fabrikalarını veri odaklı operasyonel hassasiyetle değerlendirin."
+                ? "Projelerinizi yönetin, tedarikçileri değerlendirin ve operasyonlarınızı tek bir çalışma alanından takip edin."
                 : `İzole edilmiş güvenli portalınıza hoş geldiniz. Şu Proje Kimliğine atanan özel Google Drive klasörlerine, sevkiyat takip haritalarına ve şeffaf bileşen maliyet sayfalarına erişiyorsunuz: ${activeProjectId}`}
             </p>
           </div>

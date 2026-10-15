@@ -33,3 +33,51 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { margin: 0; -webkit-font-smoothing: antialiased; }
+  button, input, select, textarea { font: inherit; }
+  button, summary, select { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  :focus-visible { outline: 3px solid #0d9488; outline-offset: 3px; }
+  input, select, textarea { accent-color: #0f766e; }
+  h2, h3 { letter-spacing: -.025em; }
+}
+
+.workspace-app { background: #f3f6f9; }
+.workspace-app main { max-width: 1440px; }
+.workspace-hero { background: radial-gradient(ellipse at 95% 0%, #24566b 0%, transparent 60%), #142c4a; border: 1px solid #284661; box-shadow: 0 12px 32px #142c4a12; }
+.workspace-app main :where(section.bg-white, div.bg-white.rounded-2xl, div.bg-white.rounded-3xl) { border-color: #e1e8ef; box-shadow: 0 3px 16px #172c4805; }
+.workspace-app main :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { border-color: #dce4ec; border-radius: 9px; min-height: 38px; line-height: 1.5; }
+.workspace-app main :where(input, select, textarea):focus { border-color: #0d9488; box-shadow: 0 0 0 3px #0d948815; outline: none; }
+.workspace-app main table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.workspace-app main th { background: #f6f8fb; color: #52647a; font-weight: 600; text-align: left; }
+.workspace-app main :where(th, td) { padding: 14px 16px; border-bottom: 1px solid #e8edf3; }
+.workspace-app main tbody tr:hover { background: #f8fbfc; }
+.workspace-app main details { border-color: #e1e8ef; }
+.workspace-app main summary { line-height: 1.6; }
+.workspace-app main :where(.bg-indigo-700) { background-color: #1b3058; }
+.workspace-app main :where(.text-indigo-700, .text-indigo-800) { color: #1b3058; }
+.workspace-app main :where(.bg-indigo-50) { background-color: #eef4f8; }
+.workspace-app main :where(button) { transition: background-color .18s, color .18s, box-shadow .18s; }
+.workspace-app main :where(button.bg-navy:hover, button.bg-indigo-700:hover) { background-color: #28447b; }
+.login-story::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 90% 40%, #247c8540, transparent 65%), linear-gradient(145deg, #142c4a, #0e2037); }
+.login-story::after { content: ""; position: absolute; width: 650px; height: 650px; border: 1px solid #ffffff0a; border-radius: 50%; top: 18%; left: 35%; box-shadow: 0 0 0 80px #ffffff03, 0 0 0 160px #ffffff02; pointer-events: none; }
+.login-page input { min-height: 52px; }
+.login-page #login-submit-btn { min-height: 52px; font-size: 14px; }
+.login-page label { letter-spacing: .025em; text-transform: none; font-weight: 600; }
+@media (max-width: 639px) {
+  .workspace-app main { padding-top: 20px; }
+  .workspace-hero { border-radius: 20px; }
+  .workspace-app main :where(th, td) { padding: 10px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+@media print {
+  .workspace-header, .workspace-app > footer { display: none; }
+  .workspace-app { background: white; }
+  .workspace-app main { max-width: none; padding: 0; }
+}
