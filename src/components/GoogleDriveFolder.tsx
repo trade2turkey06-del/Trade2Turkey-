@@ -1,13 +1,15 @@
+import { safeHttps } from "../domain/operations";
+import { apiFetch } from "../lib/api";
 import React, { useState, useEffect, useRef } from "react";
-import { 
-  FileText, Folder, RefreshCw, Upload, ShieldCheck, ShieldAlert, 
+import {
+  FileText, Folder, RefreshCw, Upload, ShieldCheck, ShieldAlert,
   Trash2, Download, CheckCircle, Database, ChevronRight, HelpCircle,
   Link2, Unlink
 } from "lucide-react";
 import { parseCSVToDriveFiles, DriveFile, DRIVE_MAPPING_CSV_RAW, PROJECT_NAMES } from "../data/driveData";
 import { subscribeDriveAuth, setDriveAuth } from "../lib/driveAuth";
 import { db, auth } from "../lib/firebase";
-import { onSnapshot, collection, query, where, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { onSnapshot, collection, query, where, doc, setDoc, deleteDoc, getDocs } from "firebase/firestore";
 
 interface GoogleDriveFolderProps {
   stepId: string;
@@ -38,7 +40,7 @@ export default function GoogleDriveFolder({
   const [customFileName, setCustomFileName] = useState("");
   const [customFileType, setCustomFileType] = useState<DriveFile["fileType"]>("PDF");
   const [isSimulatingUpload, setIsSimulatingUpload] = useState(false);
-  
+
   // Real Drive uploads states
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -62,7 +64,7 @@ export default function GoogleDriveFolder({
   // Trigger Google OAuth dynamic login popup
   const handleConnectGoogle = async () => {
     try {
-      const response = await fetch("/api/auth/google-url");
+      const response = await apiFetch("/api/auth/google-url");
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         throw new Error(errData.error || "Failed to fetch Google auth url");
@@ -106,7 +108,7 @@ export default function GoogleDriveFolder({
     formData.append("stepId", stepId);
 
     try {
-      const response = await fetch("/api/drive/upload", {
+      const response = await apiFetch("/api/drive/upload", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${authState.accessToken}`
@@ -147,12 +149,12 @@ export default function GoogleDriveFolder({
       };
 
       // Persist in custom drive files list
-      const docId = `${currentProjectId}_${stepId}_${result.fileName.replace(/\s+/g, "_")}`;
+      const docId = `${currentProjectId}_${stepId}_${result.fileId}`;
       await setDoc(doc(db, "driveFiles", docId), newFile);
 
       // Update tracker status to completed
       if (onStatusChange) {
-        onStatusChange(stepId, "Completed");
+        onStatusChange(stepId, "In Progress");
       }
 
       if (onFileUploadedNotify) {
@@ -176,7 +178,8 @@ export default function GoogleDriveFolder({
       q = query(
         collection(db, "driveFiles"),
         where("stepId", "==", stepId),
-        where("assignedTo", "==", auth.currentUser.uid)
+        where("assignedTo", "==", auth.currentUser.uid),
+        where("projectId", "==", currentProjectId)
       );
     } else {
       q = query(
@@ -187,21 +190,7 @@ export default function GoogleDriveFolder({
     }
 
     const unsub = onSnapshot(q, (snapshot) => {
-      if (snapshot.empty && !clientMode && !stepId.startsWith("freelance_step_")) {
-        // Parse from CSV if no data in database for this step
-        const parsed = parseCSVToDriveFiles(DRIVE_MAPPING_CSV_RAW);
-        const stepParsed = parsed.filter(f => f.stepId === stepId && f.projectId === currentProjectId);
-        if (stepParsed.length > 0) {
-          stepParsed.forEach(async (f) => {
-            const docId = `${currentProjectId}_${stepId}_${f.fileName.replace(/\s+/g, "_")}`;
-            await setDoc(doc(db, "driveFiles", docId), f);
-          });
-        } else {
-          setFiles([]);
-        }
-      } else {
-        setFiles(snapshot.docs.map(doc => doc.data() as DriveFile));
-      }
+      setFiles(snapshot.docs.map(doc => ({...doc.data(),documentId:doc.id} as DriveFile)));
     }, (err) => {
       console.error("Firestore driveFiles snapshot error:", err);
     });
@@ -209,11 +198,14 @@ export default function GoogleDriveFolder({
   }, [currentProjectId, stepId]);
 
   // Sync Google Drive simulator action
-  const handleSyncDrive = () => {
-    setIsSyncing(true);
-    setTimeout(() => {
-      setIsSyncing(false);
-    }, 1200);
+  const handleSyncDrive = async () => {
+    setIsSyncing(true); setUploadError(null);
+    try {
+      const conditions = [where("projectId", "==", currentProjectId), where("stepId", "==", stepId)];
+      if (stepId.startsWith("freelance_step_")) conditions.push(where("assignedTo", "==", auth.currentUser?.uid || ""));
+      const snapshot = await getDocs(query(collection(db,"driveFiles"),...conditions));
+      setFiles(snapshot.docs.map(item=>({...item.data(),documentId:item.id} as DriveFile)));
+    } catch { setUploadError("Belge listesi yenilenemedi."); } finally { setIsSyncing(false); }
   };
 
   // Filter files by folder location AND B2B Project security permissions
@@ -235,55 +227,15 @@ export default function GoogleDriveFolder({
   });
 
   // Apply search query if defined
-  const displayedFiles = clientSecuredFiles.filter(f => 
+  const displayedFiles = clientSecuredFiles.filter(f =>
     f.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     f.fileType.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // File Upload Handlers (Simulate secure upload directly to Google Drive folder API endpoint)
-  const handleAddFile = (fileName: string, type: DriveFile["fileType"]) => {
-    if (!fileName.trim()) return;
-    
-    setIsSimulatingUpload(true);
-    
-    setTimeout(() => {
-      // Clean up the name
-      const formattedName = fileName.includes(".") 
-        ? fileName 
-        : `${fileName}.${type === "PDF" ? "pdf" : type === "RFQ Sheet" ? "xlsx" : type === "Photoshoot Proof" ? "jpg" : "pdf"}`;
-
-      const newFile: DriveFile = {
-        stepId: stepId,
-        folderName: storageLocation || "Ortak Klasör Çalışma Alanı",
-        projectId: currentProjectId || "PROJE-UNLU MAMÜLLER",
-        fileName: formattedName,
-        fileType: type,
-        downloadUrl: "#",
-        fileSize: `${(Math.random() * 3 + 0.5).toFixed(1)} MB`,
-        dateAdded: new Date().toISOString().split("T")[0],
-        assignedTo: auth.currentUser?.uid || "",
-        userId: auth.currentUser?.uid || ""
-      };
-
-      // Persist in Firestore
-      const docId = `${currentProjectId}_${stepId}_${formattedName.replace(/\s+/g, "_")}`;
-      setDoc(doc(db, "driveFiles", docId), newFile).then(() => {
-        setIsSimulatingUpload(false);
-        setCustomFileName("");
-
-        // Trigger automatic status update to COMPLETED (Rule 4)
-        if (onStatusChange) {
-          onStatusChange(stepId, "Completed");
-        }
-
-        if (onFileUploadedNotify) {
-          onFileUploadedNotify(formattedName);
-        }
-      }).catch(err => {
-        console.error("Firestore upload failed:", err);
-        setIsSimulatingUpload(false);
-      });
-    }, 1000);
+  const handleAddFile = (..._unused: unknown[]) => {
+    setUploadError("Yalnızca gerçek dosya yüklenebilir. Dosya seçme düğmesini kullanın.");
+    fileInputRef.current?.click();
   };
 
   // Drag and Drop simulation/real upload
@@ -307,8 +259,8 @@ export default function GoogleDriveFolder({
       if (authState.accessToken) {
         handlePhysicalFileUpload(droppedFile);
       } else {
-        const detectedType: DriveFile["fileType"] = droppedFile.name.endsWith(".xls") || droppedFile.name.endsWith(".xlsx") 
-          ? "RFQ Sheet" 
+        const detectedType: DriveFile["fileType"] = droppedFile.name.endsWith(".xls") || droppedFile.name.endsWith(".xlsx")
+          ? "RFQ Sheet"
           : droppedFile.name.endsWith(".png") || droppedFile.name.endsWith(".jpg") || droppedFile.name.endsWith(".jpeg")
             ? "Photoshoot Proof"
             : "PDF";
@@ -319,7 +271,7 @@ export default function GoogleDriveFolder({
 
   const handleDeleteFile = async (fileName: string) => {
     try {
-      const docId = `${currentProjectId}_${stepId}_${fileName.replace(/\s+/g, "_")}`;
+      const docId = files.find(file=>file.fileName===fileName)?.documentId || `${currentProjectId}_${stepId}_${fileName.replace(/\s+/g, "_")}`;
       await deleteDoc(doc(db, "driveFiles", docId));
     } catch (e) {
       console.error("Failed to delete file from Firestore:", e);
@@ -335,11 +287,11 @@ export default function GoogleDriveFolder({
   return (
     <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden shadow-sm mt-3 animate-fadeIn">
       {/* Hidden native input for physical folder mapping uploads */}
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleFileChange} 
-        className="hidden" 
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
       />
 
       {/* Dynamic API Bar */}
@@ -351,18 +303,18 @@ export default function GoogleDriveFolder({
           </span>
           <span className="text-slate-700 hidden sm:inline">|</span>
           <span className="text-slate-400 text-[10px] hidden sm:inline font-mono">
-            {authState.accessToken ? `Bağlı Kullanıcı: ${authState.email}` : "Vite İstemci Gösterim Modu"}
+            {authState.accessToken ? `Bağlı Kullanıcı: ${authState.email}` : "Google Drive bağlı değil"}
           </span>
         </div>
-        
+
         <div className="flex items-center gap-2 justify-between sm:justify-end">
           {authState.accessToken ? (
             <div className="flex items-center gap-2">
               {authState.picture && (
-                <img 
-                  src={authState.picture} 
-                  className="h-5 w-5 rounded-full border border-slate-700" 
-                  alt="user avatar" 
+                <img
+                  src={authState.picture}
+                  className="h-5 w-5 rounded-full border border-slate-700"
+                  alt="user avatar"
                   referrerPolicy="no-referrer"
                 />
               )}
@@ -421,8 +373,8 @@ export default function GoogleDriveFolder({
           <div className="text-right">
             <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${authState.accessToken ? "bg-emerald-50 border border-emerald-100 text-emerald-700" : "bg-navy/10 border border-navy/20 text-navy"}`}>
               <ShieldCheck className="h-3 w-3" />
-              {authState.accessToken 
-                ? "Fiziksel Google Eşitlendi" 
+              {authState.accessToken
+                ? "Google Drive bağlantısı açık"
                 : clientMode ? "Müşteri Korumalı Alanı" : "Çevrimdışı Korumalı Alan"}
             </span>
           </div>
@@ -434,7 +386,7 @@ export default function GoogleDriveFolder({
             <ShieldCheck className="h-4 w-4 text-teal-600 shrink-0 mt-0.5" />
             <div>
               <span className="font-bold">Sınırlı Müşteri Görünüm Yetkisi: </span>
-              Endüstriyel tasarım sırlarını ve rakip fiyatlandırma stratejilerini korumak amacıyla, şu proje kimliğine kilitlendiniz: <strong className="font-mono">{currentProjectId}</strong>. Bu klasör; müşteriyi ilgilendiren uyumluluk kontrollerini, ATR gümrük geçişlerini, fotoğraf çekimi kanıt belgelerini ve sertifikalı günlükleri 256-bit şifreleme altında izole eder. İşlem yapılabilir yüklemeler ve silme parametreleri kilitlidir.
+              Seçili projenin belgelerini görüntülüyorsunuz: <strong>{currentProjectId}</strong>. Bu alanda yükleme ve silme kapalıdır.
             </div>
           </div>
         )}
@@ -444,8 +396,9 @@ export default function GoogleDriveFolder({
           <div className="mb-4 bg-amber-50/70 border border-amber-100 rounded-xl p-3.5 text-xs text-amber-800 flex gap-2">
             <ShieldAlert className="h-4.5 w-4.5 text-amber-600 shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <span className="font-bold">Şu Anda Yerel Gösterim Modundasınız: </span>
-              Dosyalar geçici olarak özel yerel önbelleklere kaydedilir. Eğer yukarıdaki <strong className="text-slate-900">"Gerçek Google Drive'ı Bağla"</strong> düğmesini kullanarak gerçek Google hesabınızı bağlarsanız, yüklemeler <code className="bg-amber-100 font-mono px-1 rounded text-[10px] font-bold">Trade2Turkey Logistics/{getProjectName(currentProjectId)}/{stepId}</code> altında <strong>gerçek Drive'ınızda fiziksel olarak özel klasör yapıları oluşturacak</strong> ve uçtan uca B2B bütünlüğü için gerçek dosyaları aktaracaktır!
+              <span className="font-bold">Google Drive bağlantısı gerekli. </span>
+              Belge listesi veritabanından görüntülenir. Gerçek dosya yüklemek için Google Drive hesabınızı bağlayın. Dosya yüklemeden belge kaydı oluşturulmaz.
+
             </div>
           </div>
         )}
@@ -466,7 +419,7 @@ export default function GoogleDriveFolder({
           {displayedFiles.length > 0 ? (
             <div className="bg-white border border-slate-150 rounded-xl divide-y divide-slate-100 overflow-hidden">
               {displayedFiles.map(file => (
-                <div 
+                <div
                   key={file.fileName}
                   className="flex items-center justify-between p-3.5 hover:bg-slate-50/50 transition text-xs"
                 >
@@ -503,8 +456,8 @@ export default function GoogleDriveFolder({
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => {
-                        if (file.downloadUrl && file.downloadUrl !== "#") {
-                          window.open(file.downloadUrl, "_blank");
+                        if (safeHttps(file.downloadUrl)) {
+                          window.open(file.downloadUrl, "_blank", "noopener,noreferrer");
                         } else {
                           alert(`"${file.fileName}" adlı örnek belge doğrudan güvenli yerel sunucudan indiriliyor.`);
                         }
@@ -549,7 +502,7 @@ export default function GoogleDriveFolder({
             </h5>
 
             {/* Simulated / Real Drag & Drop Zone */}
-            <div 
+            <div
               onDragEnter={handleDrag}
               onDragOver={handleDrag}
               onDragLeave={handleDrag}
@@ -574,60 +527,14 @@ export default function GoogleDriveFolder({
               )}
             </div>
 
-            {/* Simulating concrete input to add custom file name easily */}
-            <div className="bg-white p-3 border border-slate-200 rounded-xl flex flex-col sm:flex-row gap-2 items-center">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
-                <input
-                  type="text"
-                  placeholder="e.g. OekoTexLabReceipt_ComfortPro.pdf"
-                  value={customFileName}
-                  onChange={(e) => setCustomFileName(e.target.value)}
-                  className="p-2 border rounded-lg text-xs font-medium placeholder-slate-400 select-none"
-                />
-
-                <select
-                  value={customFileType}
-                  onChange={(e) => setCustomFileType(e.target.value as any)}
-                  className="p-2 border rounded-lg text-xs bg-white text-slate-700 font-semibold cursor-pointer"
-                >
-                  <option value="PDF">PDF Raporu / Dosyası</option>
-                  <option value="RFQ Sheet">RFQ Maliyetlendirme Tablosu</option>
-                  <option value="Certificate">Uyumluluk Sertifikası</option>
-                  <option value="Photoshoot Proof">Fotoğraf Çekimi Kanıtı JPG</option>
-                </select>
-
-                <button
-                  onClick={() => {
-                    if (authState.accessToken) {
-                      fileInputRef.current?.click();
-                    } else {
-                      handleAddFile(customFileName || "CustomDocumentsSync", customFileType);
-                    }
-                  }}
-                  id="btn-upload-file-simulation"
-                  disabled={isSimulatingUpload || isUploading}
-                  className="bg-navy hover:bg-navy-light text-white font-bold text-xs p-2 rounded-lg transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
-                >
-                  {isSimulatingUpload || isUploading ? (
-                    <>
-                      <RefreshCw className="h-3 w-3 animate-spin" />
-                      Yükleniyor...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-3.5 w-3.5" />
-                      {authState.accessToken ? "Fiziksel Belge Yükle" : "Sandbox Belgesi Ekle"}
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
+            <button type="button" disabled={isUploading} onClick={() => authState.accessToken ? fileInputRef.current?.click() : void handleConnectGoogle()} className="rounded-lg bg-navy px-4 py-2 text-sm text-white">{isUploading ? "Yükleniyor…" : authState.accessToken ? "Gerçek belge yükle" : "Belge yüklemek için Drive'a bağlan"}</button>
 
             {/* Real-time automated instruction */}
             <div className="bg-slate-100 border rounded-lg p-2.5 mt-2.5 text-[10px] text-slate-500 font-mono leading-relaxed flex items-start gap-1.5">
               <CheckCircle className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
               <span>
-                <strong>OTOMATİK EYLEM EL SIKIŞMASI:</strong> Bu konsol üzerinden yüklenen herhangi bir dosya, otomatik olarak şu sütuna eşlenir: <strong className="text-slate-700">"{storageLocation}"</strong> SOP veritabanı takipçisinde. Bu, görev durumunu anında <strong className="text-emerald-700 font-bold uppercase select-none">"Completed" (Tamamlandı)</strong> olarak ayarlayarak hem mobil hem de masaüstü müşteri panolarında gerçek zamanlı olarak senkronize edilmiş güncellemeleri tetikler.
+                Dosyalar seçili proje ve adımla ilişkilendirilir. Belge yüklemek görevi otomatik tamamlamaz; tamamlanma ve onay ayrı kaydedilir. Yeni yüklemeler herkese açık paylaşılmaz.
+
               </span>
             </div>
           </div>

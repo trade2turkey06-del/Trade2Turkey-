@@ -1,0 +1,9 @@
+{
+  "score": 4,
+  "summary": "Anonim erişim ve kullanıcı kaynaklı rol yükseltme kapatıldı; proje sınırları ve onay ayrımı yerel emülatörde test edildi. Yönetici rolü veri bakımında güvenilen yetkidir. Bu değerlendirme bağımsız sızma testi değildir.",
+  "findings": [
+    { "check": "Legacy data validation", "severity": "minor", "issue": "Eski kayıt biçimlerini koruyan koleksiyonlarda yönetici yazıları için alan şeması esnektir; bu alanlara müşteri/freelancer yazamaz.", "recommendation": "Eski veriler gerçek bilgilerle doğrulandıkça yeni ürün/sipariş modeline kontrollü aktarılmalı." },
+    { "check": "Existing Drive permissions", "severity": "moderate", "issue": "Yeni dosyalar herkese açık paylaşılmaz; geçmiş dosyaların Drive tarafındaki mevcut izinleri bu kod değişikliğiyle geri alınmaz.", "recommendation": "Dosya sahibinin Drive hesabında eski paylaşım izinleri gözden geçirilmeli." },
+    { "check": "Existing credentials", "severity": "moderate", "issue": "Kaynakta örnek şifreler kaldırılmıştır; mevcut hesapların parolaları kullanıcı adına değiştirilmemiştir.", "recommendation": "Eski örnek şifre kullanan kullanıcılar şifre belirleme ekranından yenilemeli." }
+  ]
+}

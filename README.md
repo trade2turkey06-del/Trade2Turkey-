@@ -14,6 +14,10 @@ https://ai.studio/apps/dc5b1b9e-d9cc-4460-9a0c-a0260ae0cfa7
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. Firebase istemci ayarları `firebase-applet-config.json` içindedir. Google Drive bağlantısı için `.env.example` dosyasındaki OAuth alanlarını `.env` veya sunucu ortamında tanımlayın. Yapay zekâ API çağrıları ek ücret oluşmaması için kapalıdır; Gemini anahtarı gerekmez.
 3. Run the app:
    `npm run dev`
+
+Operasyon akışı, erişim, yedekleme ve test adımları: [Operasyon rehberi](docs/OPERATIONS.md).
+
+Gönderim öncesi `npm run check` çalıştırın. Yerel otomatik gönderim denetimi için `git config core.hooksPath .githooks` kullanın. Gerçek veriden ayrı test ortamı `firebase.test.json` ile tanımlıdır.

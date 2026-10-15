@@ -1,3 +1,5 @@
+import { inviteUser } from "../lib/userInvites";
+import { apiFetch } from "../lib/api";
 import React, { useState, useEffect, useMemo } from "react";
 import { 
   Compass, Users, Search, AlertTriangle, Plus, CheckCircle, 
@@ -146,7 +148,7 @@ const DEFAULT_LEADS: ClientLead[] = [
 
 export default function ClientDiscovery({ currentProjectId, currentUser, projects }: ClientDiscoveryProps) {
   // Load scouters dynamically from Firestore (fallback to DEFAULT_SCOUTERS)
-  const [scouters, setScouters] = useState<Scouter[]>(DEFAULT_SCOUTERS);
+  const [scouters, setScouters] = useState<Scouter[]>([]);
 
   const [leads, setLeads] = useState<ClientLead[]>([]);
   const [loadingLeads, setLoadingLeads] = useState(true);
@@ -161,26 +163,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
     setLoadingLeads(true);
     const q = query(collection(db, "leads"));
     const unsubscribe = onSnapshot(q, async (snapshot) => {
-      if (snapshot.empty) {
-        console.log("Seeding leads database...");
-        try {
-          for (const lead of DEFAULT_LEADS) {
-            await setDoc(doc(db, "leads", lead.id), {
-              ...lead,
-              assignedTo: "owner_admin",
-              userId: "owner_admin"
-            });
-          }
-        } catch (err) {
-          console.error("Failed to seed default leads in Firestore:", err);
-        }
-      } else {
-        const fetched: ClientLead[] = [];
-        snapshot.forEach(doc => {
-          fetched.push(doc.data() as ClientLead);
-        });
-        setLeads(fetched);
-      }
+      setLeads(snapshot.docs.map(item => ({ ...item.data(), id: item.id } as ClientLead)));
       setLoadingLeads(false);
     }, (error) => {
       console.error("Firestore leads sync error:", error);
@@ -219,36 +202,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
           rawStatus: u.status
         });
       });
-      if (fetched.length > 0) {
-        setScouters(fetched);
-      } else {
-        // Seed default scouter inside users collection
-        const defaultScouter = {
-          id: "freelancer_scouter",
-          name: "Zulqarnain Deen",
-          displayName: "Zulqarnain Deen",
-          email: "freelancer@trade2turkey.com",
-          status: "active",
-          role: "freelancer",
-          assignedProjects: ["PROJE-UNLU MAMÜLLER"],
-          region: "Küresel (Test Ağı)",
-          companyName: "Wahkr"
-        };
-        setDoc(doc(db, "users", defaultScouter.id), defaultScouter);
-        fetched.push({
-          id: defaultScouter.id,
-          name: defaultScouter.name,
-          region: defaultScouter.region,
-          activeLeadsCount: 0,
-          lastActivityDays: 0,
-          status: "Aktif",
-          email: defaultScouter.email,
-          onboardingCompleted: true,
-          assignedProjects: defaultScouter.assignedProjects,
-          rawStatus: "active"
-        });
-        setScouters(fetched);
-      }
+      setScouters(fetched);
     }, (error) => {
       console.error("Firestore users sync error:", error);
     });
@@ -273,28 +227,18 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
     }
     const emailKey = inviteEmail.trim().toLowerCase();
     try {
-      const docRef = doc(db, "users", emailKey);
-      await setDoc(docRef, {
-        id: emailKey,
-        name: inviteName.trim(),
-        displayName: inviteName.trim(),
-        email: emailKey,
-        status: "pending_auth",
-        role: "freelancer",
-        assignedProjects: inviteProjectId ? [inviteProjectId] : [],
-        createdAt: new Date().toISOString()
-      });
+      const inviteResult = await inviteUser({ email: emailKey, companyName: inviteName, projectId: inviteProjectId || currentProjectId, role: "freelancer" });
       setInviteName("");
       setInviteEmail("");
       setInviteProjectId("");
-      setInviteFeedback("Scouter başarıyla davet edildi! Kayıt bekleniyor.");
+      setInviteFeedback(inviteResult);
       setTimeout(() => {
         setInviteFeedback(null);
         setShowInviteModal(false);
       }, 2000);
     } catch (err) {
       console.error("Failed to invite scouter:", err);
-      setInviteFeedback("Davet gönderilirken bir hata oluştu.");
+      setInviteFeedback(err instanceof Error ? err.message : "Davet gönderilemedi.");
     }
   };
 
@@ -329,10 +273,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
   const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null);
 
   // Admin logs state
-  const [actionLogs, setActionLogs] = useState<string[]>([
-    "Sistem Operasyonel: Scouter takip günlükleri senkronize edildi.",
-    "Performans İzleyici: 30-Günlük KPI denetimleri arka planda devrede."
-  ]);
+  const [actionLogs, setActionLogs] = useState<string[]>([]);
 
   const addLog = (log: string) => {
     const time = new Date().toLocaleTimeString("tr-TR");
@@ -457,7 +398,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
     };
 
     try {
-      const response = await fetch("/api/ai/evaluate-lead", {
+      const response = await apiFetch("/api/ai/evaluate-lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lead: rawLead })

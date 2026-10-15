@@ -1,21 +1,22 @@
 import React, { useState } from "react";
-import { UserTenant, PRESET_CREDENTIALS, INITIAL_TENANTS } from "../data/usersData";
+import { UserTenant } from "../data/usersData";
 import { Lock, Mail, ChevronRight, Eye, EyeOff, Loader2 } from "lucide-react";
 import BrandLogo from "./BrandLogo";
 import { auth, db } from "../lib/firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
 interface LoginScreenProps {
+  initialError?: string;
   onLoginSuccess: (user: UserTenant) => void;
 }
 
-export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
+export default function LoginScreen({ onLoginSuccess, initialError }: LoginScreenProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(initialError || null);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,57 +34,16 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       // 1. Attempt to sign in with Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, lowerEmail, password);
       
-      // Get role from custom claims if present
-      const idTokenResult = await userCredential.user.getIdTokenResult();
-      const roleFromClaim = idTokenResult.claims.role as string | undefined;
-      
-      // 2. Fetch profile from Firestore by email query
-      const usersQuery = query(collection(db, "users"), where("email", "==", lowerEmail));
-      const usersSnap = await getDocs(usersQuery);
-      
-      let userProfile: UserTenant;
-      
-      if (!usersSnap.empty) {
-        const userDoc = usersSnap.docs[0];
-        userProfile = userDoc.data() as UserTenant;
-        
-        // Sync UID to the user document
-        const updates: Partial<UserTenant> = {
-          uid: userCredential.user.uid,
-          id: userCredential.user.uid
-        };
-        if (roleFromClaim && roleFromClaim !== userProfile.role) {
-          updates.role = roleFromClaim as any;
-        }
-        await setDoc(userDoc.ref, updates, { merge: true });
-        userProfile = { ...userProfile, ...updates };
-      } else {
-        // Fallback: If authenticated but profile doc missing in Firestore, create it
-        const presetCred = PRESET_CREDENTIALS[lowerEmail];
-        let tenant = INITIAL_TENANTS.find(t => t.id === presetCred?.id);
-        
-        if (!tenant) {
-          const prefix = lowerEmail.split("@")[0];
-          tenant = {
-            id: userCredential.user.uid,
-            email: lowerEmail,
-            companyName: prefix.charAt(0).toUpperCase() + prefix.slice(1) + " Corp",
-            role: (roleFromClaim as any) || "client",
-            projectId: "PROJE-UNLU MAMÜLLER",
-            driveFolderName: `PROJE-UNLU MAMÜLLER (${prefix})`
-          };
-        } else {
-          tenant.id = userCredential.user.uid;
-          if (roleFromClaim) {
-            tenant.role = roleFromClaim as any;
-          }
-        }
-        
-        const userDocRef = doc(db, "users", userCredential.user.uid);
-        await setDoc(userDocRef, tenant);
-        userProfile = tenant;
+      const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
+      if (!userDoc.exists()) {
+        await signOut(auth);
+        throw new Error("Bu hesap için proje erişimi tanımlı değil. Yöneticiyle iletişim kurun.");
       }
-      
+      const userProfile = { ...userDoc.data(), id: userCredential.user.uid, uid: userCredential.user.uid } as UserTenant;
+      if (["suspended", "Askıya Alındı"].includes(userProfile.status || "")) {
+        await signOut(auth);
+        throw new Error("Bu hesap askıya alınmış. Yöneticiyle iletişim kurun.");
+      }
       setLoading(false);
       onLoginSuccess(userProfile);
       return;
@@ -184,6 +144,13 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               </>
             )}
           </button>
+          <button type="button" className="mt-3 text-sm text-slate-300 underline" disabled={loading} onClick={async () => {
+            if (!email.trim()) { setErrorMessage("Şifre sıfırlamak için e-posta adresinizi girin."); return; }
+            setLoading(true);
+            try { await sendPasswordResetEmail(auth, email.trim().toLowerCase()); setErrorMessage("Hesap mevcutsa şifre belirleme bağlantısı gönderildi. E-posta ve spam klasörünüzü kontrol edin."); }
+            catch { setErrorMessage("Şifre e-postası gönderilemedi. Bir süre sonra tekrar deneyin."); }
+            finally { setLoading(false); }
+          }}>Şifremi unuttum / Şifre belirle</button>
         </form>
       </div>
     </div>

@@ -7,8 +7,10 @@ COPY package*.json ./
 RUN npm ci
 
 COPY tsconfig.json vite.config.ts index.html ./
+COPY firebase-applet-config.json ./firebase-applet-config.json
 COPY src ./src
 COPY server.ts ./server.ts
+COPY server ./server
 
 RUN npm run build
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { Globe, Shield, User, FileText, Menu, X, Clock, LogOut, RefreshCw, Compass } from "lucide-react";
+import { Globe, Shield, User, FileText, Menu, X, Clock, LogOut, RefreshCw, Compass, FolderOpen } from "lucide-react";
 import { UserTenant } from "../data/usersData";
 import BrandLogo from "./BrandLogo";
 
@@ -35,17 +35,21 @@ const Navbar = React.memo(function Navbar({
   const navItems = [
     { id: "sourcing", label: "Tedarik", icon: Globe },
     { id: "logistics", label: "Üretim & Lojistik", icon: FileText },
-    { id: "client-discovery", label: "Müşteri Keşfi (Freelance Ağ)", icon: Compass },
+
   ];
 
   if (currentUser?.role === "admin") {
+    navItems.push({ id: "client-discovery", label: "Müşteri Keşfi", icon: Compass });
+    navItems.unshift({ id: "overview", label: "Aksiyon Merkezi", icon: Shield });
+    navItems.push({ id: "supplier-selection", label: "Tedarikçi Seçimi", icon: FolderOpen });
+    navItems.push({ id: "report", label: "Raporlar", icon: FileText });
     navItems.push({ id: "market-insights", label: "Pazar Araştırması Yönetimi", icon: Shield });
   }
 
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-16 max-w-screen-2xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
         
         {/* Logo and Brand from Brand Book */}
         <div className="flex items-center gap-3">
@@ -101,7 +105,7 @@ const Navbar = React.memo(function Navbar({
         <div className="hidden md:flex items-center gap-3">
           
           {/* Owner/Admin Global Project Controller */}
-          {currentUser?.role === "admin" && (
+          {currentUser && (
             <div className="flex items-center gap-1 text-xs bg-slate-100 p-1.5 rounded-xl border border-slate-200">
               <span className="text-[10px] font-bold text-slate-500 font-mono pl-1">GÖSTERİM:</span>
               <select
@@ -179,7 +183,7 @@ const Navbar = React.memo(function Navbar({
       {mobileMenuOpen && (
         <div className="lg:hidden bg-white border-t border-slate-100 px-4 py-4 flex flex-col gap-3.5 shadow-inner">
           
-          {currentUser?.role === "admin" && (
+          {currentUser && (
             <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex items-center justify-between text-xs font-semibold">
               <span className="text-slate-500">Çalışma Alanı Bağlamı:</span>
               <select

@@ -8,6 +8,7 @@ export interface DriveFile {
   fileSize: string;
   dateAdded: string;
   fileId?: string;
+  documentId?: string;
   assignedTo?: string;
   userId?: string;
 }

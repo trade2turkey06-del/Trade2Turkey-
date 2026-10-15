@@ -1,141 +1,136 @@
-import { ClipboardList, Clock, CornerUpLeft, FileText, ShieldCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { collection, doc, onSnapshot, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
+import { ClipboardList } from "lucide-react";
+import { auth, db } from "../lib/firebase";
 import { sourcingWorkflow } from "../data/sourcingWorkflow";
 import { INITIAL_SOP_STEPS } from "../types";
-import { useEffect, useRef, useState } from "react";
-import { collection, doc, onSnapshot, query, serverTimestamp, setDoc, where } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { UserTenant } from "../data/usersData";
+import { affectedSteps, canAdvance, dependencies, TaskRecord, validateCompletion, workflowStatuses } from "../domain/workflow";
+import { eventData, operationCollection } from "../lib/operationsStore";
+import GoogleDriveFolder from "./GoogleDriveFolder";
 
-const statuses = {
-  not_started: { label: "Başlanmadı", style: "bg-slate-100 text-slate-600" },
-  in_progress: { label: "Devam ediyor", style: "bg-blue-50 text-blue-700" },
-  incomplete: { label: "Tamamlanmadı", style: "bg-amber-50 text-amber-800" },
-  completed: { label: "Tamamlandı", style: "bg-emerald-50 text-emerald-700" },
-} as const;
-type WorkflowStatus = keyof typeof statuses;
-const isStatus = (value: unknown): value is WorkflowStatus => typeof value === "string" && Object.hasOwn(statuses, value);
+const input = "mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900 disabled:bg-slate-100";
+const taskRef = (projectId: string, id: string) => doc(db, "sopSteps", `${projectId}_sourcing-${id}`);
+type Step = typeof sourcingWorkflow[number];
 
-const roles: Record<string, string> = {
-  "General Manager": "Genel Müdür",
-  "Project Manager": "Proje Yöneticisi",
-  "Sourcing Manager": "Tedarik Yöneticisi",
-};
-
-export default function SourcingWorkflow({ projectId }: { projectId: string }) {
-  const [stepStatuses, setStepStatuses] = useState<Record<string, WorkflowStatus>>({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<string[]>([]);
+export default function SourcingWorkflow({ projectId, currentUser }: { projectId: string; currentUser: UserTenant }) {
+  const [records, setRecords] = useState<Record<string, TaskRecord>>({});
+  const [users, setUsers] = useState<UserTenant[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const mounted = useRef(true);
-
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
-    mounted.current = true;
-    const unsubscribe = onSnapshot(query(collection(db, "sopSteps"), where("projectId", "==", projectId)), snapshot => {
-      const next: Record<string, WorkflowStatus> = {};
-      snapshot.docs.forEach(item => {
-        const data = item.data();
-        if (data.workflow === "sourcing" && isStatus(data.workflowStatus)) next[data.stepId] = data.workflowStatus;
-      });
-      setStepStatuses(next);
+    setLoading(true); setRecords({}); setError("");
+    // Live snapshots keep approvals consistent across open sessions.
+    const stop = onSnapshot(query(collection(db, "sopSteps"), where("projectId", "==", projectId)), snapshot => {
+      setRecords(Object.fromEntries(snapshot.docs.filter(item => item.data().workflow === "sourcing").map(item => [item.data().stepId, item.data() as TaskRecord])));
       setLoading(false);
-      setError("");
-    }, () => {
-      setLoading(false);
-      setError("İş akışı durumları yüklenemedi. Bağlantınızı ve erişim yetkinizi kontrol edin.");
-    });
-    return () => { mounted.current = false; unsubscribe(); };
-  }, [projectId]);
+    }, () => { setError("İş akışı yüklenemedi. Bağlantı veya erişim yetkinizi kontrol edin."); setLoading(false); });
+    const stopUsers = currentUser.role === "admin" ? onSnapshot(collection(db, "users"), snapshot => {
+      setUsers(snapshot.docs.map(item => ({ ...item.data(), role: item.data().role === "owner" ? "admin" : item.data().role, id: item.id } as UserTenant)).filter(user => !user.legacyAccount && !["suspended", "Askıya Alındı"].includes(user.status || "") && (user.role === "admin" || user.projectId === projectId || user.assignedProjects?.includes(projectId))));
+    }, () => setError("Görev atanabilecek kullanıcılar yüklenemedi.")) : () => {};
+    const eventsQuery = currentUser.role === "freelancer" ? query(operationCollection(projectId, "events"),where("action","in",["workflow_save","workflow_approve","workflow_reject"])) : operationCollection(projectId, "events");
+    const stopEvents = onSnapshot(eventsQuery, snapshot => setEvents(snapshot.docs.map(item => ({ ...item.data(), id: item.id })).filter((item: any) => item.entityId?.startsWith("A."))), () => {});
+    return () => { stop(); stopUsers(); stopEvents(); };
+  }, [projectId, currentUser.id, currentUser.role]);
 
-  const updateStatus = async (step: typeof sourcingWorkflow[number], value: WorkflowStatus) => {
-    setSaving(previous => [...previous, step.id]);
-    setNotice("");
+  return <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6" aria-labelledby="sourcing-workflow-title">
+    <h2 id="sourcing-workflow-title" className="flex items-center gap-3 text-xl font-bold"><ClipboardList />Tedarik İş Akışı</h2>
+    <p className="mt-2 text-sm text-slate-600">Sorumlu atayın, belge ekleyin ve tamamlanan işi onaya gönderin. Ön koşulları onaylanmayan adımlara başlanamaz.</p>
+    <div className="my-4 flex flex-wrap gap-3 text-sm"><span className="rounded-full bg-indigo-50 px-3 py-1">{Object.values(records).filter(item => item.approval === "approved" && item.workflowStatus === "completed").length} / 21 onaylandı</span><span className="rounded-full bg-amber-50 px-3 py-1">{Object.values(records).filter(item => item.approval === "pending").length} onay bekliyor</span></div>
+    {error && <p role="alert" className="my-3 text-red-700">{error}</p>}
+    {loading ? <p>Yükleniyor…</p> : ["A.A.", "A.B."].map(prefix => <div key={prefix} className="mt-6">
+      <h3 className="mb-3 font-bold">{prefix === "A.A." ? "A.A · Keşif ve Fizibilite" : "A.B · Teklif, Kalite ve Uyumluluk"}</h3>
+      <div className="space-y-3">{sourcingWorkflow.filter(step => step.id.startsWith(prefix)).map(step => <TaskEditor key={step.id} projectId={projectId} step={step} record={records[step.id]} users={users} currentUser={currentUser} records={records} events={events.filter(event => event.entityId === step.id)} />)}</div>
+    </div>)}
+  </section>;
+}
+
+function TaskEditor({ projectId, step, record, users, currentUser, records, events }: { projectId: string; step: Step; record?: TaskRecord; users: UserTenant[]; currentUser: UserTenant; records: Record<string, TaskRecord>; events: any[] }) {
+  const [draft, setDraft] = useState<TaskRecord>({ stepId: step.id, workflowStatus: "not_started", ...record });
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [reason, setReason] = useState("");
+  const dueDateInput = useRef<HTMLInputElement>(null);
+  const translated = INITIAL_SOP_STEPS.find(item => item.id === step.id);
+  const blocked = canAdvance(step.id, records);
+  const isAdmin = currentUser.role === "admin";
+  const canEdit = isAdmin || record?.assigneeUid === currentUser.id;
+  const approved = record?.approval === "approved";
+  useEffect(() => { setDraft({ stepId: step.id, workflowStatus: "not_started", ...record }); }, [record?.updatedAt?.seconds, record?.updatedAt?.nanoseconds, record?.workflowStatus, record?.approval]);
+  const change = (name: string, value: string) => setDraft(previous => ({ ...previous, [name]: value }));
+  const save = async (action: "save" | "approve" | "reject") => {
+    const candidate = { ...draft, dueDate: dueDateInput.current?.value || draft.dueDate || "" };
+    setBusy(true); setMessage("");
     try {
-      await setDoc(doc(db, "sopSteps", `${projectId}_sourcing-${step.id}`), {
-        id: `sourcing-${step.id}`, projectId, workflow: "sourcing", stepId: step.id,
-        section: "A", subsection: step.id.startsWith("A.A.") ? "Keşif ve Fizibilite" : "Teklif, Kalite ve Uyumluluk",
-        task: step.task.trim(), requester: step.requester, taskOwner: step.owner,
-        kpiMetric: step.metric.trim(), kpiTimeDays: step.days,
-        status: value === "completed" ? "Completed" : value === "in_progress" ? "In Progress" : "Pending",
-        workflowStatus: value, updatedAt: serverTimestamp(),
-      }, { merge: true });
-      if (mounted.current) setNotice(`${step.id}: ${statuses[value].label} kaydedildi.`);
-    } catch {
-      if (mounted.current) setNotice(`${step.id} kaydedilemedi. Bağlantınızı ve erişim yetkinizi kontrol edip yeniden deneyin.`);
-    } finally {
-      if (mounted.current) setSaving(previous => previous.filter(id => id !== step.id));
-    }
+      const uid = auth.currentUser?.uid; if (!uid) throw new Error("Oturum açın.");
+      await runTransaction(db, async tx => {
+        const ref = taskRef(projectId, step.id); const snapshot = await tx.get(ref);
+        const current = snapshot.data() as TaskRecord | undefined;
+        if ((current?.updatedAt?.seconds || 0) !== (record?.updatedAt?.seconds || 0) || (current?.updatedAt?.nanoseconds || 0) !== (record?.updatedAt?.nanoseconds || 0)) throw new Error("Bu adım başka bir oturumda değişti. Güncel kaydı kontrol edip yeniden deneyin.");
+        const prerequisites: Record<string, TaskRecord> = {};
+        for (const id of dependencies[step.id] || []) { const snapshot = await tx.get(taskRef(projectId, id)); prerequisites[id] = snapshot.data() as TaskRecord; }
+        if ((action === "save" && ["in_progress", "completed"].includes(draft.workflowStatus)) || action === "approve") {
+          const missing = canAdvance(step.id, prerequisites);
+          if (missing.length) throw new Error(`Önce şu adımlar tamamlanıp onaylanmalı: ${missing.join(", ")}`);
+        }
+        const eventRef = doc(operationCollection(projectId, "events"));
+        let next: Record<string, unknown>;
+        if (action === "save") {
+          if (!canEdit) throw new Error("Bu görevi düzenleme yetkiniz yok.");
+          if (current?.approval === "approved") throw new Error("Onaylı kayıt değiştirilemez. Önce onaylayan gerekçeli iade yapmalı.");
+          if (draft.workflowStatus === "completed") validateCompletion(candidate);
+          next = {
+            id: `sourcing-${step.id}`, projectId, workflow: "sourcing", stepId: step.id, section: "A",
+            subsection: step.id.startsWith("A.A.") ? "Keşif ve Fizibilite" : "Teklif, Kalite ve Uyumluluk",
+            task: step.task.trim(), requester: step.requester, taskOwner: step.owner, kpiMetric: step.metric.trim(), kpiTimeDays: step.days,
+            status: draft.workflowStatus === "completed" ? "Completed" : draft.workflowStatus === "in_progress" ? "In Progress" : "Pending",
+            workflowStatus: draft.workflowStatus, assigneeUid: draft.assigneeUid || "", approverUid: draft.approverUid || "",
+            dueDate: candidate.dueDate, notes: draft.notes || "", evidenceName: draft.evidenceName || "", evidenceUrl: draft.evidenceUrl || "",
+            approval: draft.workflowStatus === "completed" ? "pending" : "none", completedBy: draft.workflowStatus === "completed" ? uid : "",
+            rejectionReason: "", updatedAt: serverTimestamp(),
+          };
+        } else {
+          if (!current || current.approverUid !== uid || (action === "approve" && current.completedBy === uid)) throw new Error("Yalnızca atanmış onaylayan karar verebilir; işlemi yapan kişi kendi işini onaylayamaz.");
+          if (action === "approve" && current.approval !== "pending") throw new Error("Bu kayıt onay beklemiyor.");
+          if (action === "approve") validateCompletion(current);
+          if (action === "reject" && !reason.trim()) throw new Error("Ret / iade gerekçesini yazın.");
+          const targets = affectedSteps([step.id, ...(step.returnTo || "").split("/").filter(id => sourcingWorkflow.some(item => item.id === id))]).filter(id => id !== step.id);
+          const targetSnapshots = [];
+          if (action === "reject") for (const id of targets) targetSnapshots.push({ id, snapshot: await tx.get(taskRef(projectId, id)) });
+          next = { approval: action === "approve" ? "approved" : "rejected", workflowStatus: action === "approve" ? "completed" : "incomplete", status: action === "approve" ? "Completed" : "Pending", rejectionReason: action === "reject" ? reason.trim() : "", decidedBy: uid, updatedAt: serverTimestamp() };
+          for (const target of targetSnapshots) if (target.snapshot.exists()) tx.update(taskRef(projectId, target.id), { workflowStatus: "incomplete", status: "Pending", approval: "none", rejectionReason: `${step.id}: ${reason.trim()}`.slice(0,1500), returnedFrom: step.id, lastEventId: eventRef.id, updatedAt: serverTimestamp() });
+        }
+        tx.set(ref, { ...next, lastEventId: eventRef.id }, { merge: true });
+        tx.set(eventRef, { ...eventData(`workflow_${action}`, step.id, action === "reject" ? reason : action === "approve" ? "Onaylandı" : workflowStatuses[draft.workflowStatus]), projectId });
+      });
+      setMessage("Kaydedildi.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Kaydedilemedi."); }
+    finally { setBusy(false); }
   };
-  return (
-    <section aria-labelledby="sourcing-workflow-title" className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-100 bg-slate-50 p-6">
-        <div className="flex items-center gap-3">
-          <ClipboardList className="h-6 w-6 text-indigo-600" />
-          <h2 id="sourcing-workflow-title" className="text-xl font-bold text-slate-900">Tedarik İş Akışı</h2>
-        </div>
-        <p className="mt-2 text-sm text-slate-600">Proje başlangıcından ticari sözleşmeye kadar SOP adımları, sorumlular ve gerekli çıktılar.</p>
-        <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
-          <span className="rounded-full bg-indigo-100 px-3 py-1 text-indigo-700">21 adım</span>
-          <span className="rounded-full bg-white px-3 py-1 text-slate-600">{loading ? "Durumlar yükleniyor…" : `${Object.values(stepStatuses).filter(value => value === "completed").length} / 21 tamamlandı`}</span>
-        </div>
-        <p className="mt-3 text-xs text-slate-500">Durumlar seçili proje için kaydedilir. Henüz güncellenmeyen adımlar başlanmadı olarak görünür.</p>
-        {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
-        <p role="status" aria-live="polite" className="mt-2 text-sm text-slate-600">{notice}</p>
+  return <details data-testid={`task-${step.id}`} className="group rounded-2xl border border-slate-200 bg-white open:border-indigo-300">
+    <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 p-4 text-sm [&::-webkit-details-marker]:hidden">
+      <span className="rounded-lg bg-indigo-50 px-2 py-1 font-bold text-indigo-700">{step.id}</span><span className="min-w-0 flex-1 font-semibold">{translated?.task || step.task}</span>
+      <span className={`rounded-full px-2 py-1 text-xs ${approved ? "bg-emerald-100 text-emerald-800" : record?.approval === "pending" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}`}>{approved ? "Onaylandı" : record?.approval === "pending" ? "Onay bekliyor" : workflowStatuses[record?.workflowStatus || "not_started"]}</span><span className="text-xs text-slate-500">{step.days} gün</span><span className="text-indigo-600">Ayrıntılar ↕</span>
+    </summary>
+    <div className="space-y-4 border-t p-4">
+      <div className="grid gap-4 text-sm text-slate-600 sm:grid-cols-2"><p><strong>KPI:</strong> {translated?.kpiMetric || step.metric}</p><p><strong>Gerekli çıktı:</strong> {translated?.requiredOutputs || step.outputs}</p><p><strong>Ön koşul:</strong> {dependencies[step.id]?.join(", ") || "Yok"}</p><p><strong>Reddedilirse dönüş:</strong> {step.returnTo || "Aynı adım"}</p></div>
+      {blocked.length > 0 && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Beklenen ön koşullar: {blocked.join(", ")}</p>}
+      {record?.rejectionReason && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800">İade gerekçesi: {record.rejectionReason}</p>}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <label className="text-sm">Durum<select className={input} value={draft.workflowStatus} disabled={!canEdit || busy || approved} onChange={e => change("workflowStatus", e.target.value)}>{Object.entries(workflowStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label className="text-sm">Görev sorumlusu<select className={input} value={draft.assigneeUid || ""} disabled={!isAdmin || busy || approved} onChange={e => change("assigneeUid", e.target.value)}><option value="">Kişi seçin</option>{users.map(user => <option key={user.id} value={user.id}>{user.displayName || user.companyName} · {user.email}</option>)}</select></label>
+        <label className="text-sm">Onaylayan<select className={input} value={draft.approverUid || ""} disabled={!isAdmin || busy || approved} onChange={e => change("approverUid", e.target.value)}><option value="">Kişi seçin</option>{users.filter(user => user.role === "admin").map(user => <option key={user.id} value={user.id}>{user.displayName || user.companyName} · {user.email}</option>)}</select></label>
+        <label className="text-sm">Hedef bitiş tarihi<input ref={dueDateInput} type="date" className={input} value={draft.dueDate || ""} disabled={!canEdit || busy || approved} onChange={e => change("dueDate", e.target.value)} onInput={e => change("dueDate", e.currentTarget.value)} /></label>
+        <label className="text-sm">Belge / çıktı adı<input className={input} maxLength={250} value={draft.evidenceName || ""} disabled={!canEdit || busy || approved} onChange={e => change("evidenceName", e.target.value)} /></label>
+        <label className="text-sm">Belge bağlantısı (HTTPS)<input type="url" className={input} maxLength={2000} placeholder="https://drive.google.com/…" value={draft.evidenceUrl || ""} disabled={!canEdit || busy || approved} onChange={e => change("evidenceUrl", e.target.value)} /></label>
       </div>
-      <div className="space-y-8 p-4 sm:p-6">
-        {[
-          { prefix: "A.A.", title: "Keşif ve Fizibilite", description: "Proje gereksinimleri, üretici araştırması, teklif toplama ve devam kararı." },
-          { prefix: "A.B.", title: "Teklif, Kalite ve Uyumluluk", description: "Numune, maliyet, tedarikçi değerlendirmesi, nihai onay ve sözleşme." },
-        ].map(group => (
-          <div key={group.prefix}>
-            <h3 className="font-bold text-slate-900">{group.prefix.slice(0, -1)} · {group.title}</h3>
-            <p className="mb-4 mt-1 text-sm text-slate-500">{group.description}</p>
-            <ol className="space-y-3">
-              {sourcingWorkflow.filter(step => step.id.startsWith(group.prefix)).map(step => {
-                const translated = INITIAL_SOP_STEPS.find(item => item.id === step.id);
-                return (
-                  <li key={step.id}>
-                    <div className="mb-2 flex items-center justify-end gap-2">
-                      <label htmlFor={`status-${step.id}`} className="text-xs text-slate-500">Durum</label>
-                      <select
-                        id={`status-${step.id}`}
-                        aria-label={`${step.id} ${translated?.task || step.task} durumu`}
-                        value={stepStatuses[step.id] || "not_started"}
-                        disabled={loading || !!error || saving.includes(step.id)}
-                        onChange={event => { if (isStatus(event.target.value)) void updateStatus(step, event.target.value); }}
-                        className={`max-w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 ${statuses[stepStatuses[step.id] || "not_started"].style}`}
-                      >
-                        {Object.entries(statuses).map(([value, status]) => <option key={value} value={value}>{status.label}</option>)}
-                      </select>
-                      {saving.includes(step.id) && <span className="text-xs text-slate-500">Kaydediliyor…</span>}
-                    </div>
-                    <details className="group rounded-2xl border border-slate-200 open:border-indigo-200">
-                      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 rounded-2xl p-4 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 [&::-webkit-details-marker]:hidden">
-                        <span className="rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-bold text-indigo-700">{step.id}</span>
-                        <span className="min-w-0 flex-1 text-sm font-semibold text-slate-800">{translated?.task || step.task}</span>
-                        <span className="flex items-center gap-1 text-xs text-slate-500"><Clock className="h-3.5 w-3.5" />{step.days} gün</span>
-                        <span className="text-xs text-indigo-600 group-open:hidden">Ayrıntılar +</span>
-                        <span className="hidden text-xs text-indigo-600 group-open:inline">Kapat −</span>
-                      </summary>
-                      <div className="grid gap-5 border-t border-slate-100 p-4 text-sm sm:grid-cols-2">
-                        <dl className="space-y-3">
-                          <div><dt className="text-xs text-slate-500">Talep eden</dt><dd className="mt-1 text-slate-800">{roles[step.requester] || step.requester}</dd></div>
-                          <div><dt className="text-xs text-slate-500">Görev sorumlusu</dt><dd className="mt-1 text-slate-800">{roles[step.owner] || step.owner}</dd></div>
-                          <div><dt className="flex items-center gap-1 text-xs text-slate-500"><ShieldCheck className="h-3.5 w-3.5" />Onaylayan / Onay süresi</dt><dd className="mt-1 text-slate-800">{roles[step.approver] || step.approver} · {step.approvalDays == null ? "Süre belirtilmemiş" : `${step.approvalDays} gün`}</dd></div>
-                        </dl>
-                        <dl className="space-y-3">
-                          <div><dt className="text-xs text-slate-500">KPI / Başarı ölçütü</dt><dd className="mt-1 text-slate-800">{translated?.kpiMetric || step.metric}</dd></div>
-                          <div><dt className="flex items-center gap-1 text-xs text-slate-500"><FileText className="h-3.5 w-3.5" />Gerekli çıktı / Belge</dt><dd className="mt-1 text-slate-800">{translated?.requiredOutputs || step.outputs}</dd></div>
-                          {step.returnTo && <div><dt className="flex items-center gap-1 text-xs text-amber-700"><CornerUpLeft className="h-3.5 w-3.5" />Reddedilirse dönülecek adım</dt><dd className="mt-1 font-medium text-amber-800">{step.returnTo}</dd></div>}
-                        </dl>
-                      </div>
-                    </details>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
+      <label className="block text-sm">Notlar<textarea className={input} maxLength={3000} value={draft.notes || ""} disabled={!canEdit || busy || approved} onChange={e => change("notes", e.target.value)} /></label>
+      {canEdit && !approved && <button onClick={() => void save("save")} disabled={busy} className="rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Kaydediliyor…" : draft.workflowStatus === "completed" ? "Kaydet ve onaya gönder" : "Kaydet"}</button>}
+      {record?.approverUid === currentUser.id && ["pending", "approved"].includes(record.approval || "") && <div className="space-y-3 rounded-xl bg-slate-50 p-4"><label className="block text-sm">Ret / iade gerekçesi<input className={input} maxLength={1500} value={reason} onChange={e => setReason(e.target.value)} /></label><div className="flex gap-2">{record.approval === "pending" && <button disabled={busy || record.completedBy === currentUser.id} onClick={() => void save("approve")} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm text-white disabled:opacity-40">Onayla</button>}<button disabled={busy} onClick={() => void save("reject")} className="rounded-lg bg-red-700 px-4 py-2 text-sm text-white">Gerekçeyle iade et</button></div></div>}
+      <p role="status" className="text-sm text-indigo-800">{message}</p>
+      <details><summary className="cursor-pointer text-sm font-semibold">İşlem geçmişi ({events.length})</summary><ul className="mt-2 space-y-2 text-xs text-slate-600">{[...events].sort((a,b) => (b.at?.seconds || 0) - (a.at?.seconds || 0)).map(event => <li key={event.id}>{event.at?.toDate?.().toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" }) || "Kaydediliyor"} · {users.find(user => user.id === event.actorUid)?.email || event.actorUid} · {event.detail}</li>)}</ul></details>
+      <details><summary className="cursor-pointer text-sm font-semibold">Belge yükle / belgeleri görüntüle</summary><GoogleDriveFolder stepId={step.id} storageLocation={step.outputs} currentProjectId={projectId} clientMode={!isAdmin} /></details>
+    </div>
+  </details>;
 }

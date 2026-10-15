@@ -1,3 +1,5 @@
+import { safeHttps } from "../domain/operations";
+import { apiFetch } from "../lib/api";
 import React, { useState, useEffect, useRef } from "react";
 import { 
   FileText, Coins, Clock, Thermometer, ShieldCheck, 
@@ -12,6 +14,7 @@ import { DriveFile, PROJECT_NAMES } from "../data/driveData";
 
 interface ProjectDocumentVaultProps {
   currentProjectId: string;
+  readOnly?: boolean;
 }
 
 // Structured Type for Project Details
@@ -146,7 +149,7 @@ const DEFAULT_PACKAGING_CONFIG: PackagingConfig = {
 };
 
 
-export default function ProjectDocumentVault({ currentProjectId }: ProjectDocumentVaultProps) {
+export default function ProjectDocumentVault({ currentProjectId, readOnly = false }: ProjectDocumentVaultProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Fetch details dynamically from Firestore or default fallback map
@@ -185,38 +188,9 @@ export default function ProjectDocumentVault({ currentProjectId }: ProjectDocume
         list.push({ id: docSnap.id, ...docSnap.data() });
       });
       
-      if (list.length === 0) {
-        // Seeding default manufacturer: "Bakker" for PROJE-UNLU MAMÜLLER, or "Default Üretici" for other projects
-        const defaultName = currentProjectId === "PROJE-UNLU MAMÜLLER" ? "Bakker" : "Default Üretici";
-        const defaultDocRef = doc(manufacturersCol, "seed_bakker");
-        const seedDetails = DEFAULT_VAULT_DETAILS[currentProjectId] || {
-          pricingCapacity: { exwPriceList: "", moq: "", monthlyCapacity: "" },
-          productionTransit: { productionFirstOrder: "", productionRepeatOrder: "", shipmentTransitTime: "" },
-          storageShelfLife: { frozenProducts: "", ambientProducts: "" },
-          certifications: { coa: "", certificates: [] },
-          palletContainerConfig: { boxDimensions: "", palletConfig: "", containerCapacity40HC: "" },
-          nutritionalValues: { energy: "", fat: "", fatSaturated: "", carbohydrates: "", sugar: "", protein: "", fiber: "", salt: "" },
-          variations: [],
-          marketingSamples: "",
-          exportMarkets: []
-        };
-        await setDoc(defaultDocRef, {
-          id: "seed_bakker",
-          name: defaultName,
-          vaultDetails: seedDetails
-        });
-      } else {
-        list.sort((a, b) => a.name.localeCompare(b.name));
-        setManufacturers(list);
-        
-        // Auto-select the first one if selectedManufacturerId is empty or not in the list
-        setSelectedManufacturerId((prev) => {
-          if (!prev || !list.some((m) => m.id === prev)) {
-            return list[0].id;
-          }
-          return prev;
-        });
-      }
+      list.sort((a, b) => a.name.localeCompare(b.name));
+      setManufacturers(list);
+      setSelectedManufacturerId(previous => list.some(item => item.id === previous) ? previous : list[0]?.id || "");
     });
     return () => unsubscribe();
   }, [currentProjectId]);
@@ -286,7 +260,7 @@ export default function ProjectDocumentVault({ currentProjectId }: ProjectDocume
     }
   };
 
-  const details: ProjectVaultDetails = vaultDetails || DEFAULT_VAULT_DETAILS[currentProjectId] || {
+  const details: ProjectVaultDetails = vaultDetails || {
     pricingCapacity: { exwPriceList: "", moq: "", monthlyCapacity: "" },
     productionTransit: { productionFirstOrder: "", productionRepeatOrder: "", shipmentTransitTime: "" },
     storageShelfLife: { frozenProducts: "", ambientProducts: "" },
@@ -523,7 +497,7 @@ export default function ProjectDocumentVault({ currentProjectId }: ProjectDocume
       where("projectId", "==", currentProjectId)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setFiles(snapshot.docs.map(docSnapshot => docSnapshot.data() as DriveFile));
+      setFiles(snapshot.docs.map(docSnapshot => ({...docSnapshot.data(),documentId:docSnapshot.id} as DriveFile)));
       setLoadingFiles(false);
     }, (err) => {
       console.error("Failed to fetch vault documents:", err);
@@ -535,7 +509,7 @@ export default function ProjectDocumentVault({ currentProjectId }: ProjectDocume
   // Google OAuth Auth trigger
   const handleConnectGoogle = async () => {
     try {
-      const response = await fetch("/api/auth/google-url");
+      const response = await apiFetch("/api/auth/google-url");
       if (!response.ok) {
         throw new Error("Google yetkilendirme linki alınamadı.");
       }
@@ -584,7 +558,7 @@ export default function ProjectDocumentVault({ currentProjectId }: ProjectDocume
     formData.append("stepId", "project_vault");
 
     try {
-      const response = await fetch("/api/drive/upload", {
+      const response = await apiFetch("/api/drive/upload", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${authState.accessToken}`
@@ -620,7 +594,7 @@ export default function ProjectDocumentVault({ currentProjectId }: ProjectDocume
         userId: auth.currentUser?.uid || "owner_admin"
       };
 
-      const docId = `${currentProjectId}_vault_${result.fileName.replace(/\s+/g, "_")}`;
+      const docId = `${currentProjectId}_vault_${result.fileId}`;
       await setDoc(doc(db, "driveFiles", docId), newFile);
 
     } catch (err: any) {
@@ -635,7 +609,7 @@ export default function ProjectDocumentVault({ currentProjectId }: ProjectDocume
   const handleDeleteFile = async (file: DriveFile) => {
     if (!confirm(`"${file.fileName}" belgesini kasadan silmek istediğinize emin misiniz?`)) return;
     try {
-      const docId = `${currentProjectId}_vault_${file.fileName.replace(/\s+/g, "_")}`;
+      const docId = file.documentId || `${currentProjectId}_vault_${file.fileName.replace(/\s+/g, "_")}`;
       await deleteDoc(doc(db, "driveFiles", docId));
     } catch (err) {
       console.error("Document delete failed:", err);
@@ -649,7 +623,7 @@ export default function ProjectDocumentVault({ currentProjectId }: ProjectDocume
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6"><fieldset disabled={readOnly} className="space-y-6">
       
       {/* 1. VAULT TOP HEADER */}
       <div className="bg-[#0B1221] border border-blue-900/30 p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-2xl relative overflow-hidden">
@@ -766,10 +740,10 @@ export default function ProjectDocumentVault({ currentProjectId }: ProjectDocume
           {!isEditingManufacturerName ? (
             <div className="flex items-center gap-2 mt-1">
               <span className="text-sm font-black text-white font-display">
-                {manufacturers.find(m => m.id === selectedManufacturerId)?.name || "Yükleniyor..."}
+                {manufacturers.find(m => m.id === selectedManufacturerId)?.name || "Henüz üretici seçilmedi"}
               </span>
               <button
-                onClick={handleStartEditManufacturerName}
+                disabled={!selectedManufacturerId} onClick={handleStartEditManufacturerName}
                 className="text-[9px] font-bold text-slate-400 hover:text-cyan-400 transition cursor-pointer font-mono px-2 py-0.5 bg-slate-900 border border-slate-800 rounded-md"
               >
                 İsmi Düzenle
@@ -812,7 +786,7 @@ export default function ProjectDocumentVault({ currentProjectId }: ProjectDocume
         <div className="flex gap-2">
           {!isEditing ? (
             <button
-              onClick={handleStartEdit}
+              disabled={!selectedManufacturerId} onClick={handleStartEdit}
               className="px-4 py-2 bg-blue-650 hover:bg-blue-700 text-white text-xs font-bold rounded-xl cursor-pointer transition shadow-sm font-mono uppercase"
             >
               Düzenle
@@ -1132,7 +1106,7 @@ export default function ProjectDocumentVault({ currentProjectId }: ProjectDocume
                   </>
                 ) : (
                   <button
-                    onClick={handleStartPackagingEdit}
+                    disabled={!selectedManufacturerId} onClick={handleStartPackagingEdit}
                     className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition cursor-pointer"
                     title="Düzenle"
                   >
@@ -1408,7 +1382,7 @@ export default function ProjectDocumentVault({ currentProjectId }: ProjectDocume
                     <span className="text-slate-300 font-semibold block">Ürün İddiaları (Product Claims):</span>
                     {!isEditingClaims && (
                       <button
-                        onClick={handleStartEditClaims}
+                        disabled={!selectedManufacturerId} onClick={handleStartEditClaims}
                         className="text-slate-400 hover:text-cyan-400 transition p-1 cursor-pointer"
                         title="İddiaları Düzenle"
                       >
@@ -1777,7 +1751,7 @@ export default function ProjectDocumentVault({ currentProjectId }: ProjectDocume
                   <div className="flex items-center gap-2">
                     {file.downloadUrl && file.downloadUrl !== "#" && (
                       <a 
-                        href={file.downloadUrl}
+                        href={safeHttps(file.downloadUrl) ? file.downloadUrl : undefined}
                         target="_blank"
                         rel="noreferrer"
                         className="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition"
@@ -1885,6 +1859,6 @@ export default function ProjectDocumentVault({ currentProjectId }: ProjectDocume
         </div>
       )}
 
-    </div>
+    </fieldset></div>
   );
 }

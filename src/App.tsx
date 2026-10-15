@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from "react";
 import Navbar from "./components/Navbar";
+import SupplierSelection from "./components/SupplierSelection";
 import MinorSheets from "./components/MinorSheets";
 import ProjectDocumentVault from "./components/ProjectDocumentVault";
 import SourcingWorkflow from "./components/SourcingWorkflow";
@@ -16,8 +17,15 @@ import LoginScreen from "./components/LoginScreen";
 import FreelancerDashboard, { freelanceSOPData } from "./components/FreelancerDashboard";
 import { UserTenant, INITIAL_TENANTS } from "./data/usersData";
 import { setDriveAuth } from "./lib/driveAuth";
-import { db } from "./lib/firebase";
-import { onSnapshot, collection, query, where, doc, setDoc, deleteDoc, writeBatch, getDocs } from "firebase/firestore";
+import { auth, db } from "./lib/firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { inviteUser } from "./lib/userInvites";
+import OperationsHub from "./components/OperationsHub";
+import AdminOverview from "./components/AdminOverview";
+import BackupPanel from "./components/BackupPanel";
+import UserManagement from "./components/UserManagement";
+import { trustedAdministrator } from "./domain/access";
+import { onSnapshot, collection, query, where, doc, setDoc, deleteDoc, writeBatch, getDocs, documentId, runTransaction } from "firebase/firestore";
 
 import { 
   INITIAL_TARGET_SPECS, INITIAL_RFQS, 
@@ -36,14 +44,42 @@ import {
 
 export default function App() {
   // Active corporate context state
-  const [currentUser, setCurrentUser] = useState<UserTenant | null>(() => {
-    try {
-      const stored = localStorage.getItem("t2t_current_user");
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [currentUser, setCurrentUser] = useState<UserTenant | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [appError, setAppError] = useState("");
+
+  useEffect(() => {
+    let stopProfile = () => {};
+    const stopAuth = onAuthStateChanged(auth, user => {
+      stopProfile();
+      setDriveAuth(null, null, null);
+      setCurrentUser(null);
+      localStorage.removeItem("t2t_current_user");
+      localStorage.removeItem("t2t_preset_creds");
+      localStorage.removeItem("t2t_custom_users");
+      if (!user) { setAuthReady(true); return; }
+      setAuthReady(false);
+      stopProfile = onSnapshot(doc(db, "users", user.uid), async snapshot => {
+        const profile = snapshot.data();
+        if (profile && profile.status !== "suspended" && profile.status !== "Askıya Alındı") {
+          if (["admin","owner"].includes(profile.role)) {
+            try {
+              const result=await user.getIdTokenResult();
+              if (!trustedAdministrator(user.uid,result.claims)) {setCurrentUser(null);setAppError("Yönetici yetkisi doğrulanamadı. Hesap yöneticisiyle iletişim kurun.");setAuthReady(true);return;}
+            } catch {setAppError("Oturum doğrulanamadı.");setAuthReady(true);return;}
+          }
+          if (auth.currentUser?.uid !== user.uid) return;
+          setAppError("");
+          setCurrentUser({ ...profile, role: profile.role === "owner" ? "admin" : profile.role, id: user.uid, uid: user.uid } as UserTenant);
+        } else {
+          setCurrentUser(null);
+          setAppError("Hesabınızın proje erişimi tanımlı değil veya askıya alınmış. Yöneticiyle iletişim kurun.");
+        }
+        setAuthReady(true);
+      }, () => { setAppError("Oturum ve yetkiler doğrulanamadı. Yeniden giriş yapın."); setAuthReady(true); });
+    });
+    return () => { stopAuth(); stopProfile(); };
+  }, []);
 
   const [activeProjectId, setActiveProjectId] = useState<string>("PROJE-UNLU MAMÜLLER");
 
@@ -56,14 +92,7 @@ export default function App() {
   const [newProjFeedback, setNewProjFeedback] = useState<string | null>(null);
 
   // Dynamic user store in localStorage to persist new corporate clients added by the owner
-  const [customUsers, setCustomUsers] = useState<UserTenant[]>(() => {
-    try {
-      const stored = localStorage.getItem("t2t_custom_users");
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [customUsers, setCustomUsers] = useState<UserTenant[]>([]);
 
   // Admin Workspace Creation State
   const [newClientEmail, setNewClientEmail] = useState("");
@@ -74,72 +103,17 @@ export default function App() {
   // Impersonation / Audit mode state
   const [auditedFreelancer, setAuditedFreelancer] = useState<UserTenant | null>(null);
 
-  // Synchronize dynamic user profile mapping when logging in
   useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem("t2t_current_user", JSON.stringify(currentUser));
-      // Force change context to the tenant's exact project ID if they are a regular client
-      if (currentUser.role === "client") {
-        setActiveProjectId(currentUser.projectId);
-      }
-    } else {
-      localStorage.removeItem("t2t_current_user");
-    }
-  }, [currentUser]);
-
-  // Keep currently logged-in user profile updated from Firestore in real-time
-  useEffect(() => {
-    if (!currentUser?.id) return;
-    const userDocRef = doc(db, "users", currentUser.id);
-    const unsub = onSnapshot(userDocRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const dbData = snapshot.data() as UserTenant;
-        // Clean any legacy project IDs dynamically
-        if (dbData.projectId === "PROJ-BEANBAG" || dbData.projectId === "PROJ-VELVET" || !dbData.projectId) {
-          dbData.projectId = "PROJE-UNLU MAMÜLLER";
-        }
-        if (JSON.stringify(dbData) !== JSON.stringify(currentUser)) {
-          setCurrentUser(dbData);
-          localStorage.setItem("t2t_current_user", JSON.stringify(dbData));
-        }
-      }
-    });
-    return () => unsub();
-  }, [currentUser?.id]);
+    if (currentUser?.role === "client") setActiveProjectId(currentUser.projectId);
+  }, [currentUser?.id, currentUser?.projectId]);
 
   // Real-time listener for projects collection in Firestore
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "projects"), async (snapshot) => {
-      const items: any[] = [];
-      snapshot.forEach(docSnap => {
-        items.push(docSnap.data());
-      });
-      
-      // Fallback seed if projects collection is empty
-      if (items.length === 0) {
-        console.log("Seeding default project PROJE-UNLU MAMÜLLER...");
-        try {
-          const defaultProj = {
-            id: "PROJE-UNLU MAMÜLLER",
-            name: "Unlu Mamüller Projesi",
-            description: "Tedarik hattı unlu mamüller ve gıda dış ticaret projesi.",
-            status: "active",
-            createdAt: new Date().toISOString(),
-            sopStepsTemplate: freelanceSOPData.map(s => ({
-              step: s.step,
-              task: s.task,
-              kpi: s.kpi,
-              storage: s.storage,
-              status: "Pending"
-            }))
-          };
-          await setDoc(doc(db, "projects", defaultProj.id), defaultProj);
-          items.push(defaultProj);
-        } catch (err) {
-          console.error("Failed to seed default project:", err);
-        }
-      }
-
+    if (!currentUser) { setProjects([]); return; }
+    const accessibleIds = [...new Set([currentUser.projectId, ...(currentUser.assignedProjects || [])].filter(Boolean))].slice(0,30);
+    const projectsQuery = currentUser.role === "admin" ? collection(db, "projects") : query(collection(db, "projects"), where(documentId(), "in", accessibleIds.length ? accessibleIds : ["__none__"]));
+    const unsub = onSnapshot(projectsQuery, snapshot => {
+      const items: any[] = snapshot.docs.map(item => ({ ...item.data(), id: item.id }));
       // Sync PROJECT_NAMES map globally
       const projectMap: Record<string, string> = {};
       items.forEach(p => {
@@ -148,10 +122,11 @@ export default function App() {
       (window as any).PROJECT_NAMES = projectMap;
       localStorage.setItem("t2t_project_names", JSON.stringify(projectMap));
       setProjects(items);
-    });
+      setActiveProjectId(previous => items.some(item => item.id === previous) ? previous : items[0]?.id || "");
+    }, () => setAppError("Proje listesi yüklenemedi."));
 
     return () => unsub();
-  }, []);
+  }, [currentUser?.id, currentUser?.role, currentUser?.projectId, JSON.stringify(currentUser?.assignedProjects)]);
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,6 +137,7 @@ export default function App() {
 
     // Transform Project ID to uppercase and space-less format
     const cleanedProjId = newProjId.trim().toUpperCase().replace(/\s+/g, "-");
+    if (cleanedProjId.length > 100 || cleanedProjId.includes("/") || [".",".."].includes(cleanedProjId)) {setNewProjFeedback("Proje kimliği en fazla 100 karakter olmalı ve / içermemeli.");return;}
 
     // Check if project ID already exists
     if (projects.some(p => p.id === cleanedProjId)) {
@@ -188,7 +164,7 @@ export default function App() {
         createdAt: new Date().toISOString(),
         sopStepsTemplate: defaultSopSteps
       };
-      await setDoc(projRef, newProj);
+      await runTransaction(db,async tx=>{const existing=await tx.get(projRef);if(existing.exists())throw new Error("Bu proje kimliği zaten mevcut.");tx.set(projRef,newProj);});
       
       setNewProjName("");
       setNewProjId("");
@@ -274,6 +250,7 @@ export default function App() {
       }
     } catch (e) {
       console.error(`Failed to sync collection ${collectionName} with Firestore:`, e);
+      setAppError("Değişiklik kaydedilemedi. Bağlantı ve erişim yetkinizi kontrol edin.");
     }
   }, []);
 
@@ -334,289 +311,32 @@ export default function App() {
     syncCollection("fulfillmentOrders", nextVal, current);
   }, [syncCollection]);
 
-  // Seeder utility
-  const seedCollection = async (collectionName: string, initialData: any[], force = false) => {
-    const seedKey = `${activeProjectId}_${collectionName}`;
-    if (!force && (window as any)[`seeded_${seedKey}`]) return;
-    (window as any)[`seeded_${seedKey}`] = true;
-
-    console.log(`Seeding empty collection "${collectionName}" for project ${activeProjectId}...`);
-    try {
-      const batch = writeBatch(db);
-      initialData.forEach(item => {
-        const docRef = doc(db, collectionName, `${activeProjectId}_${item.id}`);
-        batch.set(docRef, { ...item, projectId: activeProjectId });
-      });
-      await batch.commit();
-    } catch (e) {
-      console.error(`Failed to seed ${collectionName}:`, e);
-    }
-  };
-
-  // 1. Initial State Hydrator: loads dataset filtered strictly by active project ID from Firestore
+  // Real-time snapshots are required to keep stock and order changes consistent across sessions.
   useEffect(() => {
-    if (!currentUser) return;
-
-    // Run one-time Firestore cleanup of test data
-    const runCleanupMigration = async () => {
-      const collectionsToClean = [
-        "leads", "sopSteps", "targetSpecs", "rfqs", "valueChain", 
-        "rfqMatrix", "recipes", "suppliers", "shipments", 
-        "inventory", "fulfillmentOrders", "driveFiles"
-      ];
-      
-      console.log("Starting Firestore migration & cleanup...");
-      try {
-        for (const collName of collectionsToClean) {
-          const snapshot = await getDocs(collection(db, collName));
-          const batch = writeBatch(db);
-          let count = 0;
-          snapshot.forEach(docSnapshot => {
-            const data = docSnapshot.data();
-            if (data.projectId === "PROJ-BEANBAG" || data.projectId === "PROJ-VELVET" || !data.projectId) {
-              batch.delete(docSnapshot.ref);
-              count++;
-            }
-          });
-          if (count > 0) {
-            await batch.commit();
-            console.log(`Deleted ${count} old test documents from ${collName}`);
-          }
-        }
-        // Migrate existing user profile document project IDs and set freelancer name
-        const usersSnapshot = await getDocs(collection(db, "users"));
-        const userBatch = writeBatch(db);
-        let userCount = 0;
-        usersSnapshot.forEach(docSnapshot => {
-          const userData = docSnapshot.data();
-          let needsUpdate = false;
-          const updates: any = {};
-          if (userData.projectId === "PROJ-BEANBAG" || userData.projectId === "PROJ-VELVET" || !userData.projectId) {
-            updates.projectId = "PROJE-UNLU MAMÜLLER";
-            updates.driveFolderName = userData.driveFolderName?.replace("PROJ-BEANBAG", "PROJE-UNLU MAMÜLLER")?.replace("PROJ-VELVET", "PROJE-UNLU MAMÜLLER") || "PROJE-UNLU MAMÜLLER";
-            needsUpdate = true;
-          }
-          if (needsUpdate) {
-            userBatch.update(docSnapshot.ref, updates);
-            userCount++;
-          }
-        });
-        if (userCount > 0) {
-          await userBatch.commit();
-          console.log(`Migrated ${userCount} user profiles in Firestore`);
-        }
-
-        console.log("Firestore migration & cleanup complete!");
-      } catch (err) {
-        console.error("Migration cleanup failed:", err);
-      }
+    const setters: Record<string, (items: any[]) => void> = {
+      targetSpecs: setTargetSpecsInternal, rfqs: setRfqsInternal, valueChain: setValueChainInternal,
+      rfqMatrix: setRfqMatrixInternal, recipes: setRecipesInternal, suppliers: setSuppliersInternal,
+      shipments: setShipmentsInternal, inventory: setInventoryInternal, fulfillmentOrders: setFulfillmentOrdersInternal,
     };
-    runCleanupMigration();
-
-    // Listen to users from Firestore
-    const unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
-      const dbUsers: UserTenant[] = [];
-      snapshot.forEach(doc => {
-        const u = doc.data() as UserTenant;
-        const isDefault = INITIAL_TENANTS.some(t => t.id === u.id);
-        if (!isDefault) {
-          dbUsers.push(u);
-        }
-      });
-      setCustomUsers(dbUsers);
-      localStorage.setItem("t2t_custom_users", JSON.stringify(dbUsers));
-    });
-
-
-
-    const qSpecs = query(collection(db, "targetSpecs"), where("projectId", "==", activeProjectId));
-    const unsubSpecs = onSnapshot(qSpecs, (snapshot) => {
-      if (snapshot.empty) {
-        seedCollection("targetSpecs", INITIAL_TARGET_SPECS);
-      } else {
-        const items = snapshot.docs.map(doc => doc.data() as TargetSpecification);
-        const needsReseed = items.some(item => !item.productName.includes("Unlu Mamüller"));
-        if (needsReseed) {
-          console.log("targetSpecs language mismatch detected. Re-seeding...");
-          const batch = writeBatch(db);
-          snapshot.docs.forEach(doc => batch.delete(doc.ref));
-          batch.commit().then(() => seedCollection("targetSpecs", INITIAL_TARGET_SPECS));
-        } else {
-          setTargetSpecsInternal(items);
-        }
-      }
-    });
-
-    const qRfqs = query(collection(db, "rfqs"), where("projectId", "==", activeProjectId));
-    const unsubRfqs = onSnapshot(qRfqs, (snapshot) => {
-      if (snapshot.empty) {
-        seedCollection("rfqs", INITIAL_RFQS);
-      } else {
-        const items = snapshot.docs.map(doc => doc.data() as RfqSubmission);
-        const needsReseed = items.some(item => !item.productName.includes("Unlu Mamüller"));
-        if (needsReseed) {
-          console.log("rfqs language mismatch detected. Re-seeding...");
-          const batch = writeBatch(db);
-          snapshot.docs.forEach(doc => batch.delete(doc.ref));
-          batch.commit().then(() => seedCollection("rfqs", INITIAL_RFQS));
-        } else {
-          setRfqsInternal(items);
-        }
-      }
-    });
-
-    const qChain = query(collection(db, "valueChain"), where("projectId", "==", activeProjectId));
-    const unsubChain = onSnapshot(qChain, (snapshot) => {
-      if (snapshot.empty) {
-        seedCollection("valueChain", INITIAL_VALUE_CHAIN_COSTINGS);
-      } else {
-        const items = snapshot.docs.map(doc => doc.data() as ValueChainCosting);
-        const needsReseed = items.some(item => !item.productName.includes("Unlu Mamüller"));
-        if (needsReseed) {
-          console.log("valueChain language mismatch detected. Re-seeding...");
-          const batch = writeBatch(db);
-          snapshot.docs.forEach(doc => batch.delete(doc.ref));
-          batch.commit().then(() => seedCollection("valueChain", INITIAL_VALUE_CHAIN_COSTINGS));
-        } else {
-          setValueChainInternal(items);
-        }
-      }
-    });
-
-    const qMatrix = query(collection(db, "rfqMatrix"), where("projectId", "==", activeProjectId));
-    const unsubMatrix = onSnapshot(qMatrix, (snapshot) => {
-      if (snapshot.empty) {
-        seedCollection("rfqMatrix", INITIAL_RFQ_MATRICES);
-      } else {
-        const items = snapshot.docs.map(doc => doc.data() as RfqComparativeMatrix);
-        const needsReseed = items.some(item => !item.productName.includes("Unlu Mamüller"));
-        if (needsReseed) {
-          console.log("rfqMatrix language mismatch detected. Re-seeding...");
-          const batch = writeBatch(db);
-          snapshot.docs.forEach(doc => batch.delete(doc.ref));
-          batch.commit().then(() => seedCollection("rfqMatrix", INITIAL_RFQ_MATRICES));
-        } else {
-          setRfqMatrixInternal(items);
-        }
-      }
-    });
-
-    const qRecipes = query(collection(db, "recipes"), where("projectId", "==", activeProjectId));
-    const unsubRecipes = onSnapshot(qRecipes, (snapshot) => {
-      if (snapshot.empty) {
-        seedCollection("recipes", INITIAL_PRODUCT_RECIPES);
-      } else {
-        const items = snapshot.docs.map(doc => doc.data() as ProductRecipe);
-        const needsReseed = items.some(item => !item.productName.includes("Unlu Mamüller"));
-        if (needsReseed) {
-          console.log("recipes language mismatch detected. Re-seeding...");
-          const batch = writeBatch(db);
-          snapshot.docs.forEach(doc => batch.delete(doc.ref));
-          batch.commit().then(() => seedCollection("recipes", INITIAL_PRODUCT_RECIPES));
-        } else {
-          setRecipesInternal(items);
-        }
-      }
-    });
-
-    const qSuppliers = query(collection(db, "suppliers"), where("projectId", "==", activeProjectId));
-    const unsubSuppliers = onSnapshot(qSuppliers, (snapshot) => {
-      if (snapshot.empty) {
-        seedCollection("suppliers", INITIAL_SUPPLIERS);
-      } else {
-        const items = snapshot.docs.map(doc => doc.data() as Supplier);
-        const needsReseed = items.some(item => !item.name.includes("Anadolu Tekstil Ltd."));
-        if (needsReseed) {
-          console.log("suppliers language mismatch detected. Re-seeding...");
-          const batch = writeBatch(db);
-          snapshot.docs.forEach(doc => batch.delete(doc.ref));
-          batch.commit().then(() => seedCollection("suppliers", INITIAL_SUPPLIERS));
-        } else {
-          setSuppliersInternal(items);
-        }
-      }
-    });
-
-    const qShipments = query(collection(db, "shipments"), where("projectId", "==", activeProjectId));
-    const unsubShipments = onSnapshot(qShipments, (snapshot) => {
-      if (snapshot.empty) {
-        seedCollection("shipments", INITIAL_SHIPMENTS);
-      } else {
-        const items = snapshot.docs.map(doc => doc.data() as ShipmentMilestone);
-        const needsReseed = items.some(item => 
-          !item.productName.includes("Unlu Mamüller") ||
-          item.milestones.length === 0 ||
-          item.milestones[0].title !== "Hammadde tedariği tamamlandı" ||
-          !item.milestones.some(m => m.title === "İthalat Ülkesi Limanına Varış")
-        );
-        if (needsReseed) {
-          console.log("shipments language mismatch or old route detected. Re-seeding...");
-          const batch = writeBatch(db);
-          snapshot.docs.forEach(doc => batch.delete(doc.ref));
-          batch.commit().then(() => seedCollection("shipments", INITIAL_SHIPMENTS, true));
-        } else {
-          setShipmentsInternal(items);
-        }
-      }
-    });
-
-    const qInventory = query(collection(db, "inventory"), where("projectId", "==", activeProjectId));
-    const unsubInventory = onSnapshot(qInventory, (snapshot) => {
-      if (snapshot.empty) {
-        seedCollection("inventory", INITIAL_INVENTORY_ITEMS);
-      } else {
-        const items = snapshot.docs.map(doc => doc.data() as InventoryItem);
-        const needsReseed = items.some(item => !item.name.includes("Unlu Mamüller"));
-        if (needsReseed) {
-          console.log("inventory language mismatch detected. Re-seeding...");
-          const batch = writeBatch(db);
-          snapshot.docs.forEach(doc => batch.delete(doc.ref));
-          batch.commit().then(() => seedCollection("inventory", INITIAL_INVENTORY_ITEMS));
-        } else {
-          setInventoryInternal(items);
-        }
-      }
-    });
-
-    const qOrders = query(collection(db, "fulfillmentOrders"), where("projectId", "==", activeProjectId));
-    const unsubOrders = onSnapshot(qOrders, (snapshot) => {
-      if (snapshot.empty) {
-        seedCollection("fulfillmentOrders", INITIAL_FULFILLMENT_ORDERS);
-      } else {
-        const items = snapshot.docs.map(doc => doc.data() as FulfillmentOrder);
-        const needsReseed = items.some(item => item.platform.includes("Amazon") && item.customerName.includes("Elspeth Vance"));
-        if (needsReseed) {
-          console.log("fulfillmentOrders language mismatch detected. Re-seeding...");
-          const batch = writeBatch(db);
-          snapshot.docs.forEach(doc => batch.delete(doc.ref));
-          batch.commit().then(() => seedCollection("fulfillmentOrders", INITIAL_FULFILLMENT_ORDERS));
-        } else {
-          setFulfillmentOrdersInternal(items);
-        }
-      }
-    });
-
+    Object.values(setters).forEach(setter => setter([]));
+    setLoadedProjectId("");
+    if (!currentUser || !activeProjectId || currentUser.role === "freelancer") return;
+    const unsubscribers = Object.entries(setters).map(([name, setter]) => onSnapshot(
+      query(collection(db, name), where("projectId", "==", activeProjectId)),
+      snapshot => setter(snapshot.docs.map(item => ({ ...item.data(), id: item.data().id || item.id }))),
+      () => setAppError(`${name}: kayıtlar yüklenemedi. Erişim veya bağlantıyı kontrol edin.`)
+    ));
+    if (currentUser.role === "admin") unsubscribers.push(onSnapshot(collection(db, "users"), snapshot => {
+      setCustomUsers(snapshot.docs.map(item => ({ ...item.data(), id: item.id } as UserTenant)));
+    }, () => setAppError("Kullanıcı listesi yüklenemedi.")));
     setLoadedProjectId(activeProjectId);
-
-    return () => {
-      unsubUsers();
-
-      unsubSpecs();
-      unsubRfqs();
-      unsubChain();
-      unsubMatrix();
-      unsubRecipes();
-      unsubSuppliers();
-      unsubShipments();
-      unsubInventory();
-      unsubOrders();
-    };
-  }, [activeProjectId, currentUser]);
+    return () => unsubscribers.forEach(stop => stop());
+  }, [activeProjectId, currentUser?.id, currentUser?.role]);
 
   // Sync Google Drive OAuth postMessage messages
   useEffect(() => {
     const handleGoogleMessage = (event: MessageEvent) => {
-      if (event.data?.type === "OAUTH_AUTH_SUCCESS") {
+      if (event.origin === window.location.origin && event.data?.type === "OAUTH_AUTH_SUCCESS" && event.data.firebaseUid === auth.currentUser?.uid) {
         const { accessToken, email, picture } = event.data;
         setDriveAuth(accessToken, email, picture);
       }
@@ -626,55 +346,23 @@ export default function App() {
   }, []);
 
   // Handle Logout Session clear
-  const handleLogout = React.useCallback(() => {
+  const handleLogout = React.useCallback(async () => {
+    await signOut(auth);
+    setDriveAuth(null, null, null);
     setCurrentUser(null);
     setClientMode(false);
     setCurrentTab("sourcing");
   }, []);
 
   // Add Dynamic user workspace as administrator
-  const handleAddClientAction = (e: React.FormEvent) => {
+  const handleAddClientAction = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newClientEmail || !newClientCompany) {
-      setAdminFeedback("Lütfen hem e-posta hem de takım bilgilerini doldurun.");
-      return;
-    }
-
-    const cleanedEmail = newClientEmail.trim().toLowerCase();
-    const prefix = cleanedEmail.split("@")[0];
-    const generatedPass = `${prefix}2026`;
-
-    // Create Tenant Model
-    const newTenant: UserTenant = {
-      id: `custom_${prefix}_${Date.now()}`,
-      email: cleanedEmail,
-      companyName: newClientCompany,
-      role: "client",
-      projectId: newClientProject,
-      driveFolderName: `${newClientProject} (${newClientCompany})`
-    };
-
-    // Save in Firestore users collection
-    const userDocRef = doc(db, "users", newTenant.id);
-    setDoc(userDocRef, newTenant);
-
-    // Save Preset Credentials
-    // For demonstration, registering on-the-fly dynamically injects credentials matched in login preset handler
+    setAdminFeedback("Hesap oluşturuluyor…");
     try {
-      const storedPresets = localStorage.getItem("t2t_preset_creds") || "{}";
-      const parsedPresets = JSON.parse(storedPresets);
-      parsedPresets[cleanedEmail] = { password: generatedPass, id: newTenant.id };
-      localStorage.setItem("t2t_preset_creds", JSON.stringify(parsedPresets));
-    } catch (err) {
-      console.warn("Hazır kimlik kaydı başarısız oldu", err);
-    }
-
-    // Success notification
-    setAdminFeedback(`🎉 Success! Workspace created for ${newClientCompany}. Credentials set to Email: ${cleanedEmail} | Password: ${generatedPass}`);
-    setNewClientEmail("");
-    setNewClientCompany("");
-    
-    setTimeout(() => setAdminFeedback(null), 12000);
+      const result = await inviteUser({ email: newClientEmail, companyName: newClientCompany, projectId: newClientProject, role: "client" });
+      setAdminFeedback(result);
+      setNewClientEmail(""); setNewClientCompany("");
+    } catch (error) { setAdminFeedback(error instanceof Error ? error.message : "Kullanıcı oluşturulamadı."); }
   };
 
   // Switch workspace context and simulate dynamic client login
@@ -685,8 +373,9 @@ export default function App() {
   }, []);
 
   // 3. Render login portal screen if un-authenticated
+  if (!authReady) return <div className="p-12 text-center">Oturum doğrulanıyor…</div>;
   if (!currentUser) {
-    return <LoginScreen onLoginSuccess={(user) => setCurrentUser(user)} />;
+    return <LoginScreen initialError={appError} onLoginSuccess={() => {}} />;
   }
 
   // 3.5. Render Freelance Dashboard if role is freelancer (strict UI isolation)
@@ -695,10 +384,10 @@ export default function App() {
   }
 
   // List of all active tenants (initial defaults + manually added ones)
-  const allCurrentTenantsList = [...INITIAL_TENANTS.filter(t => t.role !== "admin"), ...customUsers];
+  const allCurrentTenantsList = customUsers;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans select-none antialiased">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans antialiased">
       
       {/* Dynamic Navigation bar header */}
       <Navbar 
@@ -714,7 +403,7 @@ export default function App() {
         activeProjectId={activeProjectId}
         setActiveProjectId={setActiveProjectId}
         projects={projects}
-        onOpenNewProjectModal={() => setShowNewProjectModal(true)}
+        onOpenNewProjectModal={currentUser.role === "admin" ? () => setShowNewProjectModal(true) : undefined}
       />
 
       {/* Primary Context area wrapper container layout */}
@@ -909,37 +598,34 @@ export default function App() {
           </div>
         )}
 
+        {appError && <div role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-800">{appError}<button className="ml-4 underline" onClick={() => setAppError("")}>Kapat</button></div>}
         {/* Dynamic active View Renderer Router logic */}
         <div className="space-y-6">
 
+          {currentUser.role === "admin" && currentTab === "supplier-selection" && (
+            <SupplierSelection projectId={activeProjectId} />
+          )}
+
           {/* SOURCING FLOW (SECTION A) TAB VIEW */}
-          {currentTab === "sourcing" && (
+          {!activeProjectId && <p className="rounded-xl border bg-white p-6">Henüz erişilebilir proje yok. Yönetici yeni bir proje oluşturabilir veya size proje atayabilir.</p>}
+          {activeProjectId && currentTab === "sourcing" && (
             <div key={activeProjectId} className="space-y-6">
-              {currentUser.role === "admin" && <SourcingWorkflow projectId={activeProjectId} />}
-              <ProjectDocumentVault currentProjectId={activeProjectId} />
+              <SourcingWorkflow projectId={activeProjectId} currentUser={currentUser} />
+              <ProjectDocumentVault currentProjectId={activeProjectId} readOnly={currentUser.role !== "admin"} />
             </div>
           )}
 
+          {activeProjectId && currentTab === "overview" && currentUser.role === "admin" && <div className="space-y-6"><AdminOverview projectId={activeProjectId} onNavigate={setCurrentTab} /><UserManagement projects={projects} /><BackupPanel projectId={activeProjectId} /></div>}
+
           {/* STRATEGIC COORDINATION & LOGISTICS (SECTION B) */}
-          {currentTab === "logistics" && (
-            <LogisticsSOP
-              shipments={shipments}
-              setShipments={setShipments}
-              inventory={inventory}
-              setInventory={setInventory}
-              fulfillmentOrders={fulfillmentOrders}
-              setFulfillmentOrders={setFulfillmentOrders}
-              currentProjectId={activeProjectId}
-              onChangeProjectId={(pid) => setActiveProjectId(pid)}
-              canSwitchProject={currentUser?.role === "admin"}
-              isAdmin={currentUser?.role === "admin"}
-            />
+          {activeProjectId && currentTab === "logistics" && (
+            <OperationsHub projectId={activeProjectId} isAdmin={currentUser.role === "admin"} />
           )}
 
 
 
           {/* CLIENT DISCOVERY PORTAL (FREELANCE NETWORK) */}
-          {currentTab === "client-discovery" && (
+          {currentUser.role === "admin" && currentTab === "client-discovery" && (
             <ClientDiscovery
               currentProjectId={activeProjectId}
               currentUser={currentUser}
@@ -949,12 +635,8 @@ export default function App() {
 
 
           {/* EXECUTIVE SOURCE REPORT CENTER */}
-          {currentTab === "report" && (
-            <ReportGenerator
-              suppliers={suppliers}
-              recipes={recipes}
-              shipments={shipments}
-            />
+          {activeProjectId && currentTab === "report" && (
+            <ReportGenerator projectId={activeProjectId} />
           )}
 
           {/* MARKET INSIGHTS MANAGEMENT PANEL */}
@@ -975,7 +657,7 @@ export default function App() {
             <span>İhracat Lojistiği ve Tedarik Denetim Merkezi</span>
           </div>
           <div className="text-slate-400 text-[10px]">
-            Sistem Çalışıyor • Aktif Port: 3000 • Güvenlik uyumluluk kuralı ATR.v3 aktif
+            Trade2Turkey • Proje bazlı operasyon yönetimi
           </div>
         </div>
       </footer>

@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api";
 import React, { useState } from "react";
 import { 
   FileText, Coins, Plus, Trash2, ArrowRight, CheckCircle, Scale, 
@@ -60,7 +61,7 @@ const MinorSheets = React.memo(function MinorSheets({
     setAuditReport(null);
 
     try {
-      const res = await fetch("/api/ai/audit-rfq", {
+      const res = await apiFetch("/api/ai/audit-rfq", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1063,7 +1064,7 @@ const MinorSheets = React.memo(function MinorSheets({
             setAiLoading(true);
             setAiStatus("Analyzing responses via Trade2Turkey AI...");
             try {
-              const res = await fetch("/api/ai/evaluate-matrix", {
+              const res = await apiFetch("/api/ai/evaluate-matrix", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

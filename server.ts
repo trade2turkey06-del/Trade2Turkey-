@@ -1,3 +1,5 @@
+import { randomBytes, timingSafeEqual } from "node:crypto";
+import { requireUser, hasProjectAccess } from "./server/security";
 import express from "express";
 import path from "path";
 import multer from "multer";
@@ -8,15 +10,31 @@ import { GoogleGenAI } from "@google/genai";
 // Load environment variables
 dotenv.config();
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "disabled-free-only" });
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 3000);
+app.set("trust proxy", 1);
+const oauthStates = new Map<string, { expires: number; cookie: string; uid: string }>();
 
 // Setup multer for in-memory file parsing
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 8 }, fileFilter: (_req, file, callback) => {
+  const allowed = ["application/pdf", "image/jpeg", "image/png", "image/webp", "text/csv", "text/plain", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+  if (!allowed.includes(file.mimetype)) { callback(new Error("Dosya türü desteklenmiyor.")); return; }
+  callback(null, true);
+} });
 
-app.use(express.json());
+app.use(express.json({ limit: "256kb" }));
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "same-origin");
+  res.setHeader("X-Frame-Options", "DENY");
+  next();
+});
+app.get("/healthz", (_req, res) => res.json({ ok: true }));
+app.use("/api", requireUser);
+// Free-only deployment: never invoke metered Gemini services without a separate future authorization.
+app.use("/api/ai", (_req, res) => { res.status(503).json({ error: "Ek kullanım ücreti oluşmaması için yapay zekâ API çağrıları kapalı. Manuel kayıt ve yerel rapor özelliklerini kullanabilirsiniz." }); });
 
 
 // AI Sourcing Matrix Evaluation endpoint
@@ -782,18 +800,23 @@ app.get("/api/auth/google-url", (req, res) => {
   const redirect_uri = `${appUrl}/auth/callback`;
 
   const scopes = [
-    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/userinfo.profile"
   ].join(" ");
 
+  for (const [key, value] of oauthStates) if (value.expires < Date.now()) oauthStates.delete(key);
+  const state = randomBytes(32).toString("hex"), cookie = randomBytes(32).toString("hex");
+  oauthStates.set(state, { cookie, uid: res.locals.uid, expires: Date.now() + 10 * 60 * 1000 });
+  res.cookie("t2t_oauth", cookie, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: 600000, path: "/auth/callback" });
   const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` + new URLSearchParams({
     client_id,
     redirect_uri,
     response_type: "code",
     scope: scopes,
     access_type: "offline",
-    prompt: "consent"
+    prompt: "consent",
+    state
   }).toString();
 
   res.json({ url: googleAuthUrl });
@@ -801,6 +824,14 @@ app.get("/api/auth/google-url", (req, res) => {
 
 // 2. Google OAuth Callback Endpoint
 app.get(["/auth/callback", "/auth/callback/"], async (req, res) => {
+  const state = typeof req.query.state === "string" ? req.query.state : "";
+  const candidate = oauthStates.get(state);
+  oauthStates.delete(state);
+  const cookie = (req.headers.cookie || "").split(";").map(part => part.trim()).find(part => part.startsWith("t2t_oauth="))?.slice(10) || "";
+  res.clearCookie("t2t_oauth", { path: "/auth/callback" });
+  if (!candidate || candidate.expires < Date.now() || !/^[a-f0-9]{64}$/.test(cookie) || !timingSafeEqual(Buffer.from(cookie), Buffer.from(candidate.cookie))) {
+    res.status(400).send("Google bağlantısı doğrulanamadı. Uygulamadan yeniden başlatın."); return;
+  }
   const code = req.query.code as string;
   if (!code) {
     return res.send(`
@@ -867,47 +898,14 @@ app.get(["/auth/callback", "/auth/callback/"], async (req, res) => {
     }
 
     // Success webpage that communicates back using window.opener.postMessage
-    res.send(`
-      <html>
-        <body style="font-family: sans-serif; text-align: center; padding: 40px; background: #0f172a; color: #f8fafc;">
-          <div style="background: #1e293b; border: 1px solid #334155; padding: 30px; border-radius: 12px; display: inline-block; max-width: 400px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-            <div style="font-size: 40px; margin-bottom: 10px;">🎉</div>
-            <h3 style="margin-top: 0; color: #38bdf8;">Google Drive Connected Successfully!</h3>
-            <p style="font-size: 13px; color: #94a3b8; line-height: 1.5;">You have authorized access to your Google Drive account.</p>
-            <p style="font-size: 12px; font-weight: bold; font-family: monospace; color: #10b981; margin: 15px 0; background: #020617; padding: 8px 12px; border-radius: 6px; word-break: break-all;">
-              Connected as: ${email}
-            </p>
-            <p style="font-size: 11px; color: #64748b;">This window will close automatically in a moment.</p>
-          </div>
-          <script>
-            if (window.opener) {
-              window.opener.postMessage({ 
-                type: "OAUTH_AUTH_SUCCESS", 
-                accessToken: "${tokens.access_token}",
-                refreshToken: "${tokens.refresh_token || ''}",
-                email: "${email}",
-                picture: "${picture}"
-              }, "${appUrl}");
-              setTimeout(() => window.close(), 1200);
-            } else {
-              window.location.href = "/";
-            }
-          </script>
-        </body>
-      </html>
-    `);
+    const message = JSON.stringify({ type: "OAUTH_AUTH_SUCCESS", firebaseUid: candidate.uid, accessToken: tokens.access_token, email, picture }).replace(/</g, "\\u003c");
+    const target = JSON.stringify(appUrl).replace(/</g, "\\u003c");
+    res.setHeader("Cache-Control", "no-store");
+    res.send(`<html><body><p>Google Drive bağlantısı kuruldu. Bu pencereyi kapatabilirsiniz.</p><script>if(window.opener){window.opener.postMessage(${message},${target});window.close();}</script></body></html>`);
 
   } catch (error: any) {
     console.error("Token exchange failed:", error);
-    res.send(`
-      <html>
-        <body style="font-family: sans-serif; margin: 30px; background: #0f172a; color: #f8fafc;">
-          <h3 style="color: #ef4444;">OAuth Token Exchange Failed</h3>
-          <p style="color: #94a3b8; font-size: 13px;">${error.message || error}</p>
-          <button onclick="window.close()" style="padding: 8px 16px; background: #334155; color: white; border: none; border-radius: 4px; cursor: pointer;">Close Window</button>
-        </body>
-      </html>
-    `);
+    res.status(400).send("Google Drive bağlantısı kurulamadı. Uygulamadan tekrar deneyin.");
   }
 });
 
@@ -921,14 +919,17 @@ app.post("/api/drive/upload", upload.single("file"), async (req, res) => {
   const accessToken = authHeader.split(" ")[1];
   const file = req.file;
   const { folderName, projectId, stepId } = req.body;
+  if (typeof projectId !== "string" || typeof stepId !== "string" || !hasProjectAccess(res.locals.profile, projectId) || projectId.length > 100 || stepId.length > 150 || !/^[a-zA-Z0-9_.-]+$/.test(stepId)) {
+    res.status(403).json({ error: "Bu proje / adım için yükleme yetkiniz yok." }); return;
+  }
 
   if (!file) {
     return res.status(400).json({ error: "No physical file was supplied" });
   }
 
-  const cleanFolderName = folderName || "Un-categorized SOP Folder";
-  const cleanProjectId = projectId || "PROJ-BEANBAG";
-  const cleanStepId = stepId || "A.A.1";
+  const cleanFolderName = String(folderName || "SOP Belgeleri").slice(0,200);
+  const cleanProjectId = projectId;
+  const cleanStepId = stepId;
 
   try {
     // Standard fetch wrapper for Google Drive queries
@@ -1037,20 +1038,7 @@ app.post("/api/drive/upload", upload.single("file"), async (req, res) => {
     const fileMeta = await uploadRes.json();
     console.log("Successfully uploaded to Drive. Metadata: ", fileMeta);
 
-    // Step E: Set link-sharing permission to 'anyone' role so clients/admins can instantly download/view in portal
-    try {
-      console.log(`Setting link sharing permissions for file: ${fileMeta.id}`);
-      await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileMeta.id}/permissions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          role: "reader",
-          type: "anyone"
-        })
-      });
-    } catch (permError) {
-      console.warn("Failed to set public file sharing permissions, continuing:", permError);
-    }
+    // Files inherit private folder access; no public sharing is created.
 
     res.json({
       success: true,
@@ -1068,6 +1056,11 @@ app.post("/api/drive/upload", upload.single("file"), async (req, res) => {
 });
 
 
+app.use((error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error("Request failed:", error.code || error.name);
+  res.status(error.code === "LIMIT_FILE_SIZE" ? 413 : 400).json({ error: error.code === "LIMIT_FILE_SIZE" ? "Dosya en fazla 10 MB olabilir." : "İstek işlenemedi; dosya türü ve alanları kontrol edin." });
+});
+
 // 4. Vite Dev Server and Production Fallbacks
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
@@ -1081,6 +1074,7 @@ async function startServer() {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
+      if (req.path.startsWith("/api/")) { res.status(404).json({ error: "Servis bulunamadı." }); return; }
       res.sendFile(path.join(distPath, "index.html"));
     });
     console.log("Serving static production assets from /dist folder");

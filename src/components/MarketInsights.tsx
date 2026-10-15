@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/api";
 import React, { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import { 
@@ -181,7 +182,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
   const currencySymbol = getCurrencySymbol(costForm.currency || "USD");
 
   const handleUpdateTotalFreight = (val: string) => {
-    const updatedForm = { ...costForm, totalFreightCost: val };
+    const updatedForm: Record<string, string> = { ...costForm, totalFreightCost: val };
     const containerCap = Number(updatedForm.containerCapacity) || 0;
     const freightCost = Number(val) || 0;
     if (containerCap > 0) {
@@ -191,7 +192,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
   };
 
   const handleUpdateContainerCapacity = (val: string) => {
-    const updatedForm = { ...costForm, containerCapacity: val };
+    const updatedForm: Record<string, string> = { ...costForm, containerCapacity: val };
     const containerCap = Number(val) || 0;
     const freightCost = Number(updatedForm.totalFreightCost) || 0;
     if (containerCap > 0) {
@@ -201,7 +202,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
   };
 
   const handleUpdateTaxRate = (val: string) => {
-    const updatedForm = { ...costForm, hsCodeTaxRate: val };
+    const updatedForm: Record<string, string> = { ...costForm, hsCodeTaxRate: val };
     const cogs = Number(updatedForm.cogs) || 0;
     const taxRate = Number(val) || 0;
     updatedForm.importDuties = ((cogs * taxRate) / 100).toFixed(2);
@@ -209,7 +210,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
   };
 
   const handleUpdateCogs = (val: string) => {
-    const updatedForm = { ...costForm, cogs: val };
+    const updatedForm: Record<string, string> = { ...costForm, cogs: val };
     const cogs = Number(val) || 0;
     const taxRate = Number(updatedForm.hsCodeTaxRate) || 0;
     updatedForm.importDuties = ((cogs * taxRate) / 100).toFixed(2);
@@ -314,7 +315,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
   const handleGenerateAiMatch = async (competitor: MarketInsight) => {
     setLoadingAi(prev => ({ ...prev, [competitor.id]: true }));
     try {
-      const res = await fetch("/api/ai/match-manufacturers", {
+      const res = await apiFetch("/api/ai/match-manufacturers", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -347,7 +348,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
     setLoadingAiSearch(true);
     setAiSearchResults([]);
     try {
-      const res = await fetch("/api/ai/search-shelf-prices", {
+      const res = await apiFetch("/api/ai/search-shelf-prices", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -405,40 +406,6 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
     const q = query(subcollectionRef, orderBy("createdAt", "desc"));
 
     const unsub = onSnapshot(q, async (snapshot) => {
-      if (snapshot.empty) {
-        // Seed default competitor FMCG insights for this project
-        const defaults = [
-          {
-            supermarket: "Costco Wholesale",
-            brand: "Kirkland Signature Organic",
-            shelfPrice: 12.99,
-            weight: 1000,
-            pricePerGram: 0.01299,
-            claims: ["Organic", "Gluten Free", "No Preservatives"],
-            t2tPrice: 9.50,
-            priceAdvantage: "%27 Daha Ucuz",
-            createdAt: new Date().toISOString()
-          },
-          {
-            supermarket: "Tesco Extra",
-            brand: "Tesco Finest Bakery",
-            shelfPrice: 8.50,
-            weight: 500,
-            pricePerGram: 0.017,
-            claims: ["Premium Quality", "Traditional Recipe"],
-            t2tPrice: 6.80,
-            priceAdvantage: "%20 Daha Ucuz",
-            createdAt: new Date().toISOString()
-          }
-        ];
-        try {
-          for (const item of defaults) {
-            await addDoc(subcollectionRef, item);
-          }
-        } catch (e) {
-          console.error("Failed to seed FMCG subcollection insights:", e);
-        }
-      } else {
         const items: MarketInsight[] = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
@@ -456,7 +423,6 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
         }));
         setInsights(parsed);
         setLoading(false);
-      }
     }, (err) => {
       console.error("Error reading market insights:", err);
       setLoading(false);
@@ -1548,7 +1514,7 @@ export function MarketInsightsView({ currentProjectId }: { currentProjectId: str
   const handleGenerateAiMatch = async (competitor: MarketInsight) => {
     setLoadingAi(prev => ({ ...prev, [competitor.id]: true }));
     try {
-      const res = await fetch("/api/ai/match-manufacturers", {
+      const res = await apiFetch("/api/ai/match-manufacturers", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

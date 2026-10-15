@@ -18,6 +18,7 @@ export interface UserTenant {
   assignedProjects?: string[];
   uid?: string;
   status?: string;
+  legacyAccount?: boolean;
 }
 
 // Default initial tenant list
@@ -57,11 +58,3 @@ export const INITIAL_TENANTS: UserTenant[] = [
     displayName: "Zulqarnain Deen"
   }
 ];
-
-// Offline fallback credential map for demonstration / rapid setup
-export const PRESET_CREDENTIALS: Record<string, { password: string; id: string }> = {
-  "sofastyle@trade2turkey.com": { password: "sofastyle2026", id: "client_sofastyle" },
-  "trade2turkey06@gmail.com": { password: "admin2026", id: "owner_admin" },
-  "admin@trade2turkey.com": { password: "admin2026", id: "admin_role_user" },
-  "freelancer@trade2turkey.com": { password: "freelancer2026", id: "freelancer_scouter" }
-};

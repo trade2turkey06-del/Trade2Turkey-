@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import SourcingWorkflow from "./SourcingWorkflow";
 import { 
   Compass, Search, AlertTriangle, CheckCircle, 
   MapPin, Sparkles, ChevronDown, ChevronUp, AlertOctagon, 
@@ -98,20 +99,10 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
       return;
     }
     setLoadingUser(true);
-    const emailKey = currentUser.email.toLowerCase().trim();
-    const q = query(collection(db, "users"), where("email", "==", emailKey));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        const data = snapshot.docs[0].data() as UserTenant;
-        setUserData(data);
-      } else {
-        setUserData(null);
-      }
+    const unsubscribe = onSnapshot(doc(db, "users", currentUser.uid || currentUser.id), snapshot => {
+      setUserData(snapshot.exists() ? snapshot.data() as UserTenant : null);
       setLoadingUser(false);
-    }, (error) => {
-      console.error("Error listening to user document in FreelancerDashboard:", error);
-      setLoadingUser(false);
-    });
+    }, () => setLoadingUser(false));
     return () => unsubscribe();
   }, [currentUser?.email]);
 
@@ -171,21 +162,11 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
     setSaving(true);
     setFeedback(null);
     try {
-      // 1. Update user profile document in users collection by email query
-      const emailKey = activeUser.email.toLowerCase().trim();
-      const usersQuery = query(collection(db, "users"), where("email", "==", emailKey));
-      const usersSnap = await getDocs(usersQuery);
-      if (!usersSnap.empty) {
-        for (const uDoc of usersSnap.docs) {
-          await setDoc(uDoc.ref, {
-            ...formData,
-            onboardingCompleted: true,
-            displayName: formData.contactPerson,
-            name: formData.contactPerson,
-            status: "active"
-          }, { merge: true });
-        }
-      }
+      await setDoc(doc(db, "users", currentUser.uid || currentUser.id), {
+        ...formData, onboardingCompleted: true, displayName: formData.contactPerson,
+        name: formData.contactPerson,
+      }, { merge: true });
+      setSaving(false);
     } catch (err) {
       console.error("Onboarding save failed:", err);
       setFeedback("An error occurred while updating the profile. Please try again.");
@@ -241,7 +222,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
     
     const q = query(
       leadsCollectionRef,
-      where("freelancerEmail", "==", activeUser.email.toLowerCase().trim()),
+      where("assignedTo", "==", currentUser.uid || currentUser.id),
       where("projectId", "==", activeProjId)
     );
 
@@ -276,6 +257,8 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
         id: generatedId,
         leadId: generatedId,
         freelancerEmail: activeUser.email.toLowerCase().trim(),
+        assignedTo: currentUser.uid || currentUser.id,
+        userId: currentUser.uid || currentUser.id,
         projectId: activeProjId,
         companyName: newLeadCompanyName.trim(),
         createdAt: new Date().toISOString(),
@@ -746,6 +729,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
 
       {/* MAIN LAYOUT */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {selectedProjectId && <SourcingWorkflow projectId={selectedProjectId} currentUser={currentUser} />}
         
         {/* Welcome Billboard */}
         <div className="bg-gradient-to-br from-slate-900 via-navy to-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 text-white relative overflow-hidden shadow-2xl">
