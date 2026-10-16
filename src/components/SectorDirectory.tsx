@@ -9,6 +9,8 @@ export interface DirectoryCompany {
   id: string; sectorId: string; name: string; website: string; catalogUrl: string; description: string; foundedYear: string; employees: string;
   location: string; address: string; phone: string; email: string; products: string; certificates: string; capacity: string;
   markets: string; notes: string; contacts: DirectoryContact[];
+  // Fictional sample records are flagged so they are never mistaken for real suppliers.
+  isDemo?: boolean;
 }
 
 const emptyCompany = (sectorId: string): DirectoryCompany => ({ id: crypto.randomUUID(), sectorId, name: "", website: "", catalogUrl: "", description: "", foundedYear: "", employees: "", location: "", address: "", phone: "", email: "", products: "", certificates: "", capacity: "", markets: "", notes: "", contacts: [] });
@@ -120,7 +122,7 @@ function CompanyCard({ company, onEdit, onRemove }: { company: DirectoryCompany;
   return <details className="group rounded-2xl border border-slate-200 bg-white open:border-teal-300">
     <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 p-4 [&::-webkit-details-marker]:hidden">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700"><Building2 className="h-5 w-5" /></span>
-      <div className="min-w-0 flex-1"><p className="font-semibold text-navy">{company.name}</p><p className="truncate text-xs text-slate-500">{[company.location, company.products].filter(Boolean).join(" · ")}</p></div>
+      <div className="min-w-0 flex-1"><p className="flex flex-wrap items-center gap-2 font-semibold text-navy">{company.name}{company.isDemo && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">Demo</span>}</p><p className="truncate text-xs text-slate-500">{[company.location, company.products].filter(Boolean).join(" · ")}</p></div>
       {company.contacts[0] && <span className="hidden items-center gap-1 text-xs text-slate-500 sm:flex"><UserRound className="h-3.5 w-3.5" /> {company.contacts[0].name}</span>}
       <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
     </summary>
@@ -155,6 +157,7 @@ function CompanyForm({ company, onChange, onSave, onCancel, busy }: { company: D
       </div>)}
       <button type="button" className="flex items-center gap-2 text-sm font-semibold text-teal-700" onClick={() => set({ contacts: [...company.contacts, { id: crypto.randomUUID(), name: "", title: "", phone: "", email: "" }] })}><Plus className="h-4 w-4" /> Kişi ekle</button>
     </div>
+    <label className="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={!!company.isDemo} onChange={e => set({ isDemo: e.target.checked })} /> Demo / kurgusal kayıt</label>
     <label className="block text-xs text-slate-600">Notlar<textarea className={input} rows={2} maxLength={3000} value={company.notes} onChange={e => set({ notes: e.target.value })} /></label>
     <div className="flex gap-3"><button disabled={busy} className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Kaydediliyor…" : "Kaydet"}</button><button type="button" onClick={onCancel} className="rounded-lg border border-slate-300 px-4 py-2 text-sm">İptal</button></div>
   </form>;
