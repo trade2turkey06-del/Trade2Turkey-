@@ -7,9 +7,9 @@ import {
 } from "../domain/rfqMatrix";
 
 const green = "#2f5d50";
-const cellInput = "w-full min-w-[7rem] rounded border border-slate-300 bg-white px-1.5 py-1 text-xs text-slate-900 disabled:bg-transparent disabled:border-transparent";
-const numberInput = "w-16 rounded border border-slate-300 bg-white px-1.5 py-1 text-xs text-slate-900 disabled:bg-transparent disabled:border-transparent";
-const cell = "border-b border-slate-200 px-2 py-1.5 align-top";
+const field = "rounded border border-slate-300 bg-white px-1.5 py-1 text-xs text-slate-900 disabled:bg-transparent disabled:border-transparent";
+const cellInput = `${field} w-full`;
+const numberInput = `${field} w-12`;
 const points = (value: number | null) => value === null ? "–" : value.toFixed(2);
 // Print only the matrix, landscape; the rest of the page is hidden while printing.
 const printCss = `@media print {
@@ -26,7 +26,29 @@ const printCss = `@media print {
   body.rfq-printing #rfq-matrix th, body.rfq-printing #rfq-matrix td { position: static !important; min-width: 0 !important; overflow-wrap: anywhere; }
   @page { size: landscape; margin: 8mm; }
 }
-#rfq-matrix .rfq-print-text { display: none; }`;
+#rfq-matrix .rfq-print-text { display: none; }
+/* Scoped screen styles: the id selector outranks the app-wide table/input rules in index.css. */
+#rfq-matrix table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+#rfq-matrix th, #rfq-matrix td { padding: 4px 6px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+#rfq-matrix th { text-align: left; }
+#rfq-matrix .text-right { text-align: right; }
+#rfq-matrix thead th { background: ${green}; color: #fff; font-weight: 600; border-bottom: 1px solid #24493f; vertical-align: middle; }
+#rfq-matrix thead tr + tr th { color: #d5e8df; font-weight: 500; font-size: 11px; padding-top: 2px; }
+#rfq-matrix input, #rfq-matrix select, #rfq-matrix textarea { min-height: 0; border-radius: 4px; line-height: 1.35; }
+#rfq-matrix .rfq-m-start { border-left: 1px solid #cbd5e1; }
+#rfq-matrix thead .rfq-m-start { border-left-color: rgba(255,255,255,.3); }
+#rfq-matrix .rfq-c1 { position: sticky; left: 0; z-index: 1; width: 150px; min-width: 150px; max-width: 150px; }
+#rfq-matrix .rfq-c2 { position: sticky; left: 150px; z-index: 1; width: 90px; min-width: 90px; max-width: 90px; box-shadow: inset -1px 0 #cbd5e1; }
+#rfq-matrix .rfq-c12 { position: sticky; left: 0; z-index: 1; width: 240px; min-width: 240px; max-width: 240px; box-shadow: inset -1px 0 #cbd5e1; }
+#rfq-matrix thead .rfq-c1, #rfq-matrix thead .rfq-c2 { z-index: 3; }
+#rfq-matrix .rfq-value { width: 104px; min-width: 104px; }
+#rfq-matrix .rfq-score { width: 52px; min-width: 52px; }
+#rfq-matrix .rfq-weighted { width: 40px; min-width: 40px; text-align: right; }
+#rfq-matrix .rfq-head-input { background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.55); color: #fff; }
+#rfq-matrix .rfq-head-input::placeholder { color: rgba(255,255,255,.7); }
+#rfq-matrix .rfq-head-input:focus { background: rgba(255,255,255,.22); border-color: #fff; }
+#rfq-matrix .rfq-head-input:disabled { border-color: transparent; background: transparent; }
+#rfq-matrix .rfq-sticky-inline { position: sticky; left: 6px; display: inline-flex; }`;
 // Printed copy of a form control's value (see printCss).
 const Printed = ({ text, className = "" }: { text: ReactNode; className?: string }) => <span className={`rfq-print-text ${className}`}>{text}</span>;
 
@@ -51,26 +73,26 @@ export default function RfqComparisonMatrix({ matrix: stored, onChange, disabled
   const criterionRows = (criteria: Criterion[], weight: number) => criteria.map(item => {
     const suggested = suggestedScores(item, m), outliers = item.kind === "unitPrice" ? priceOutliers(item, m) : [];
     return <tr key={item.id} className="odd:bg-white even:bg-slate-50">
-      <td className={`${cell} sticky left-0 z-[1] bg-inherit`}><input aria-label="Criterion" className={`${cellInput} min-w-[11rem] font-medium`} maxLength={120} value={item.label} onChange={e => setCriterion(item.id, () => ({ label: e.target.value }))} /><Printed className="font-medium" text={item.label} /></td>
-      <td className={cell}><div className="flex items-center gap-1"><input aria-label={`${item.label} relative weight`} title="Relative weight within the section" className={numberInput} type="number" min={0} step={0.1} value={item.weight} onChange={e => setCriterion(item.id, () => ({ weight: Math.max(0, Number(e.target.value) || 0) }))} /><Printed text={`×${item.weight}`} /><span className="whitespace-nowrap text-[11px] text-slate-500">{criterionShare(criteria, item, weight).toFixed(1)}%</span></div></td>
+      <td className="rfq-c1 bg-inherit"><input aria-label="Criterion" className={`${cellInput} font-medium`} maxLength={120} value={item.label} onChange={e => setCriterion(item.id, () => ({ label: e.target.value }))} /><Printed className="font-medium" text={item.label} /></td>
+      <td className="rfq-c2 bg-inherit"><div className="flex items-center gap-1"><input aria-label={`${item.label} relative weight`} title="Relative weight within the section" className={numberInput} type="number" min={0} step={0.1} value={item.weight} onChange={e => setCriterion(item.id, () => ({ weight: Math.max(0, Number(e.target.value) || 0) }))} /><Printed text={`×${item.weight}`} /><span className="whitespace-nowrap text-[10px] text-slate-500">{criterionShare(criteria, item, weight).toFixed(1)}%</span></div></td>
       {m.map(manufacturer => {
         const score = item.scores[manufacturer.id], hint = suggested[manufacturer.id];
         return [
-          <td key={`${manufacturer.id}-v`} className={`${cell} border-l border-slate-300`}><input aria-label={`${manufacturer.name} ${item.label} value`} className={cellInput} maxLength={300} value={item.values[manufacturer.id] ?? ""} onChange={e => setCriterion(item.id, current => ({ values: { ...current.values, [manufacturer.id]: e.target.value } }))} /><Printed text={item.values[manufacturer.id] ?? ""} />
-            {outliers.includes(manufacturer.id) && <span className="mt-1 inline-block rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">Price outlier</span>}</td>,
-          <td key={`${manufacturer.id}-s`} className={cell}><select aria-label={`${manufacturer.name} ${item.label} score`} className={`${cellInput} min-w-[6.5rem] ${score ? "" : "text-slate-400"}`} value={score ?? ""} onChange={e => setScore(item, manufacturer.id, e.target.value)}>
-            <option value="">{hint ? `— (suggest ${hint})` : "—"}</option>{[1, 2, 3, 4, 5].map(value => <option key={value} value={value}>{value} · {scoreLabels[value]}</option>)}</select><Printed text={score ? `${score} · ${scoreLabels[score]}` : "–"} /></td>,
-          <td key={`${manufacturer.id}-w`} className={`${cell} text-right tabular-nums text-xs`}>{points(criterionPoints(criteria, item, manufacturer.id, weight))}</td>,
+          <td key={`${manufacturer.id}-v`} className="rfq-m-start rfq-value"><input title={item.values[manufacturer.id] || undefined} aria-label={`${manufacturer.name} ${item.label} value`} className={cellInput} maxLength={300} value={item.values[manufacturer.id] ?? ""} onChange={e => setCriterion(item.id, current => ({ values: { ...current.values, [manufacturer.id]: e.target.value } }))} /><Printed text={item.values[manufacturer.id] ?? ""} />
+            {outliers.includes(manufacturer.id) && <span className="mt-1 inline-block whitespace-nowrap rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">Price outlier</span>}</td>,
+          <td key={`${manufacturer.id}-s`} className="rfq-score"><select aria-label={`${manufacturer.name} ${item.label} score`} title={score ? `${score} · ${scoreLabels[score]}` : hint ? `Not scored · suggested ${hint} (${scoreLabels[hint]})` : "Not scored"} className={`${field} w-full px-1 ${score ? "" : "text-slate-400"}`} value={score ?? ""} onChange={e => setScore(item, manufacturer.id, e.target.value)}>
+            <option value="">{hint ? `(${hint})` : "–"}</option>{[1, 2, 3, 4, 5].map(value => <option key={value} value={value} title={scoreLabels[value]}>{value}</option>)}</select><Printed text={score ? `${score} · ${scoreLabels[score]}` : "–"} /></td>,
+          <td key={`${manufacturer.id}-w`} className="rfq-weighted tabular-nums">{points(criterionPoints(criteria, item, manufacturer.id, weight))}</td>,
         ];
       })}
     </tr>;
   });
   const summaryRow = (label: ReactNode, values: (manufacturerId: string) => ReactNode, strong = false) => <tr className={strong ? "bg-emerald-50 font-semibold" : "bg-slate-100 font-semibold"}>
-    <td className={`${cell} sticky left-0 z-[1] bg-inherit text-xs`} colSpan={2}>{label}</td>
-    {m.map(manufacturer => <td key={manufacturer.id} colSpan={3} className={`${cell} border-l border-slate-300 text-right tabular-nums text-xs`}>{values(manufacturer.id)}</td>)}
+    <td className="rfq-c12 bg-inherit" colSpan={2}>{label}</td>
+    {m.map(manufacturer => <td key={manufacturer.id} colSpan={3} className="rfq-m-start text-right tabular-nums">{values(manufacturer.id)}</td>)}
   </tr>;
   const sectionHeader = (section: Section, index: number) => <tr style={{ backgroundColor: "#e3eee9" }}>
-    <td colSpan={columns} className={`${cell} sticky left-0`}><div className="flex flex-wrap items-center gap-3 text-sm font-bold" style={{ color: green }}>{index + 1}) {section.title}
+    <td colSpan={columns}><div className="rfq-sticky-inline items-center gap-3 whitespace-nowrap text-sm font-bold" style={{ color: green }}>{index + 1}) {section.title}
       <label className="flex items-center gap-1 text-xs font-medium text-slate-600">Weight<input aria-label={`${section.title} weight`} className={numberInput} type="number" min={0} max={100} step={1} value={section.weight} onChange={e => setSection(section.id, { weight: Math.max(0, Number(e.target.value) || 0) })} /><Printed className="inline" text={section.weight} />%</label></div></td>
   </tr>;
   const impactRow = (section: Section) => summaryRow(`${section.title} Impact (${section.weight}%)`, id => `${result.rows.find(row => row.id === id)!.impacts[section.id].toFixed(1)} / ${section.weight}`);
@@ -94,37 +116,42 @@ export default function RfqComparisonMatrix({ matrix: stored, onChange, disabled
       <div className="rfq-no-print flex flex-wrap items-center gap-2">
         <button type="button" disabled={m.length >= MAX_MANUFACTURERS} title={m.length >= MAX_MANUFACTURERS ? `Maximum ${MAX_MANUFACTURERS} manufacturers` : undefined} onClick={addManufacturer} className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40" style={{ backgroundColor: green }}><Plus className="h-3.5 w-3.5" /> Add Manufacturer</button>
         <button type="button" onClick={() => onChange(applySuggestions(matrix))} title="Fills empty scores of price, logistics, lead time, capacity and years rows" className="flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700"><Wand2 className="h-3.5 w-3.5" /> Apply suggested scores</button>
-        <span className="text-[11px] text-slate-500">Scores: 1 Poor · 2 Below avg · 3 Acceptable · 4 Good · 5 Excellent</span>
+        <span className="text-[11px] text-slate-500">Score: 1 Poor · 2 Below avg · 3 Acceptable · 4 Good · 5 Excellent</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs" aria-label="Result summary">
+        <span className="font-semibold text-slate-600">Ranking</span>
+        {result.ranking.map((row, index) => <span key={row.id} className={`flex items-center gap-1 rounded-md px-2 py-1 ${result.recommended.includes(row.id) ? "bg-amber-100 font-semibold text-amber-950 ring-1 ring-amber-300" : "bg-white text-slate-700 ring-1 ring-slate-200"}`}>{index + 1}. {row.name || "Unnamed"} <strong className="tabular-nums">{row.total.toFixed(1)}</strong>{result.recommended.includes(row.id) && <><Award className="h-3.5 w-3.5" /> Recommended</>}</span>)}
+        {!result.recommended.length && <span className="text-slate-500">Score the criteria to see a recommendation.</span>}
       </div>
       {!weightsOk && <p role="alert" className="rounded-lg bg-red-50 p-2 text-xs font-semibold text-red-700">Section weights add up to {total}%. They must total 100% before the step can be saved.</p>}
       <datalist id="rfq-shortlist">{shortlist.map(name => <option key={name} value={name} />)}</datalist>
       <div className="rfq-scroll overflow-x-auto rounded-lg border border-slate-200">
-        <table className="w-full border-collapse text-left text-xs">
+        <table>
           <thead>
-            <tr style={{ backgroundColor: green }} className="text-white">
-              <th rowSpan={2} className="sticky left-0 z-[2] px-2 py-2 font-semibold" style={{ backgroundColor: green }}>Criteria</th>
-              <th rowSpan={2} className="px-2 py-2 font-semibold">Weight (%)</th>
-              {m.map((manufacturer, index) => <th key={manufacturer.id} colSpan={3} className="border-l border-white/30 px-2 py-2 font-semibold">
+            <tr>
+              <th rowSpan={2} className="rfq-c1 align-middle">Criteria</th>
+              <th rowSpan={2} className="rfq-c2 align-middle">Weight (%)</th>
+              {m.map((manufacturer, index) => <th key={manufacturer.id} colSpan={3} className="rfq-m-start">
                 <div className="flex items-center gap-1">
-                  <input aria-label={`Manufacturer ${index + 1} name`} list="rfq-shortlist" className="w-full min-w-[9rem] rounded border border-white/40 bg-white/10 px-1.5 py-1 text-xs text-white placeholder-white/60 disabled:border-transparent" maxLength={120} value={manufacturer.name} onChange={e => onChange({ ...matrix, manufacturers: m.map(item => item.id === manufacturer.id ? { ...item, name: e.target.value } : item) })} /><Printed text={manufacturer.name} />
-                  {result.recommended.includes(manufacturer.id) && <span className="flex shrink-0 items-center gap-0.5 rounded bg-amber-300 px-1.5 py-0.5 text-[10px] font-bold text-amber-950"><Award className="h-3 w-3" /> Recommended</span>}
+                  <input aria-label={`Manufacturer ${index + 1} name`} list="rfq-shortlist" title={manufacturer.name} placeholder="Manufacturer name" className="rfq-head-input w-full min-w-0 rounded px-1.5 py-1 text-xs font-semibold" maxLength={120} value={manufacturer.name} onChange={e => onChange({ ...matrix, manufacturers: m.map(item => item.id === manufacturer.id ? { ...item, name: e.target.value } : item) })} /><Printed text={manufacturer.name} />
+                  {result.recommended.includes(manufacturer.id) && <span title="Recommended" className="flex shrink-0 items-center gap-0.5 rounded bg-amber-300 px-1 py-0.5 text-[10px] font-bold text-amber-950"><Award className="h-3 w-3" /> Best</span>}
                   <button type="button" aria-label={`Remove ${manufacturer.name}`} disabled={m.length <= MIN_MANUFACTURERS} title={m.length <= MIN_MANUFACTURERS ? `At least ${MIN_MANUFACTURERS} manufacturers are required` : undefined} className="rfq-no-print shrink-0 rounded p-1 text-white/80 hover:bg-white/10 disabled:opacity-30" onClick={() => { if (window.confirm(`Remove ${manufacturer.name || "this manufacturer"} and all of its values and scores?`)) onChange(removeManufacturer(matrix, manufacturer.id)); }}><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               </th>)}
             </tr>
-            <tr style={{ backgroundColor: green }} className="text-[11px] text-white/90">{m.map(manufacturer => [<th key={`${manufacturer.id}-v`} className="border-l border-white/30 px-2 py-1 font-medium">Value</th>, <th key={`${manufacturer.id}-s`} className="px-2 py-1 font-medium">Score</th>, <th key={`${manufacturer.id}-w`} className="px-2 py-1 text-right font-medium">Weighted</th>])}</tr>
+            <tr>{m.map(manufacturer => [<th key={`${manufacturer.id}-v`} className="rfq-m-start">Value</th>, <th key={`${manufacturer.id}-s`} title="1 Poor · 2 Below avg · 3 Acceptable · 4 Good · 5 Excellent">Score</th>, <th key={`${manufacturer.id}-w`} className="rfq-weighted">Wtd.</th>])}</tr>
           </thead>
           <tbody>
             {matrix.sections.map((section, index) => section.id === "offer" ? <SectionBody key={section.id}>
               {sectionHeader(section, index)}
               {matrix.items.map(item => <SectionBody key={item.id}>
-                <tr className="bg-white"><td colSpan={columns} className={`${cell} sticky left-0`}><div className="flex items-center gap-2"><input aria-label="Item name" className={`${cellInput} max-w-xs font-semibold`} maxLength={120} value={item.name} onChange={e => onChange({ ...matrix, items: matrix.items.map(entry => entry.id === item.id ? { ...entry, name: e.target.value } : entry) })} /><Printed className="font-semibold" text={item.name} />
+                <tr className="bg-white"><td colSpan={columns}><div className="rfq-sticky-inline items-center gap-2"><input aria-label="Item name" className={`${field} w-72 font-semibold`} maxLength={120} value={item.name} onChange={e => onChange({ ...matrix, items: matrix.items.map(entry => entry.id === item.id ? { ...entry, name: e.target.value } : entry) })} /><Printed className="font-semibold" text={item.name} />
                   {matrix.items.length > 1 && <button type="button" className="rfq-no-print flex items-center gap-1 text-[11px] text-red-700" onClick={() => { if (window.confirm(`Remove ${item.name} and its scores?`)) onChange({ ...matrix, items: matrix.items.filter(entry => entry.id !== item.id) }); }}><Trash2 className="h-3 w-3" /> Remove item</button>}</div></td></tr>
                 {criterionRows(item.criteria, section.weight)}
                 {summaryRow(`Evaluation Point – ${item.name}`, id => `${sectionPoints(item.criteria, id, section.weight).toFixed(1)} / ${section.weight}`)}
-                <tr className="bg-white"><td className={`${cell} sticky left-0 bg-white text-xs font-semibold`} colSpan={2}>Evaluation Notes</td>{m.map(manufacturer => <td key={manufacturer.id} colSpan={3} className={`${cell} border-l border-slate-300`}><textarea aria-label={`${manufacturer.name} evaluation notes`} rows={2} maxLength={1000} className={`${cellInput} min-w-[14rem]`} value={item.notes[manufacturer.id] ?? ""} onChange={e => onChange({ ...matrix, items: matrix.items.map(entry => entry.id === item.id ? { ...entry, notes: { ...entry.notes, [manufacturer.id]: e.target.value } } : entry) })} /><Printed text={item.notes[manufacturer.id] ?? ""} /></td>)}</tr>
+                <tr className="bg-white"><td className="rfq-c12 bg-white font-semibold" colSpan={2}>Evaluation Notes</td>{m.map(manufacturer => <td key={manufacturer.id} colSpan={3} className="rfq-m-start"><textarea aria-label={`${manufacturer.name} evaluation notes`} rows={2} maxLength={1000} className={cellInput} value={item.notes[manufacturer.id] ?? ""} onChange={e => onChange({ ...matrix, items: matrix.items.map(entry => entry.id === item.id ? { ...entry, notes: { ...entry.notes, [manufacturer.id]: e.target.value } } : entry) })} /><Printed text={item.notes[manufacturer.id] ?? ""} /></td>)}</tr>
               </SectionBody>)}
-              <tr className="rfq-no-print"><td colSpan={columns} className={`${cell} sticky left-0`}><button type="button" className="flex items-center gap-1 text-xs font-semibold" style={{ color: green }} onClick={() => onChange({ ...matrix, items: [...matrix.items, createOfferItem(matrix.items.length + 1)] })}><Plus className="h-3.5 w-3.5" /> Add Item</button></td></tr>
+              <tr className="rfq-no-print bg-white"><td colSpan={columns}><button type="button" className="rfq-sticky-inline items-center gap-1 text-xs font-semibold" style={{ color: green }} onClick={() => onChange({ ...matrix, items: [...matrix.items, createOfferItem(matrix.items.length + 1)] })}><Plus className="h-3.5 w-3.5" /> Add Item</button></td></tr>
               {impactRow(section)}
             </SectionBody> : <SectionBody key={section.id}>{sectionHeader(section, index)}{criterionRows(section.criteria, section.weight)}{impactRow(section)}</SectionBody>)}
             {summaryRow(<span className="text-sm">TOTAL SCORE (/100){!weightsOk && <span className="ml-2 text-red-700">· weights total {total}%</span>}</span>, id => { const row = result.rows.find(entry => entry.id === id)!; return <span className={`text-sm ${result.recommended.includes(id) ? "text-emerald-800" : ""}`}>{row.total.toFixed(1)}</span>; }, true)}
@@ -132,7 +159,6 @@ export default function RfqComparisonMatrix({ matrix: stored, onChange, disabled
         </table>
       </div>
     </fieldset>
-    <ol className="flex flex-wrap gap-2 text-xs">{result.ranking.map((row, index) => <li key={row.id} className={`rounded-lg px-3 py-1.5 ${result.recommended.includes(row.id) ? "bg-amber-100 font-semibold text-amber-950" : "bg-slate-100 text-slate-700"}`}>{index + 1}. {row.name || "Unnamed"} · {row.total.toFixed(1)}{result.recommended.includes(row.id) && " · Recommended"}</li>)}</ol>
   </section>;
 }
 
