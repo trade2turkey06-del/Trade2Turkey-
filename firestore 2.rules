@@ -1,0 +1,415 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (Auth UID)
+    // Fields:
+    //   - id: string (required, size < 100)
+    //   - email: string (required, size < 100, email pattern)
+    //   - companyName: string (required, size < 100)
+    //   - role: string (required, 'client' or 'owner')
+    //   - projectId: string (required, size < 50)
+    //   - driveFolderName: string (required, size < 200)
+    //
+    // Collection: [sopSteps, targetSpecs, rfqs, valueChain, rfqMatrix, recipes, shipments, inventory, fulfillmentOrders, driveFiles]
+    // Document ID: projectId + "_" + resourceId
+    // Fields:
+    //   - projectId: string (required, scopes the B2B context)
+    //   - other fields (strongly typed, checked for logical sizes)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Fetch profile data of the currently logged-in user
+    function getMyProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    // Check if the current user has the 'owner' or 'admin' role
+    function isSystemOwner() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (getMyProfile().role == 'owner' || getMyProfile().role == 'admin');
+    }
+    
+    // Check if current user is assigned to the specified project (restricted to clients and owners)
+    function isAssignedToProject(projectId) {
+      return isAuthenticated() && (
+        isSystemOwner() || (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          getMyProfile().role == 'client' &&
+          getMyProfile().projectId == projectId
+        )
+      );
+    }
+
+    // Check if current user has the 'freelancer' role
+    function isFreelancer() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        getMyProfile().role == 'freelancer';
+    }
+
+    // Check if document is tagged with the freelancer's UID (assignedTo or userId)
+    function isFreelancerDoc(data) {
+      return data != null && (
+        (data.keys().hasAll(['assignedTo']) && data.assignedTo == request.auth.uid) ||
+        (data.keys().hasAll(['userId']) && data.userId == request.auth.uid)
+      );
+    }
+    
+    // String checks
+    function isValStr(val, maxLen) {
+      return val is string && val.size() > 0 && val.size() <= maxLen;
+    }
+    
+    // Optional string check
+    function isOptValStr(val, maxLen) {
+      return val == null || (val is string && val.size() <= maxLen);
+    }
+    
+    // Email checks
+    function isValEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'email', 'companyName', 'role', 'projectId', 'driveFolderName']) &&
+             data.keys().hasOnly(['id', 'email', 'companyName', 'role', 'projectId', 'driveFolderName', 'driveFolderId']) &&
+             isValStr(data.id, 100) &&
+             isValEmail(data.email) &&
+             isValStr(data.companyName, 100) &&
+             data.role in ['client', 'owner', 'admin', 'freelancer'] &&
+             isValStr(data.projectId, 50) &&
+             isValStr(data.driveFolderName, 200);
+    }
+
+    function isValidSopStep(data) {
+      return data.keys().hasAll(['id', 'section', 'subsection', 'task', 'requester', 'taskOwner', 'status', 'kpiMetric', 'kpiTimeDays', 'projectId']) &&
+             isValStr(data.id, 50) &&
+             data.section in ['A', 'B'] &&
+             isValStr(data.subsection, 150) &&
+             isValStr(data.task, 200) &&
+             isValStr(data.requester, 100) &&
+             isValStr(data.taskOwner, 100) &&
+             data.status in ['Completed', 'In Progress', 'Pending', 'Rejected'] &&
+             isValStr(data.kpiMetric, 300) &&
+             (data.kpiTimeDays is number || data.kpiTimeDays is string) &&
+             isValStr(data.projectId, 50);
+    }
+
+    function isValidTargetSpec(data) {
+      return data.keys().hasAll(['id', 'productName', 'category', 'dimensionsWidth', 'dimensionsLength', 'dimensionsHeight', 'materialCover', 'materialFilling', 'targetExwPrice', 'targetFobPrice', 'projectId']) &&
+             isValStr(data.id, 100) &&
+             isValStr(data.productName, 200) &&
+             isValStr(data.category, 100) &&
+             data.dimensionsWidth is number && data.dimensionsWidth >= 0 &&
+             data.dimensionsLength is number && data.dimensionsLength >= 0 &&
+             data.dimensionsHeight is number && data.dimensionsHeight >= 0 &&
+             isValStr(data.materialCover, 200) &&
+             isValStr(data.materialFilling, 200) &&
+             data.targetExwPrice is number && data.targetExwPrice >= 0 &&
+             data.targetFobPrice is number && data.targetFobPrice >= 0 &&
+             isValStr(data.projectId, 50);
+    }
+
+    function isValidRfq(data) {
+      return data.keys().hasAll(['id', 'rfcCode', 'productName', 'targetQty', 'status', 'suppliers', 'projectId']) &&
+             isValStr(data.id, 100) &&
+             isValStr(data.rfcCode, 100) &&
+             isValStr(data.productName, 200) &&
+             data.targetQty is number && data.targetQty >= 0 &&
+             data.status in ['Sent', 'Quote Received', 'Reviewing', 'Approved', 'Declined'] &&
+             data.suppliers is list &&
+             isValStr(data.projectId, 50);
+    }
+
+    function isValidValueChain(data) {
+      return data.keys().hasAll(['id', 'productName', 'quantity', 'exwUnitPrice', 'domesticFreightTurkey', 'exportCustomsTurkey', 'oceanFreight', 'importCustomsDuty', 'importerBrokerageAndClerance', 'localWarehousingAndHandling', 'inlandDelivery', 'unexpectedBuffer', 'projectId']) &&
+             isValStr(data.id, 100) &&
+             isValStr(data.productName, 200) &&
+             data.quantity is number && data.quantity >= 0 &&
+             data.exwUnitPrice is number && data.exwUnitPrice >= 0 &&
+             data.domesticFreightTurkey is number && data.domesticFreightTurkey >= 0 &&
+             data.exportCustomsTurkey is number && data.exportCustomsTurkey >= 0 &&
+             data.oceanFreight is number && data.oceanFreight >= 0 &&
+             data.importCustomsDuty is number && data.importCustomsDuty >= 0 &&
+             data.importerBrokerageAndClerance is number && data.importerBrokerageAndClerance >= 0 &&
+             data.localWarehousingAndHandling is number && data.localWarehousingAndHandling >= 0 &&
+             data.inlandDelivery is number && data.inlandDelivery >= 0 &&
+             data.unexpectedBuffer is number && data.unexpectedBuffer >= 0 &&
+             isValStr(data.projectId, 50);
+    }
+
+    function isValidRfqMatrix(data) {
+      return data.keys().hasAll(['id', 'productName', 'criteriaWeights', 'suppliers', 'projectId']) &&
+             isValStr(data.id, 100) &&
+             isValStr(data.productName, 200) &&
+             data.criteriaWeights is map &&
+             data.suppliers is list &&
+             isValStr(data.projectId, 50);
+    }
+
+    function isValidRecipe(data) {
+      return data.keys().hasAll(['id', 'productName', 'version', 'materials', 'laborCostUsd', 'packagingCostUsd', 'overheadCostUsd', 'targetExwCost', 'projectId']) &&
+             isValStr(data.id, 100) &&
+             isValStr(data.productName, 200) &&
+             isValStr(data.version, 50) &&
+             data.materials is list &&
+             data.laborCostUsd is number && data.laborCostUsd >= 0 &&
+             data.packagingCostUsd is number && data.packagingCostUsd >= 0 &&
+             data.overheadCostUsd is number && data.overheadCostUsd >= 0 &&
+             data.targetExwCost is number && data.targetExwCost >= 0 &&
+             isValStr(data.projectId, 50);
+    }
+
+    function isValidSupplier(data) {
+      return data.keys().hasAll(['id', 'name', 'city', 'country', 'mainCategory', 'scores', 'capacityMonthly', 'employees', 'verifiedStatus', 'ndaSigned', 'sampleApproved', 'siteAuditCompleted', 'auditScorePercent', 'projectId']) &&
+             isValStr(data.id, 100) &&
+             isValStr(data.name, 200) &&
+             isValStr(data.city, 100) &&
+             isValStr(data.country, 100) &&
+             isValStr(data.mainCategory, 100) &&
+             data.scores is map &&
+             data.capacityMonthly is number &&
+             data.employees is number &&
+             data.verifiedStatus in ['Gold', 'Verified', 'Pending', 'High Risk'] &&
+             data.ndaSigned is bool &&
+             data.sampleApproved is bool &&
+             data.siteAuditCompleted is bool &&
+             data.auditScorePercent is number &&
+             isValStr(data.projectId, 50);
+    }
+
+    function isValidShipment(data) {
+      return data.keys().hasAll(['id', 'shipmentNumber', 'productName', 'supplierName', 'containerId', 'vesselName', 'originPort', 'destinationPort', 'status', 'latitude', 'longitude', 'departureDate', 'estimatedArrival', 'currentMilestoneIndex', 'milestones', 'cargoPhotos', 'projectId']) &&
+             isValStr(data.id, 100) &&
+             isValStr(data.shipmentNumber, 100) &&
+             isValStr(data.productName, 200) &&
+             isValStr(data.supplierName, 200) &&
+             isOptValStr(data.containerId, 100) &&
+             isValStr(data.vesselName, 200) &&
+             isValStr(data.originPort, 200) &&
+             isValStr(data.destinationPort, 200) &&
+             data.status in ['Draft', 'Booking Confirmed', 'Pre-production', 'Production Complete', 'Loaded on Vessel', 'Transit', 'Customs Clearance', 'Delivered'] &&
+             data.latitude is number &&
+             data.longitude is number &&
+             isValStr(data.projectId, 50);
+    }
+
+    function isValidInventory(data) {
+      return data.keys().hasAll(['id', 'sku', 'name', 'safetyStockDays', 'forecastDailySales', 'physicalStock', 'committedStock', 'leadTimeDays', 'projectId']) &&
+             isValStr(data.id, 100) &&
+             isValStr(data.sku, 100) &&
+             isValStr(data.name, 200) &&
+             data.safetyStockDays is number &&
+             data.forecastDailySales is number &&
+             data.physicalStock is number &&
+             data.committedStock is number &&
+             data.leadTimeDays is number &&
+             isValStr(data.projectId, 50);
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['id', 'platform', 'orderId', 'sku', 'customerName', 'shippingAddress', 'shippingRates', 'status', 'dateReceived', 'projectId']) &&
+             isValStr(data.id, 100) &&
+             data.platform in ['Amazon', 'Walmart', 'Shopify Website'] &&
+             isValStr(data.orderId, 100) &&
+             isValStr(data.sku, 100) &&
+             isValStr(data.customerName, 150) &&
+             isValStr(data.shippingAddress, 300) &&
+             data.shippingRates is list &&
+             data.status in ['Pending Check', 'Stock Verified', 'Labeiled', 'Shipped', 'Synced'] &&
+             isValStr(data.projectId, 50);
+    }
+
+    function isValidDriveFile(data) {
+      return data.keys().hasAll(['stepId', 'folderName', 'projectId', 'fileName', 'fileType', 'downloadUrl', 'fileSize', 'dateAdded']) &&
+             isValStr(data.stepId, 100) &&
+             isValStr(data.folderName, 200) &&
+             isValStr(data.projectId, 50) &&
+             isValStr(data.fileName, 250) &&
+             isValStr(data.fileType, 100) &&
+             isValStr(data.downloadUrl, 1000) &&
+             isValStr(data.fileSize, 50) &&
+             isValStr(data.dateAdded, 50);
+    }
+
+    function isValidLead(data) {
+      return data.keys().hasAll(['id', 'companyName', 'country', 'decisionMakerName', 'decisionMakerTitle', 'contactInfo', 'status', 'assignedScouterId', 'assignedTo', 'userId', 'lastUpdateDays', 'demandNotes', 'projectId']) &&
+             isValStr(data.id, 100) &&
+             isValStr(data.companyName, 200) &&
+             isValStr(data.country, 100) &&
+             isValStr(data.decisionMakerName, 150) &&
+             isValStr(data.decisionMakerTitle, 150) &&
+             isValStr(data.contactInfo, 300) &&
+             data.status in ['İlk Temas', 'Teklif Aşaması', 'Nitelikli Talep', 'Görüşülüyor', 'Reddedildi'] &&
+             isValStr(data.assignedScouterId, 100) &&
+             isValStr(data.assignedTo, 100) &&
+             isValStr(data.userId, 100) &&
+             data.lastUpdateDays is number &&
+             isValStr(data.projectId, 50);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // 1. Users Collection
+    match /users/{userId} {
+      // Users can read and write their own documents. Owners can read all documents to manage tenants.
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isSystemOwner());
+      allow create: if isAuthenticated() && (request.auth.uid == userId || isSystemOwner()) && isValidUser(request.resource.data);
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isSystemOwner()) && isValidUser(request.resource.data) && 
+                    (isSystemOwner() || request.resource.data.role == resource.data.role); // prevent self-privilege escalation
+      allow delete: if isSystemOwner();
+    }
+
+    // Helper pattern for project-specific collections
+    function clientHasAccess(projectId, data) {
+      return isAssignedToProject(projectId) && data.projectId == projectId;
+    }
+
+    // 2. SOP Steps Collection
+    match /sopSteps/{stepDocId} {
+      allow read: if isAuthenticated() && (
+        isAssignedToProject(resource.data.projectId) ||
+        (isFreelancer() && isFreelancerDoc(resource.data))
+      );
+      allow create: if isAuthenticated() && (
+        (isAssignedToProject(request.resource.data.projectId) && isValidSopStep(request.resource.data)) ||
+        (isFreelancer() && isFreelancerDoc(request.resource.data) && isValidSopStep(request.resource.data))
+      );
+      allow update: if isAuthenticated() && (
+        (isAssignedToProject(request.resource.data.projectId) && isValidSopStep(request.resource.data)) ||
+        (isFreelancer() && isFreelancerDoc(resource.data) && isFreelancerDoc(request.resource.data) && isValidSopStep(request.resource.data))
+      );
+      allow delete: if isSystemOwner();
+    }
+
+    // 3. Target Specifications Collection
+    match /targetSpecs/{specDocId} {
+      allow read: if isAuthenticated() && isAssignedToProject(resource.data.projectId);
+      allow create: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidTargetSpec(request.resource.data);
+      allow update: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidTargetSpec(request.resource.data);
+      allow delete: if isSystemOwner();
+    }
+
+    // 4. RFQ Submissions Collection
+    match /rfqs/{rfqDocId} {
+      allow read: if isAuthenticated() && isAssignedToProject(resource.data.projectId);
+      allow create: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidRfq(request.resource.data);
+      allow update: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidRfq(request.resource.data);
+      allow delete: if isSystemOwner();
+    }
+
+    // 5. Value Chain Costings Collection
+    match /valueChain/{costingDocId} {
+      allow read: if isAuthenticated() && isAssignedToProject(resource.data.projectId);
+      allow create: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidValueChain(request.resource.data);
+      allow update: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidValueChain(request.resource.data);
+      allow delete: if isSystemOwner();
+    }
+
+    // 6. RFQ Matrices Collection
+    match /rfqMatrix/{matrixDocId} {
+      allow read: if isAuthenticated() && isAssignedToProject(resource.data.projectId);
+      allow create: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidRfqMatrix(request.resource.data);
+      allow update: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidRfqMatrix(request.resource.data);
+      allow delete: if isSystemOwner();
+    }
+
+    // 7. Product Recipes Collection
+    match /recipes/{recipeDocId} {
+      allow read: if isAuthenticated() && isAssignedToProject(resource.data.projectId);
+      allow create: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidRecipe(request.resource.data);
+      allow update: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidRecipe(request.resource.data);
+      allow delete: if isSystemOwner();
+    }
+
+    // 8. Suppliers Collection
+    match /suppliers/{supplierDocId} {
+      allow read: if isAuthenticated() && isAssignedToProject(resource.data.projectId);
+      allow create: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidSupplier(request.resource.data);
+      allow update: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidSupplier(request.resource.data);
+      allow delete: if isSystemOwner();
+    }
+
+    // 9. Shipment Milestones Collection
+    match /shipments/{shipmentDocId} {
+      allow read: if isAuthenticated() && isAssignedToProject(resource.data.projectId);
+      allow create: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidShipment(request.resource.data);
+      allow update: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidShipment(request.resource.data);
+      allow delete: if isSystemOwner();
+    }
+
+    // 10. Inventory Items Collection
+    match /inventory/{inventoryDocId} {
+      allow read: if isAuthenticated() && isAssignedToProject(resource.data.projectId);
+      allow create: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidInventory(request.resource.data);
+      allow update: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidInventory(request.resource.data);
+      allow delete: if isSystemOwner();
+    }
+
+    // 11. Fulfillment Orders Collection
+    match /fulfillmentOrders/{orderDocId} {
+      allow read: if isAuthenticated() && isAssignedToProject(resource.data.projectId);
+      allow create: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidOrder(request.resource.data);
+      allow update: if isAuthenticated() && isAssignedToProject(request.resource.data.projectId) && isValidOrder(request.resource.data);
+      allow delete: if isSystemOwner();
+    }
+
+    // 12. Drive Files Collection
+    match /driveFiles/{fileDocId} {
+      allow read: if isAuthenticated() && (
+        isAssignedToProject(resource.data.projectId) ||
+        (isFreelancer() && isFreelancerDoc(resource.data))
+      );
+      allow create: if isAuthenticated() && (
+        (isAssignedToProject(request.resource.data.projectId) && isValidDriveFile(request.resource.data)) ||
+        (isFreelancer() && isFreelancerDoc(request.resource.data) && isValidDriveFile(request.resource.data))
+      );
+      allow update: if isAuthenticated() && (
+        (isAssignedToProject(request.resource.data.projectId) && isValidDriveFile(request.resource.data)) ||
+        (isFreelancer() && isFreelancerDoc(resource.data) && isFreelancerDoc(request.resource.data) && isValidDriveFile(request.resource.data))
+      );
+      allow delete: if isSystemOwner() || (isAuthenticated() && (
+        isAssignedToProject(resource.data.projectId) ||
+        (isFreelancer() && isFreelancerDoc(resource.data))
+      ));
+    }
+
+    // 13. Leads Collection
+    match /leads/{leadId} {
+      allow read: if isAuthenticated() && (
+        isSystemOwner() || 
+        (isFreelancer() && isFreelancerDoc(resource.data))
+      );
+      allow create: if isAuthenticated() && (
+        isSystemOwner() || 
+        (isFreelancer() && isFreelancerDoc(request.resource.data) && isValidLead(request.resource.data))
+      );
+      allow update: if isAuthenticated() && (
+        isSystemOwner() || 
+        (isFreelancer() && isFreelancerDoc(resource.data) && isFreelancerDoc(request.resource.data) && isValidLead(request.resource.data))
+      );
+      allow delete: if isSystemOwner();
+    }
+  }
+}
