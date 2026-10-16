@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { collection, deleteDoc, doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import { Archive, BookOpen, Building2, ChevronDown, Globe, Layers, Mail, MapPin, Pencil, Phone, Plus, Search, Trash2, UserRound, X } from "lucide-react";
 import { db } from "../lib/firebase";
@@ -9,11 +9,13 @@ export interface DirectoryCompany {
   id: string; sectorId: string; name: string; website: string; catalogUrl: string; description: string; foundedYear: string; employees: string;
   location: string; address: string; phone: string; email: string; products: string; certificates: string; capacity: string;
   markets: string; notes: string; contacts: DirectoryContact[];
+  // Optional detail fields; older records simply lack them and read as "".
+  productSummary?: string; companyType?: string; locationNote?: string; technicalSpecs?: string; packaging?: string; missingCertificates?: string;
   // Fictional sample records are flagged so they are never mistaken for real suppliers.
   isDemo?: boolean;
 }
 
-const emptyCompany = (sectorId: string): DirectoryCompany => ({ id: crypto.randomUUID(), sectorId, name: "", website: "", catalogUrl: "", description: "", foundedYear: "", employees: "", location: "", address: "", phone: "", email: "", products: "", certificates: "", capacity: "", markets: "", notes: "", contacts: [] });
+const emptyCompany = (sectorId: string): DirectoryCompany => ({ id: crypto.randomUUID(), sectorId, name: "", website: "", catalogUrl: "", description: "", foundedYear: "", employees: "", location: "", address: "", phone: "", email: "", products: "", certificates: "", capacity: "", markets: "", notes: "", contacts: [], productSummary: "", companyType: "", locationNote: "", technicalSpecs: "", packaging: "", missingCertificates: "" });
 
 // First sector and company requested for the trial; written once when the directory is empty.
 // Company facts were taken from www.mtclinen.com and should be verified with the manufacturer.
@@ -34,7 +36,12 @@ const seedCompany: DirectoryCompany = {
 const fields: [keyof DirectoryCompany, string, number, string?][] = [
   ["name", "Firma adı *", 250], ["website", "Web sitesi", 2000, "https://"], ["catalogUrl", "Katalog bağlantısı", 2000, "https://"], ["location", "Şehir / ülke", 250], ["address", "Adres", 500],
   ["phone", "Telefon", 100], ["email", "E-posta", 254], ["foundedYear", "Kuruluş yılı", 10], ["employees", "Çalışan sayısı", 50],
-  ["capacity", "Üretim kapasitesi", 500], ["certificates", "Sertifikalar", 1000], ["markets", "İhracat pazarları / ofisler", 1000],
+  ["companyType", "Firma tipi", 250], ["productSummary", "Kart özeti (ürünler, kısa)", 250],
+];
+// Multi-line fields; one item per line renders as a list in the detail view.
+const longFields: [keyof DirectoryCompany, string][] = [
+  ["locationNote", "Konum notu"], ["products", "Ürünler"], ["capacity", "Kapasite & tesis"], ["technicalSpecs", "Teknik özellikler"], ["packaging", "Ambalaj"],
+  ["certificates", "Sertifikalar"], ["missingCertificates", "Eksik sertifikalar"], ["markets", "İhracat"], ["description", "Firma tanıtımı"],
 ];
 const input = "mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900";
 const link = (url: string) => /^https?:\/\//i.test(url) ? url : `https://${url}`;
@@ -83,7 +90,7 @@ export default function SectorDirectory() {
   const sector = sectors?.find(item => item.id === selected);
   const visible = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("tr-TR");
-    return companies.filter(c => c.sectorId === selected && (!term || [c.name, c.location, c.products, c.certificates, ...c.contacts.map(p => p.name)].join(" ").toLocaleLowerCase("tr-TR").includes(term))).sort((a, b) => a.name.localeCompare(b.name, "tr-TR"));
+    return companies.filter(c => c.sectorId === selected && (!term || [c.name, c.location, c.products, c.productSummary || "", c.certificates, ...c.contacts.map(p => p.name)].join(" ").toLocaleLowerCase("tr-TR").includes(term))).sort((a, b) => a.name.localeCompare(b.name, "tr-TR"));
   }, [companies, selected, search]);
 
   if (!sectors) return <div role="status" className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">{error || "Sektörler yükleniyor…"}</div>;
@@ -117,42 +124,70 @@ export default function SectorDirectory() {
   </section>;
 }
 
-function CompanyCard({ company, onEdit, onRemove }: { company: DirectoryCompany; onEdit: () => void; onRemove: () => void }) {
-  const facts: [string, string][] = [["Kuruluş", company.foundedYear], ["Çalışan", company.employees], ["Kapasite", company.capacity], ["Ürünler", company.products], ["Sertifikalar", company.certificates], ["Pazarlar", company.markets], ["Adres", company.address], ["Notlar", company.notes]];
+// Turns e-mail addresses and web links inside free text into clickable links.
+function Linkify({ text }: { text: string }) {
+  return <>{text.split(/((?:https?:\/\/|www\.)[^\s,;()]+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+)/g).map((part, index) => index % 2 === 0 ? part
+    : part.includes("@") && !part.startsWith("http") ? <a key={index} className="text-teal-700 hover:underline" href={`mailto:${part}`}>{part}</a>
+    : <a key={index} className="text-teal-700 hover:underline" href={link(part)} target="_blank" rel="noreferrer">{part}</a>)}</>;
+}
+function Lines({ text }: { text: string }) {
+  const lines = text.split("\n").map(line => line.trim()).filter(Boolean);
+  return lines.length > 1 ? <ul className="list-disc space-y-1 pl-5">{lines.map((line, index) => <li key={index}><Linkify text={line.replace(/^[-•]\s*/, "")} /></li>)}</ul> : <p><Linkify text={lines[0] ?? ""} /></p>;
+}
+function Block({ title, children }: { title: string; children: React.ReactNode }) {
+  return <section className="grid gap-1 border-t border-slate-100 pt-3 sm:grid-cols-[150px_1fr] sm:gap-4"><h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{title}</h4><div className="space-y-2 text-slate-700">{children}</div></section>;
+}
+
+export function CompanyCard({ company, onEdit, onRemove }: { company: DirectoryCompany; onEdit: () => void; onRemove: () => void }) {
+  const meta = [company.companyType, company.foundedYear && `Kuruluş ${company.foundedYear}`, company.employees && `${company.employees} çalışan`].filter(Boolean);
+  const contactName = company.contacts.find(person => person.name.trim())?.name;
+  const hasContact = company.website || company.catalogUrl || company.phone || company.email || company.contacts.length > 0;
+  const text = (value?: string) => value?.trim() ? <Lines text={value} /> : null;
+  const sections: [string, React.ReactNode][] = [
+    ["Konum", (company.location || company.address || company.locationNote) && <>{company.address ? <p className="flex gap-1"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />{company.address}</p> : company.location && <p className="flex gap-1"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />{company.location}</p>}{text(company.locationNote)}</>],
+    ["Ürünler", text(company.products)],
+    ["Kapasite & Tesis", text(company.capacity)],
+    ["Teknik Özellikler", text(company.technicalSpecs)],
+    ["Ambalaj", text(company.packaging)],
+    ["Sertifikalar", (company.certificates || company.missingCertificates) && <>{text(company.certificates)}{company.missingCertificates?.trim() && <p className="text-amber-800"><span className="font-semibold">Eksik:</span> <Linkify text={company.missingCertificates} /></p>}</>],
+    ["İhracat", text(company.markets)],
+    ["İletişim", hasContact && <>
+      <div className="flex flex-wrap gap-x-5 gap-y-2">
+        {company.website && <a className="flex items-center gap-1 text-teal-700 hover:underline" href={link(company.website)} target="_blank" rel="noreferrer"><Globe className="h-4 w-4" /> {company.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}</a>}
+        {company.catalogUrl && <a className="flex items-center gap-1 font-semibold text-teal-700 hover:underline" href={link(company.catalogUrl)} target="_blank" rel="noreferrer"><BookOpen className="h-4 w-4" /> Katalog</a>}
+        {company.phone && <a className="flex items-center gap-1 hover:text-navy" href={`tel:${company.phone.replace(/[^\d+]/g, "")}`}><Phone className="h-4 w-4" /> {company.phone}</a>}
+        {company.email && <a className="flex items-center gap-1 text-teal-700 hover:underline" href={`mailto:${company.email}`}><Mail className="h-4 w-4" /> {company.email}</a>}
+      </div>
+      {company.contacts.length > 0 && <ul className="grid gap-2 sm:grid-cols-2">{company.contacts.map(person => <li key={person.id} className="rounded-lg bg-slate-50 p-3"><p className="font-semibold text-navy">{person.name || person.title}</p>{person.name && person.title && <p className="text-xs text-slate-500">{person.title}</p>}<div className="mt-1 space-y-0.5 text-xs">{person.phone && <a className="block hover:text-navy" href={`tel:${person.phone.replace(/[^\d+]/g, "")}`}>{person.phone}</a>}{person.email && <a className="block text-teal-700 hover:underline" href={`mailto:${person.email}`}>{person.email}</a>}</div></li>)}</ul>}
+    </>],
+    ["Notlar", text(company.notes)],
+  ];
   return <details className="group rounded-2xl border border-slate-200 bg-white open:border-teal-300">
     <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 p-4 [&::-webkit-details-marker]:hidden">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700"><Building2 className="h-5 w-5" /></span>
-      <div className="min-w-0 flex-1"><p className="flex flex-wrap items-center gap-2 font-semibold text-navy">{company.name}{company.isDemo && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">Demo</span>}</p><p className="truncate text-xs text-slate-500">{[company.location, company.products].filter(Boolean).join(" · ")}</p></div>
-      {company.contacts[0] && <span className="hidden items-center gap-1 text-xs text-slate-500 sm:flex"><UserRound className="h-3.5 w-3.5" /> {company.contacts[0].name}</span>}
+      <div className="min-w-0 flex-1"><p className="flex flex-wrap items-center gap-2 font-semibold text-navy">{company.name}{company.isDemo && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">Demo</span>}</p><p className="truncate text-xs text-slate-500">{[company.location, company.productSummary || company.products].filter(Boolean).join(" · ")}</p></div>
+      {contactName && <span className="hidden items-center gap-1 text-xs text-slate-500 sm:flex"><UserRound className="h-3.5 w-3.5" /> {contactName}</span>}
       <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
     </summary>
-    <div className="space-y-4 border-t border-slate-100 p-4 text-sm">
-      {company.description && <p className="text-slate-600">{company.description}</p>}
-      <div className="flex flex-wrap gap-x-5 gap-y-2 text-slate-600">
-        {company.website && <a className="flex items-center gap-1 text-teal-700 hover:underline" href={link(company.website)} target="_blank" rel="noreferrer"><Globe className="h-4 w-4" /> {company.website.replace(/^https?:\/\//, "")}</a>}
-        {company.catalogUrl && <a className="flex items-center gap-1 font-semibold text-teal-700 hover:underline" href={link(company.catalogUrl)} target="_blank" rel="noreferrer"><BookOpen className="h-4 w-4" /> Katalog</a>}
-        {company.phone && <a className="flex items-center gap-1 hover:text-navy" href={`tel:${company.phone.replace(/\s/g, "")}`}><Phone className="h-4 w-4" /> {company.phone}</a>}
-        {company.email && <a className="flex items-center gap-1 hover:text-navy" href={`mailto:${company.email}`}><Mail className="h-4 w-4" /> {company.email}</a>}
-        {company.location && <span className="flex items-center gap-1"><MapPin className="h-4 w-4" /> {company.location}</span>}
-      </div>
-      <dl className="grid gap-3 sm:grid-cols-2">{facts.filter(([, value]) => value).map(([label, value]) => <div key={label}><dt className="text-xs text-slate-400">{label}</dt><dd className="text-slate-700">{value}</dd></div>)}</dl>
-      {company.contacts.length > 0 && <div><h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">İlgili kişiler</h4><ul className="grid gap-2 sm:grid-cols-2">{company.contacts.map(person => <li key={person.id} className="rounded-lg bg-slate-50 p-3"><p className="font-semibold text-navy">{person.name}</p>{person.title && <p className="text-xs text-slate-500">{person.title}</p>}<div className="mt-1 space-y-0.5 text-xs">{person.phone && <a className="block hover:text-navy" href={`tel:${person.phone.replace(/\s/g, "")}`}>{person.phone}</a>}{person.email && <a className="block text-teal-700 hover:underline" href={`mailto:${person.email}`}>{person.email}</a>}</div></li>)}</ul></div>}
+    <div className="space-y-3 border-t border-slate-100 p-4 text-sm">
+      {company.description && <div className="text-slate-600"><Lines text={company.description} /></div>}
+      {meta.length > 0 && <p className="flex flex-wrap gap-2">{meta.map(item => <span key={item} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">{item}</span>)}</p>}
+      {sections.filter(([, content]) => content).map(([title, content]) => <Block key={title} title={title}>{content}</Block>)}
       <div className="flex gap-4 border-t border-slate-100 pt-3"><button onClick={onEdit} className="flex items-center gap-1 font-semibold text-teal-700"><Pencil className="h-4 w-4" /> Düzenle</button><button onClick={onRemove} className="flex items-center gap-1 text-red-700"><Trash2 className="h-4 w-4" /> Sil</button></div>
     </div>
   </details>;
 }
-
 function CompanyForm({ company, onChange, onSave, onCancel, busy }: { company: DirectoryCompany; onChange: (company: DirectoryCompany) => void; onSave: (company: DirectoryCompany) => void; onCancel: () => void; busy: boolean }) {
   const set = (patch: Partial<DirectoryCompany>) => onChange({ ...company, ...patch });
   const setContact = (id: string, patch: Partial<DirectoryContact>) => set({ contacts: company.contacts.map(person => person.id === id ? { ...person, ...patch } : person) });
   return <form className="space-y-4 rounded-2xl border border-teal-300 bg-teal-50/30 p-4" onSubmit={e => { e.preventDefault(); onSave(company); }}>
     <h4 className="font-semibold text-navy">{company.name || "Yeni firma"}</h4>
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{fields.map(([key, label, max, placeholder]) => <label key={key} className="text-xs text-slate-600">{label}<input className={input} maxLength={max} placeholder={placeholder} type={key === "email" ? "email" : "text"} value={company[key] as string} onChange={e => set({ [key]: e.target.value })} /></label>)}</div>
-    <label className="block text-xs text-slate-600">Ürün grupları<textarea className={input} rows={2} maxLength={2000} value={company.products} onChange={e => set({ products: e.target.value })} /></label>
-    <label className="block text-xs text-slate-600">Firma tanıtımı<textarea className={input} rows={3} maxLength={3000} value={company.description} onChange={e => set({ description: e.target.value })} /></label>
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{fields.map(([key, label, max, placeholder]) => <label key={key} className="text-xs text-slate-600">{label}<input className={input} maxLength={max} placeholder={placeholder} type={key === "email" ? "email" : "text"} value={(company[key] as string | undefined) ?? ""} onChange={e => set({ [key]: e.target.value })} /></label>)}</div>
+    <p className="text-xs text-slate-500">Aşağıdaki alanlarda her satır, detay görünümünde ayrı bir madde olarak gösterilir.</p>
+    <div className="grid gap-3 sm:grid-cols-2">{longFields.map(([key, label]) => <label key={key} className="text-xs text-slate-600">{label}<textarea className={input} rows={3} maxLength={4000} value={(company[key] as string | undefined) ?? ""} onChange={e => set({ [key]: e.target.value })} /></label>)}</div>
     <div className="space-y-2"><h5 className="text-sm font-semibold text-navy">İlgili kişiler</h5>
       {company.contacts.map(person => <div key={person.id} className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-[1fr_1fr_1fr_1fr_28px]">
-        {(["name", "title", "phone", "email"] as const).map(key => <label key={key} className="text-xs text-slate-500">{{ name: "Ad soyad", title: "Ünvan", phone: "Telefon", email: "E-posta" }[key]}<input className={input} maxLength={key === "email" ? 254 : 200} type={key === "email" ? "email" : "text"} value={person[key]} onChange={e => setContact(person.id, { [key]: e.target.value })} /></label>)}
+        {(["name", "title", "phone", "email"] as const).map(key => <label key={key} className="text-xs text-slate-500">{{ name: "Ad soyad", title: "Ünvan / departman", phone: "Telefon", email: "E-posta" }[key]}<input className={input} maxLength={key === "email" ? 254 : 200} type={key === "email" ? "email" : "text"} value={person[key]} onChange={e => setContact(person.id, { [key]: e.target.value })} /></label>)}
         <button type="button" aria-label={`${person.name || "Kişi"} kişisini çıkar`} className="mt-5 text-red-700" onClick={() => set({ contacts: company.contacts.filter(item => item.id !== person.id) })}><Trash2 className="h-4 w-4" /></button>
       </div>)}
       <button type="button" className="flex items-center gap-2 text-sm font-semibold text-teal-700" onClick={() => set({ contacts: [...company.contacts, { id: crypto.randomUUID(), name: "", title: "", phone: "", email: "" }] })}><Plus className="h-4 w-4" /> Kişi ekle</button>
