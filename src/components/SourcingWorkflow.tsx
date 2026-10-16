@@ -68,8 +68,8 @@ function TaskEditor({ projectId, step, record, users, currentUser, records, even
     try {
       const uid = auth.currentUser?.uid; if (!uid) throw new Error("Oturum açın.");
       if (action === "save" && step.id === "A.A.4" && new TextEncoder().encode(JSON.stringify(draft.rfqForms ?? [])).length > 500000) throw new Error("RFQ formları çok büyük. Lütfen uzun yanıtları belge bağlantısı olarak ekleyin.");
-      if (action === "save" && step.id === "A.A.3" && isAdmin) {
-        const companies: SupplierCandidate[] = draft.supplierLongList ?? [];
+      if (action === "save" && (step.id === "A.A.3" || step.id === "A.A.5") && isAdmin) {
+        const companies: SupplierCandidate[] = (step.id === "A.A.3" ? draft.supplierLongList : draft.supplierShortList) ?? [];
         if (companies.some(company => !company.name.trim())) throw new Error("Lütfen listedeki her firmanın adını girin veya boş firmayı çıkarın.");
         if (new TextEncoder().encode(JSON.stringify(companies)).length > 500000) throw new Error("Firma listesi çok büyük. Lütfen uzun notları kısaltın.");
       }
@@ -101,6 +101,7 @@ function TaskEditor({ projectId, step, record, users, currentUser, records, even
             rejectionReason: "", updatedAt: serverTimestamp(),
             ...(step.id === "A.A.2" && isAdmin ? { targetSpecification: draft.targetSpecification ?? createTargetSpecification() } : {}),
             ...(step.id === "A.A.3" && isAdmin ? { supplierLongList: draft.supplierLongList ?? [] } : {}),
+            ...(step.id === "A.A.5" && isAdmin ? { supplierShortList: draft.supplierShortList ?? [] } : {}),
             ...(step.id === "A.A.4" && isAdmin ? { rfqForms: draft.rfqForms ?? [createRfqForm()] } : {}),
           };
         } else {
@@ -121,6 +122,25 @@ function TaskEditor({ projectId, step, record, users, currentUser, records, even
     } catch (error) { setMessage(error instanceof Error ? error.message : "Kaydedilemedi."); }
     finally { setBusy(false); }
   };
+  // Copies a long-list company into the A.A.5 record without touching that step's status.
+  const shortlist = async (company: SupplierCandidate) => {
+    setBusy(true); setMessage("");
+    try {
+      if (!auth.currentUser?.uid) throw new Error("Oturum açın.");
+      await runTransaction(db, async tx => {
+        const ref = taskRef(projectId, "A.A.5"); const snapshot = await tx.get(ref);
+        const current = snapshot.data() as TaskRecord | undefined;
+        if (current?.approval === "approved" || current?.approval === "pending") throw new Error("A.A.5 kısa listesi onayda veya onaylı; değiştirilemez.");
+        const list: SupplierCandidate[] = current?.supplierShortList ?? [];
+        if (list.some(item => item.id === company.id)) return;
+        const eventRef = doc(operationCollection(projectId, "events"));
+        tx.set(ref, { ...(current ? {} : { id: "sourcing-A.A.5", projectId, workflow: "sourcing", stepId: "A.A.5", section: "A", workflowStatus: "not_started", status: "Pending", approval: "none" }), supplierShortList: [...list, { ...company }], updatedAt: serverTimestamp(), lastEventId: eventRef.id }, { merge: true });
+        tx.set(eventRef, { ...eventData("workflow_save", "A.A.5", `${company.name} kısa listeye eklendi (A.A.3)`), projectId });
+      });
+      setMessage(`“${company.name}” A.A.5 Üretici Kısa Listesi'ne eklendi.`);
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Kısa listeye eklenemedi."); }
+    finally { setBusy(false); }
+  };
   return <details data-testid={`task-${step.id}`} className="group rounded-2xl border border-slate-200 bg-white open:border-indigo-300">
     <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 p-4 text-sm [&::-webkit-details-marker]:hidden">
       <span className="rounded-lg bg-indigo-50 px-2 py-1 font-bold text-indigo-700">{step.id}</span><span className="min-w-0 flex-1 font-semibold">{translated?.task || step.task}</span>
@@ -128,7 +148,8 @@ function TaskEditor({ projectId, step, record, users, currentUser, records, even
     </summary>
     <div className="space-y-4 border-t p-4">
       {step.id === "A.A.2" && <TargetSpecificationEditor sections={draft.targetSpecification ?? createTargetSpecification()} onChange={sections => setDraft(previous => ({ ...previous, targetSpecification: sections }))} disabled={!isAdmin || busy || approved} />}
-      {step.id === "A.A.3" && <SupplierLongListEditor companies={draft.supplierLongList ?? []} onChange={companies => setDraft(previous => ({ ...previous, supplierLongList: companies }))} disabled={!isAdmin || busy || approved} />}
+      {step.id === "A.A.3" && <SupplierLongListEditor shortlistedIds={(records["A.A.5"]?.supplierShortList ?? []).map((item: SupplierCandidate) => item.id)} onShortlist={isAdmin ? company => { if (!busy) void shortlist(company); } : undefined} companies={draft.supplierLongList ?? []} onChange={companies => setDraft(previous => ({ ...previous, supplierLongList: companies }))} disabled={!isAdmin || busy || approved} />}
+      {step.id === "A.A.5" && <SupplierLongListEditor title="Üretici Kısa Listesi" description="A.A.3 geniş tedarikçi listesinden kısa listeye alınacak üreticileri (en az 3 firma) seçin; gerekirse bilgilerini düzenleyin veya listeden çıkarın." source={records["A.A.3"]?.supplierLongList ?? []} companies={draft.supplierShortList ?? []} onChange={companies => setDraft(previous => ({ ...previous, supplierShortList: companies }))} disabled={!isAdmin || busy || approved} />}
       {step.id === "A.A.4" && <RfqSubmissionEditor forms={draft.rfqForms ?? [createRfqForm()]} onChange={forms => setDraft(previous => ({ ...previous, rfqForms: forms }))} disabled={!isAdmin || busy || approved} />}
       <div className="grid gap-4 text-sm text-slate-600 sm:grid-cols-2"><p><strong>KPI:</strong> {translated?.kpiMetric || step.metric}</p><p><strong>Gerekli çıktı:</strong> {translated?.requiredOutputs || step.outputs}</p><p><strong>Ön koşul:</strong> {dependencies[step.id]?.join(", ") || "Yok"}</p><p><strong>Reddedilirse dönüş:</strong> {step.returnTo || "Aynı adım"}</p></div>
       {blocked.length > 0 && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Beklenen ön koşullar: {blocked.join(", ")}</p>}
