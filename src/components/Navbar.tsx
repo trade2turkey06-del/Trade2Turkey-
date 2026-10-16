@@ -1,5 +1,5 @@
 import React from "react";
-import { Globe, Shield, FileText, Menu, X, Clock, LogOut, Compass, FolderOpen } from "lucide-react";
+import { Globe, Shield, FileText, Menu, X, Clock, LogOut, Compass, FolderOpen, Layers } from "lucide-react";
 import { UserTenant } from "../data/usersData";
 import BrandLogo from "./BrandLogo";
 
@@ -41,7 +41,7 @@ const Navbar = React.memo(function Navbar({
   if (currentUser?.role === "admin") {
     navItems.push({ id: "client-discovery", label: "Müşteri Keşfi", icon: Compass });
     navItems.unshift({ id: "overview", label: "Aksiyon Merkezi", icon: Shield });
-    navItems.push({ id: "supplier-selection", label: "Tedarikçi Seçimi", icon: FolderOpen });
+    navItems.push({ id: "sectors", label: "Sectors", icon: Layers });
     navItems.push({ id: "report", label: "Raporlar", icon: FileText });
     navItems.push({ id: "market-insights", label: "Pazar Araştırması Yönetimi", icon: Shield });
   }

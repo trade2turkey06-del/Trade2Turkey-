@@ -2,7 +2,7 @@ import test, { after, before, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { initializeTestEnvironment, assertFails, assertSucceeds, type RulesTestEnvironment } from "@firebase/rules-unit-testing";
-import { collection, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
 import { reserve } from "../src/domain/operations";
 
 let env: RulesTestEnvironment;
@@ -120,4 +120,18 @@ test("freelancer yalnızca atanmış müşteri adayına erişir; proje değişti
   await assertFails(updateDoc(ref,{projectId:"b"}));
   await assertFails(getDoc(doc(dbFor("client"),ref.path)));
   await assertSucceeds(getDocs(query(collection(database,"leads"),where("assignedTo","==","freelancer"),where("projectId","==","a"))));
+});
+test("sektör rehberi yalnızca admin içindir; sektör silinemez",async()=>{
+  const company={sectorId:"towel",name:"MTC Linen",contacts:[{id:"c",name:"Kişi",title:"",phone:"",email:""}]};
+  await assertSucceeds(setDoc(doc(dbFor("admin"),"sectors/towel"),{name:"Towel",archived:false}));
+  await assertSucceeds(setDoc(doc(dbFor("admin"),"directoryCompanies/mtc"),company));
+  await assertSucceeds(getDocs(collection(dbFor("admin"),"directoryCompanies")));
+  await assertFails(setDoc(doc(dbFor("admin"),"sectors/empty"),{name:""}));
+  await assertFails(setDoc(doc(dbFor("admin"),"directoryCompanies/x"),{name:"X"}));
+  await assertFails(deleteDoc(doc(dbFor("admin"),"sectors/towel")));
+  for(const uid of ["client","freelancer"]){
+    await assertFails(getDocs(collection(dbFor(uid),"sectors")));
+    await assertFails(getDoc(doc(dbFor(uid),"directoryCompanies/mtc")));
+    await assertFails(setDoc(doc(dbFor(uid),"directoryCompanies/y"),company));
+  }
 });

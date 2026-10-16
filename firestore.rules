@@ -161,6 +161,16 @@ service cloud.firestore {
       allow update: if sameProject() && request.resource.data.size() <= 80 && (admin() || (active() && own(resource.data) && assigned(resource.data.projectId) && request.resource.data.get('assignedTo','') == resource.data.get('assignedTo','') && request.resource.data.get('userId','') == resource.data.get('userId','')));
       allow delete: if admin() || (active() && own(resource.data) && assigned(resource.data.projectId));
     }
+    // Admin-only supplier directory grouped by sector; sectors are archived, never deleted.
+    match /sectors/{id} {
+      allow read: if admin();
+      allow create, update: if admin() && request.resource.data.size() <= 10 && text(request.resource.data.name,100) && request.resource.data.get('archived',false) is bool;
+      allow delete: if false;
+    }
+    match /directoryCompanies/{id} {
+      allow read, delete: if admin();
+      allow create, update: if admin() && request.resource.data.size() <= 30 && text(request.resource.data.name,250) && text(request.resource.data.sectorId,100) && request.resource.data.get('contacts',[]) is list && request.resource.data.get('contacts',[]).size() <= 50;
+    }
     match /driveFiles/{id} {
       allow read: if projectReader(resource.data.projectId) || (active() && own(resource.data) && assigned(resource.data.projectId));
       allow create: if request.resource.data.size() <= 20 && text(request.resource.data.projectId,100) && text(request.resource.data.fileName,250) && https(request.resource.data.downloadUrl) && (admin() || (active() && own(request.resource.data) && assigned(request.resource.data.projectId)));

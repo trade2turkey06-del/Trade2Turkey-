@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from "react";
 import Navbar from "./components/Navbar";
-import SupplierSelection from "./components/SupplierSelection";
+import SectorDirectory from "./components/SectorDirectory";
 import MinorSheets from "./components/MinorSheets";
 import ProjectDocumentVault from "./components/ProjectDocumentVault";
 import SourcingWorkflow from "./components/SourcingWorkflow";
@@ -602,8 +602,8 @@ export default function App() {
         {/* Dynamic active View Renderer Router logic */}
         <div className="space-y-6">
 
-          {currentUser.role === "admin" && currentTab === "supplier-selection" && (
-            <SupplierSelection projectId={activeProjectId} />
+          {currentUser.role === "admin" && currentTab === "sectors" && (
+            <SectorDirectory />
           )}
 
           {/* SOURCING FLOW (SECTION A) TAB VIEW */}
