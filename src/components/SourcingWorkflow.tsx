@@ -11,6 +11,7 @@ import GoogleDriveFolder from "./GoogleDriveFolder";
 import TargetSpecificationEditor, { createTargetSpecification } from "./TargetSpecificationEditor";
 import SupplierLongListEditor, { SupplierCandidate } from "./SupplierLongListEditor";
 import RfqSubmissionEditor, { createRfqForm } from "./RfqSubmissionEditor";
+import ValueChainCostingEditor, { createValueChainCosting } from "./ValueChainCostingEditor";
 
 const input = "mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900 disabled:bg-slate-100";
 const taskRef = (projectId: string, id: string) => doc(db, "sopSteps", `${projectId}_sourcing-${id}`);
@@ -73,6 +74,7 @@ function TaskEditor({ projectId, step, record, users, currentUser, records, even
         if (companies.some(company => !company.name.trim())) throw new Error("Lütfen listedeki her firmanın adını girin veya boş firmayı çıkarın.");
         if (new TextEncoder().encode(JSON.stringify(companies)).length > 500000) throw new Error("Firma listesi çok büyük. Lütfen uzun notları kısaltın.");
       }
+      if (action === "save" && step.id === "A.A.6" && new TextEncoder().encode(JSON.stringify(draft.valueChainCosting ?? {})).length > 500000) throw new Error("Maliyet tablosu çok büyük. Lütfen uzun açıklamaları kısaltın.");
       if (step.id === "A.A.2" && new TextEncoder().encode(JSON.stringify(draft.targetSpecification || [])).length > 500000) throw new Error("Özellik formu çok büyük. Lütfen uzun içerikleri belge bağlantısı olarak ekleyin.");
       await runTransaction(db, async tx => {
         const ref = taskRef(projectId, step.id); const snapshot = await tx.get(ref);
@@ -103,6 +105,7 @@ function TaskEditor({ projectId, step, record, users, currentUser, records, even
             ...(step.id === "A.A.3" && isAdmin ? { supplierLongList: draft.supplierLongList ?? [] } : {}),
             ...(step.id === "A.A.5" && isAdmin ? { supplierShortList: draft.supplierShortList ?? [] } : {}),
             ...(step.id === "A.A.4" && isAdmin ? { rfqForms: draft.rfqForms ?? [createRfqForm()] } : {}),
+            ...(step.id === "A.A.6" && isAdmin ? { valueChainCosting: draft.valueChainCosting ?? createValueChainCosting() } : {}),
           };
         } else {
           if (!current || current.approverUid !== uid || (action === "approve" && current.completedBy === uid)) throw new Error("Yalnızca atanmış onaylayan karar verebilir; işlemi yapan kişi kendi işini onaylayamaz.");
@@ -151,6 +154,7 @@ function TaskEditor({ projectId, step, record, users, currentUser, records, even
       {step.id === "A.A.3" && <SupplierLongListEditor shortlistedIds={(records["A.A.5"]?.supplierShortList ?? []).map((item: SupplierCandidate) => item.id)} onShortlist={isAdmin ? company => { if (!busy) void shortlist(company); } : undefined} companies={draft.supplierLongList ?? []} onChange={companies => setDraft(previous => ({ ...previous, supplierLongList: companies }))} disabled={!isAdmin || busy || approved} />}
       {step.id === "A.A.5" && <SupplierLongListEditor title="Üretici Kısa Listesi" description="A.A.3 geniş tedarikçi listesinden kısa listeye alınacak üreticileri (en az 3 firma) seçin; gerekirse bilgilerini düzenleyin veya listeden çıkarın." source={records["A.A.3"]?.supplierLongList ?? []} companies={draft.supplierShortList ?? []} onChange={companies => setDraft(previous => ({ ...previous, supplierShortList: companies }))} disabled={!isAdmin || busy || approved} />}
       {step.id === "A.A.4" && <RfqSubmissionEditor forms={draft.rfqForms ?? [createRfqForm()]} onChange={forms => setDraft(previous => ({ ...previous, rfqForms: forms }))} disabled={!isAdmin || busy || approved} />}
+      {step.id === "A.A.6" && <ValueChainCostingEditor costing={draft.valueChainCosting ?? createValueChainCosting()} onChange={costing => setDraft(previous => ({ ...previous, valueChainCosting: costing }))} manufacturers={(records["A.A.5"]?.supplierShortList ?? []).map((item: SupplierCandidate) => item.name).filter(Boolean)} disabled={!isAdmin || busy || approved} />}
       <div className="grid gap-4 text-sm text-slate-600 sm:grid-cols-2"><p><strong>KPI:</strong> {translated?.kpiMetric || step.metric}</p><p><strong>Gerekli çıktı:</strong> {translated?.requiredOutputs || step.outputs}</p><p><strong>Ön koşul:</strong> {dependencies[step.id]?.join(", ") || "Yok"}</p><p><strong>Reddedilirse dönüş:</strong> {step.returnTo || "Aynı adım"}</p></div>
       {blocked.length > 0 && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Beklenen ön koşullar: {blocked.join(", ")}</p>}
       {record?.rejectionReason && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800">İade gerekçesi: {record.rejectionReason}</p>}
