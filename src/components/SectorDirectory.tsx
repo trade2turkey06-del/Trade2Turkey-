@@ -1,23 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { collection, deleteDoc, doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
-import { Archive, Building2, ChevronDown, Globe, Layers, Mail, MapPin, Pencil, Phone, Plus, Search, Trash2, UserRound, X } from "lucide-react";
+import { Archive, BookOpen, Building2, ChevronDown, Globe, Layers, Mail, MapPin, Pencil, Phone, Plus, Search, Trash2, UserRound, X } from "lucide-react";
 import { db } from "../lib/firebase";
 
 export interface Sector { id: string; name: string; archived?: boolean }
 export interface DirectoryContact { id: string; name: string; title: string; phone: string; email: string }
 export interface DirectoryCompany {
-  id: string; sectorId: string; name: string; website: string; description: string; foundedYear: string; employees: string;
+  id: string; sectorId: string; name: string; website: string; catalogUrl: string; description: string; foundedYear: string; employees: string;
   location: string; address: string; phone: string; email: string; products: string; certificates: string; capacity: string;
   markets: string; notes: string; contacts: DirectoryContact[];
 }
 
-const emptyCompany = (sectorId: string): DirectoryCompany => ({ id: crypto.randomUUID(), sectorId, name: "", website: "", description: "", foundedYear: "", employees: "", location: "", address: "", phone: "", email: "", products: "", certificates: "", capacity: "", markets: "", notes: "", contacts: [] });
+const emptyCompany = (sectorId: string): DirectoryCompany => ({ id: crypto.randomUUID(), sectorId, name: "", website: "", catalogUrl: "", description: "", foundedYear: "", employees: "", location: "", address: "", phone: "", email: "", products: "", certificates: "", capacity: "", markets: "", notes: "", contacts: [] });
 
 // First sector and company requested for the trial; written once when the directory is empty.
 // Company facts were taken from www.mtclinen.com and should be verified with the manufacturer.
 const seedSector: Sector = { id: "havlu", name: "Havlu" };
 const seedCompany: DirectoryCompany = {
-  id: "mtc-linen", sectorId: "havlu", name: "MTC Linen", website: "https://www.mtclinen.com",
+  id: "mtc-linen", sectorId: "havlu", name: "MTC Linen", website: "https://www.mtclinen.com", catalogUrl: "",
   description: "1978'den beri faaliyet gösteren, Denizli merkezli havlu ve ev tekstili üreticisi. İplikten konfeksiyona dikey üretim; sürdürülebilirlik odaklı.",
   foundedYear: "1978", employees: "300+", location: "Denizli, Türkiye", address: "Bozburun, 7060. Sk. No:5, 20100 Merkezefendi/Denizli",
   phone: "+90 258 371 37 07", email: "contact@mtclinen.com",
@@ -30,7 +30,7 @@ const seedCompany: DirectoryCompany = {
 };
 
 const fields: [keyof DirectoryCompany, string, number, string?][] = [
-  ["name", "Firma adı *", 250], ["website", "Web sitesi", 2000, "https://"], ["location", "Şehir / ülke", 250], ["address", "Adres", 500],
+  ["name", "Firma adı *", 250], ["website", "Web sitesi", 2000, "https://"], ["catalogUrl", "Katalog bağlantısı", 2000, "https://"], ["location", "Şehir / ülke", 250], ["address", "Adres", 500],
   ["phone", "Telefon", 100], ["email", "E-posta", 254], ["foundedYear", "Kuruluş yılı", 10], ["employees", "Çalışan sayısı", 50],
   ["capacity", "Üretim kapasitesi", 500], ["certificates", "Sertifikalar", 1000], ["markets", "İhracat pazarları / ofisler", 1000],
 ];
@@ -128,6 +128,7 @@ function CompanyCard({ company, onEdit, onRemove }: { company: DirectoryCompany;
       {company.description && <p className="text-slate-600">{company.description}</p>}
       <div className="flex flex-wrap gap-x-5 gap-y-2 text-slate-600">
         {company.website && <a className="flex items-center gap-1 text-teal-700 hover:underline" href={link(company.website)} target="_blank" rel="noreferrer"><Globe className="h-4 w-4" /> {company.website.replace(/^https?:\/\//, "")}</a>}
+        {company.catalogUrl && <a className="flex items-center gap-1 font-semibold text-teal-700 hover:underline" href={link(company.catalogUrl)} target="_blank" rel="noreferrer"><BookOpen className="h-4 w-4" /> Katalog</a>}
         {company.phone && <a className="flex items-center gap-1 hover:text-navy" href={`tel:${company.phone.replace(/\s/g, "")}`}><Phone className="h-4 w-4" /> {company.phone}</a>}
         {company.email && <a className="flex items-center gap-1 hover:text-navy" href={`mailto:${company.email}`}><Mail className="h-4 w-4" /> {company.email}</a>}
         {company.location && <span className="flex items-center gap-1"><MapPin className="h-4 w-4" /> {company.location}</span>}
