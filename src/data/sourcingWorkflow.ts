@@ -1,6 +1,13 @@
 // Sourcing template transcribed from SOP.xlsx, sheet: 2 Major Services.
 // Workbook example completion states are intentionally excluded.
-export const sourcingWorkflow = [
+export interface WorkflowStep {
+  id: string; task: string; requester: string; owner: string; metric: string; days: number | null; approver: string;
+  approvalDays: number | null; outputs: string; storage: string; returnTo: string; previousStep?: string;
+  // Recurring steps show their cadence instead of a day count and can be restarted after approval.
+  period?: string;
+}
+
+export const sourcingWorkflow: WorkflowStep[] = [
   {
     "id": "A.A.1",
     "task": "Approval of Project Initiation Information",

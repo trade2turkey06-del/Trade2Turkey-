@@ -619,7 +619,11 @@ export default function App() {
 
           {/* STRATEGIC COORDINATION & LOGISTICS (SECTION B) */}
           {activeProjectId && currentTab === "logistics" && (
-            <OperationsHub projectId={activeProjectId} isAdmin={currentUser.role === "admin"} />
+            <div key={activeProjectId} className="space-y-6">
+              <h2 className="text-2xl font-bold text-navy">Üretim, Lojistik & Envanter Yönetimi</h2>
+              <SourcingWorkflow projectId={activeProjectId} currentUser={currentUser} workflow="logistics" />
+              <OperationsHub projectId={activeProjectId} isAdmin={currentUser.role === "admin"} />
+            </div>
           )}
 
 

@@ -135,3 +135,39 @@ test("sektör rehberi yalnızca admin içindir; sektör silinemez",async()=>{
     await assertFails(setDoc(doc(dbFor(uid),"directoryCompanies/y"),company));
   }
 });
+test("lojistik akışı: ön koşul ve kimlik kontrolü, paralel dal, yeni dönem",async()=>{
+  const database=dbFor("admin");
+  const make=(path:string,stepId:string)=>{
+    const batch=writeBatch(database),eventId=`event-${stepId}`;
+    batch.set(doc(database,path),{id:`logistics-${stepId}`,projectId:"a",stepId,workflow:"logistics",workflowStatus:"completed",assigneeUid:"admin",approverUid:"approver",completedBy:"admin",dueDate:"2026-10-20",approval:"pending",evidenceName:"Belge",evidenceUrl:"https://drive.google.com/test",lastEventId:eventId});
+    batch.set(doc(database,"projects/a/events",eventId),{projectId:"a",actorUid:"admin",at:serverTimestamp(),action:"workflow_save",entityId:stepId,detail:"test"});return batch.commit();
+  };
+  await assertSucceeds(make("sopSteps/a_logistics-B.B.3","B.B.3"));
+  await assertFails(make("sopSteps/a_logistics-B.A.2","B.A.2"));
+  await assertFails(make("sopSteps/a_sourcing-B.A.1","B.A.1"));
+  await assertFails(make("sopSteps/a_logistics-A.A.1","A.A.1"));
+  await env.withSecurityRulesDisabled(async context=>{const db=context.firestore();for(const id of ["B.A.6","B.A.7"])await setDoc(doc(db,`sopSteps/a_logistics-${id}`),{id:`logistics-${id}`,projectId:"a",stepId:id,workflow:"logistics",workflowStatus:"completed",approval:"approved",assigneeUid:"admin",approverUid:"approver",completedBy:"admin",dueDate:"2026-10-20",evidenceName:"Belge",evidenceUrl:"https://drive.google.com/test"});});
+  await assertSucceeds(make("sopSteps/a_logistics-B.A.11","B.A.11"));
+  await assertFails(make("sopSteps/a_logistics-B.A.9","B.A.9"));
+  const period=(history:number,eventId:string)=>{const batch=writeBatch(database);batch.update(doc(database,"sopSteps/a_logistics-B.A.7"),{periodHistory:Array.from({length:history},(_, i)=>({period:i+1})),approval:"none",workflowStatus:"not_started",status:"Pending",completedBy:"",evidenceName:"",evidenceUrl:"",dueDate:"",notes:"",updatedAt:serverTimestamp(),lastEventId:eventId});batch.set(doc(database,"projects/a/events",eventId),{projectId:"a",actorUid:"admin",at:serverTimestamp(),action:"workflow_period",entityId:"B.A.7",detail:"test"});return batch.commit();};
+  await assertFails(period(2,"period-skip"));
+  await assertSucceeds(period(1,"period-ok"));
+});
+test("yeni PO döngüsü: B.A zinciri yalnızca önceki döngü kapandıysa ve birlikte açılır",async()=>{
+  const ids=Array.from({length:15},(_, i)=>`B.A.${i+1}`);
+  await env.withSecurityRulesDisabled(async context=>{const db=context.firestore();for(const id of ids)await setDoc(doc(db,`sopSteps/a_logistics-${id}`),{id:`logistics-${id}`,projectId:"a",stepId:id,workflow:"logistics",workflowStatus:"completed",approval:"approved",assigneeUid:"admin",approverUid:"approver",completedBy:"admin",dueDate:"2026-10-20",evidenceName:"Belge",evidenceUrl:"https://drive.google.com/test"});});
+  const database=dbFor("admin");
+  const reset=(steps:string[],eventId:string)=>{const batch=writeBatch(database);for(const id of steps)batch.update(doc(database,`sopSteps/a_logistics-${id}`),{cycleHistory:[{cycle:1}],workflowStatus:"not_started",status:"Pending",approval:"none",completedBy:"",rejectionReason:"",dueDate:"",evidenceName:"",evidenceUrl:"",notes:"",updatedAt:serverTimestamp(),lastEventId:eventId});batch.set(doc(database,"projects/a/events",eventId),{projectId:"a",actorUid:"admin",at:serverTimestamp(),action:"workflow_cycle",entityId:"B.A.1",detail:"test"});return batch.commit();};
+  await assertFails(reset(["B.A.1"],"cycle-single"));
+  await assertFails(reset(ids.filter(id=>id!=="B.A.15"),"cycle-without-last"));
+  await assertSucceeds(reset(ids,"cycle-all"));
+  assert.equal((await getDoc(doc(database,"sopSteps/a_logistics-B.A.15"))).data()?.approval,"none");
+});
+test("B.B.1/B.B.6 planlama: admin ürün ve stok planını yazabilir, müşteri yazamaz",async()=>{
+  for(const [uid,expect] of [["admin",assertSucceeds],["client",assertFails]] as const){
+    const database=dbFor(uid),batch=writeBatch(database);
+    batch.update(doc(database,"projects/a/products/sku"),{forecastDailySales:2.5,leadTimeDays:14,safetyStock:20});
+    batch.update(doc(database,"projects/a/stock/sku"),{safetyStock:20});
+    await expect(batch.commit());
+  }
+});

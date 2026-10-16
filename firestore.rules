@@ -56,29 +56,69 @@ service cloud.firestore {
         (id == 'A.B.13' && prerequisite(projectId,'A.B.12')) ||
         (id == 'A.B.14' && prerequisite(projectId,'A.B.13'));
     }
+    // Production & logistics workflow (mirrors src/domain/workflow.ts); B.B.1–4 have no prerequisites.
+    function workflowOf(stepId) { return stepId.matches('B[.].*') ? 'logistics' : 'sourcing'; }
+    function logisticsPrerequisite(projectId, id) {
+      let task = getAfter(/databases/$(database)/documents/sopSteps/$(projectId + '_logistics-' + id)).data;
+      return task.workflowStatus == 'completed' && task.approval == 'approved';
+    }
+    function logisticsPrerequisites(projectId, id) {
+      return id in ['B.A.1','B.B.1','B.B.2','B.B.3','B.B.4'] ||
+        (id == 'B.A.2' && logisticsPrerequisite(projectId,'B.A.1')) ||
+        (id == 'B.A.3' && logisticsPrerequisite(projectId,'B.A.2')) ||
+        (id == 'B.A.4' && logisticsPrerequisite(projectId,'B.A.3')) ||
+        (id == 'B.A.5' && logisticsPrerequisite(projectId,'B.A.4')) ||
+        (id == 'B.A.6' && logisticsPrerequisite(projectId,'B.A.5')) ||
+        (id in ['B.A.7','B.A.8','B.A.11'] && logisticsPrerequisite(projectId,'B.A.6')) ||
+        (id == 'B.A.9' && logisticsPrerequisite(projectId,'B.A.7') && logisticsPrerequisite(projectId,'B.A.8')) ||
+        (id == 'B.A.10' && logisticsPrerequisite(projectId,'B.A.9')) ||
+        (id == 'B.A.12' && logisticsPrerequisite(projectId,'B.A.10') && logisticsPrerequisite(projectId,'B.A.11')) ||
+        (id == 'B.A.13' && logisticsPrerequisite(projectId,'B.A.12')) ||
+        (id == 'B.A.14' && logisticsPrerequisite(projectId,'B.A.13')) ||
+        (id == 'B.A.15' && logisticsPrerequisite(projectId,'B.A.14')) ||
+        (id == 'B.B.5' && logisticsPrerequisite(projectId,'B.B.3') && logisticsPrerequisite(projectId,'B.B.4')) ||
+        (id == 'B.B.6' && logisticsPrerequisite(projectId,'B.B.1') && logisticsPrerequisite(projectId,'B.B.2') && logisticsPrerequisite(projectId,'B.B.5'));
+    }
+    // Recurring logistics steps: an admin archives the approved period into periodHistory and reopens the step.
+    function newPeriod() {
+      let before = resource.data.get('periodHistory', []);
+      return resource.data.workflow == 'logistics' && resource.data.stepId in ['B.A.7','B.A.8','B.A.9','B.B.3','B.B.4','B.B.5','B.B.6'] &&
+        resource.data.get('approval','none') == 'approved' && request.resource.data.approval == 'none' && request.resource.data.workflowStatus == 'not_started' &&
+        request.resource.data.completedBy == '' && request.resource.data.periodHistory is list && request.resource.data.periodHistory.size() == before.size() + 1 && request.resource.data.periodHistory.size() <= 200;
+    }
+    // "Yeni PO başlat": once B.A.15 of the previous cycle is approved, all approved B.A steps are archived into cycleHistory
+    // and reopened together; B.A.15 must be reset in the same write so a single step cannot be restarted on its own.
+    function cycleRestart() {
+      let last = /databases/$(database)/documents/sopSteps/$(resource.data.projectId + '_logistics-B.A.15');
+      let before = resource.data.get('cycleHistory', []);
+      return resource.data.workflow == 'logistics' && resource.data.stepId.matches('B[.]A[.][0-9]+') &&
+        resource.data.get('approval','none') == 'approved' && request.resource.data.approval == 'none' && request.resource.data.workflowStatus == 'not_started' &&
+        request.resource.data.completedBy == '' && request.resource.data.cycleHistory is list && request.resource.data.cycleHistory.size() == before.size() + 1 && request.resource.data.cycleHistory.size() <= 200 &&
+        get(last).data.approval == 'approved' && getAfter(last).data.approval == 'none';
+    }
     function validTask(data) {
-      return data.size() <= 40 && text(data.projectId,100) && text(data.stepId,20) && data.workflow == 'sourcing' && data.workflowStatus in ['not_started','in_progress','incomplete','completed'] &&
+      return data.size() <= 40 && text(data.projectId,100) && text(data.stepId,20) && data.workflow in ['sourcing','logistics'] && data.stepId.matches(data.workflow == 'sourcing' ? 'A[.][AB][.][0-9]+' : 'B[.][AB][.][0-9]+') && data.workflowStatus in ['not_started','in_progress','incomplete','completed'] &&
         data.approval in ['none','pending','approved','rejected'] && (!(data.approval in ['pending','approved']) || data.workflowStatus == 'completed') &&
         str(data.get('notes',''),3000) && str(data.get('rejectionReason',''),1500) && str(data.get('evidenceUrl',''),2000) && str(data.get('evidenceName',''),250) &&
-        (!(data.workflowStatus in ['in_progress','completed']) || prerequisites(data.projectId,data.stepId)) &&
+        (!(data.workflowStatus in ['in_progress','completed']) || (data.workflow == 'sourcing' ? prerequisites(data.projectId,data.stepId) : logisticsPrerequisites(data.projectId,data.stepId))) &&
         (data.workflowStatus != 'completed' || (text(data.assigneeUid,128) && text(data.approverUid,128) && data.assigneeUid != data.approverUid && get(/databases/$(database)/documents/users/$(data.approverUid)).data.role in ['admin','owner'] && data.dueDate.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}') && https(data.evidenceUrl) && text(data.evidenceName,250)));
     }
     function submission(data) { return data.approval != 'pending' || data.completedBy == request.auth.uid; }
-    function legacyTask(data) { return data.get('workflow','legacy') != 'sourcing' && text(data.projectId,100) && data.size() <= 60 && text(data.get('task',''),300) && data.get('section','') in ['A','B']; }
+    function legacyTask(data) { return !(data.get('workflow','legacy') in ['sourcing','logistics']) && text(data.projectId,100) && data.size() <= 60 && text(data.get('task',''),300) && data.get('section','') in ['A','B']; }
     function approverDecision() {
       return resource.data.get('approverUid','') == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approval','workflowStatus','status','rejectionReason','decidedBy','updatedAt','lastEventId']) &&
         ((resource.data.get('approval','none') == 'pending' && request.resource.data.approval == 'approved' && resource.data.completedBy != request.auth.uid) ||
          (request.resource.data.approval == 'rejected' && text(request.resource.data.rejectionReason,1500)));
     }
     function returnedTask() {
-      let source = getAfter(/databases/$(database)/documents/sopSteps/$(resource.data.projectId + '_sourcing-' + request.resource.data.returnedFrom)).data;
+      let source = getAfter(/databases/$(database)/documents/sopSteps/$(resource.data.projectId + '_' + request.resource.data.workflow + '-' + request.resource.data.returnedFrom)).data;
       return source.approverUid == request.auth.uid && source.approval == 'rejected' && request.resource.data.workflowStatus == 'incomplete' && request.resource.data.approval == 'none' && text(request.resource.data.rejectionReason,1500);
     }
     match /sopSteps/{id} {
       allow read: if projectReader(resource.data.projectId) || (active() && assigned(resource.data.projectId) && profile().role == 'freelancer');
-      allow create: if admin() && (legacyTask(request.resource.data) || (id == request.resource.data.projectId + '_sourcing-' + request.resource.data.stepId && validTask(request.resource.data) && submission(request.resource.data) && request.resource.data.approval in ['none','pending'] && audited(request.resource.data.projectId)));
+      allow create: if admin() && (legacyTask(request.resource.data) || (id == request.resource.data.projectId + '_' + request.resource.data.workflow + '-' + request.resource.data.stepId && validTask(request.resource.data) && submission(request.resource.data) && request.resource.data.approval in ['none','pending'] && audited(request.resource.data.projectId)));
       allow update: if sameProject() && request.resource.data.stepId == resource.data.stepId && validTask(request.resource.data) && audited(resource.data.projectId) && (
-        (admin() && ((resource.data.get('approval','none') != 'approved' && request.resource.data.approval in ['none','pending'] && submission(request.resource.data)) || approverDecision() || returnedTask())) ||
+        (admin() && ((resource.data.get('approval','none') != 'approved' && request.resource.data.approval in ['none','pending'] && submission(request.resource.data)) || approverDecision() || returnedTask() || newPeriod() || cycleRestart())) ||
         (active() && resource.data.get('assigneeUid','') == request.auth.uid && assigned(resource.data.projectId) && resource.data.get('approval','none') != 'approved' && submission(request.resource.data) && request.resource.data.approval in ['none','pending'] && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes','dueDate','evidenceName','evidenceUrl','workflowStatus','status','approval','completedBy','rejectionReason','updatedAt','lastEventId']))
       );
       allow delete: if false;
@@ -92,7 +132,7 @@ service cloud.firestore {
 
       match /events/{id} {
         allow read: if projectReader(projectId) || (assigned(projectId) && profile().role == 'freelancer' && resource.data.action in ['workflow_save','workflow_approve','workflow_reject']);
-        allow create: if base(projectId) && text(request.resource.data.action,80) && text(request.resource.data.entityId,200) && str(request.resource.data.detail,1500) && request.resource.data.actorUid == request.auth.uid && request.resource.data.at == request.time && (admin() || (active() && assigned(projectId) && request.resource.data.action == 'workflow_save' && getAfter(/databases/$(database)/documents/sopSteps/$(projectId + '_sourcing-' + request.resource.data.entityId)).data.lastEventId == id && getAfter(/databases/$(database)/documents/sopSteps/$(projectId + '_sourcing-' + request.resource.data.entityId)).data.assigneeUid == request.auth.uid));
+        allow create: if base(projectId) && text(request.resource.data.action,80) && text(request.resource.data.entityId,200) && str(request.resource.data.detail,1500) && request.resource.data.actorUid == request.auth.uid && request.resource.data.at == request.time && (admin() || (active() && assigned(projectId) && request.resource.data.action == 'workflow_save' && getAfter(/databases/$(database)/documents/sopSteps/$(projectId + '_' + workflowOf(request.resource.data.entityId) + '-' + request.resource.data.entityId)).data.lastEventId == id && getAfter(/databases/$(database)/documents/sopSteps/$(projectId + '_' + workflowOf(request.resource.data.entityId) + '-' + request.resource.data.entityId)).data.assigneeUid == request.auth.uid));
         allow update, delete: if false;
       }
       match /products/{id} {

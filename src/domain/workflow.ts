@@ -11,6 +11,11 @@ export const dependencies: Record<string, string[]> = {
   "A.B.4": ["A.B.3"], "A.B.5": ["A.B.4"], "A.B.6": ["A.B.5"], "A.B.7": ["A.B.6"], "A.B.8": ["A.B.7"],
   "A.B.9": ["A.B.8"], "A.B.10": ["A.B.9"], "A.B.11": ["A.B.7"], "A.B.12": ["A.B.10", "A.B.11"],
   "A.B.13": ["A.B.12"], "A.B.14": ["A.B.13"],
+  // Production & logistics (mirrors firestore.rules); B.A.7/8 and B.A.11 run in parallel after B.A.6.
+  "B.A.1": [], "B.A.2": ["B.A.1"], "B.A.3": ["B.A.2"], "B.A.4": ["B.A.3"], "B.A.5": ["B.A.4"], "B.A.6": ["B.A.5"],
+  "B.A.7": ["B.A.6"], "B.A.8": ["B.A.6"], "B.A.9": ["B.A.7", "B.A.8"], "B.A.10": ["B.A.9"], "B.A.11": ["B.A.6"],
+  "B.A.12": ["B.A.10", "B.A.11"], "B.A.13": ["B.A.12"], "B.A.14": ["B.A.13"], "B.A.15": ["B.A.14"],
+  "B.B.1": [], "B.B.2": [], "B.B.3": [], "B.B.4": [], "B.B.5": ["B.B.3", "B.B.4"], "B.B.6": ["B.B.1", "B.B.2", "B.B.5"],
 };
 export function canAdvance(stepId: string, records: Record<string, TaskRecord>) {
   return (dependencies[stepId] || []).filter(id => records[id]?.workflowStatus !== "completed" || records[id]?.approval !== "approved");

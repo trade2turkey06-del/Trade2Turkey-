@@ -1,6 +1,6 @@
 import { collection, doc, getDoc, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
-import { cancel, receive, reserve, safeHttps, ship, type SalesOrder, type Stock } from "../domain/operations";
+import { cancel, receive, reserve, safeHttps, ship, validatePlanning, type SalesOrder, type Stock } from "../domain/operations";
 
 export const operationCollection = (projectId: string, name: string) => collection(db, "projects", projectId, name);
 export const operationDoc = (projectId: string, name: string, id: string) => doc(operationCollection(projectId, name), id);
@@ -92,6 +92,18 @@ export async function markShipment(projectId: string, id: string, action: "deliv
     const shipment = await tx.get(ref); if (!shipment.exists()) throw new Error("Sevkiyat bulunamadı.");
     tx.update(ref, action === "delivered" ? { status: action, deliveredAt: serverTimestamp() } : { platformSync: action, syncConfirmedBy: actor(), syncConfirmedAt: serverTimestamp() });
     tx.set(doc(operationCollection(projectId, "events")), { ...eventData(action, id, action === "delivered" ? "Teslimat manuel olarak doğrulandı." : "Harici platformdaki güncelleme kullanıcı tarafından doğrulandı; API senkronizasyonu yapılmadı."), projectId });
+  });
+}
+// B.B.1 / B.B.6 planning inputs per SKU; the stock table derives the reorder point from them via stockPlan().
+export async function savePlanning(projectId: string, productId: string, input: { forecastDailySales: number; leadTimeDays: number; safetyStock: number }) {
+  validatePlanning(input);
+  const productRef = operationDoc(projectId, "products", productId), stockRef = operationDoc(projectId, "stock", productId);
+  await runTransaction(db, async tx => {
+    const [product, stock] = await Promise.all([tx.get(productRef), tx.get(stockRef)]);
+    if (!product.exists() || !stock.exists()) throw new Error("Ürün veya stok kaydı bulunamadı.");
+    tx.update(productRef, { forecastDailySales: input.forecastDailySales, leadTimeDays: input.leadTimeDays, safetyStock: input.safetyStock });
+    tx.update(stockRef, { safetyStock: input.safetyStock });
+    tx.set(doc(operationCollection(projectId, "events")), { ...eventData("stock_planning", productId, `Günlük satış ${input.forecastDailySales}, termin ${input.leadTimeDays} gün, emniyet stoğu ${input.safetyStock}`), projectId, productId });
   });
 }
 export async function countStock(projectId: string, productId: string, physical: number, reason: string) {

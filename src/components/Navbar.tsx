@@ -34,7 +34,7 @@ const Navbar = React.memo(function Navbar({
   // Standard navigation links
   const navItems = [
     { id: "sourcing", label: "Tedarik", icon: Globe },
-    { id: "logistics", label: "Üretim & Lojistik", icon: FileText },
+    { id: "logistics", label: "Üretim, Lojistik & Envanter", icon: FileText },
 
   ];
 
