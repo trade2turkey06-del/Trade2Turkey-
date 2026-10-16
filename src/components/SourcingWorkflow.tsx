@@ -9,6 +9,7 @@ import { affectedSteps, canAdvance, dependencies, TaskRecord, validateCompletion
 import { eventData, operationCollection } from "../lib/operationsStore";
 import GoogleDriveFolder from "./GoogleDriveFolder";
 import TargetSpecificationEditor, { createTargetSpecification } from "./TargetSpecificationEditor";
+import SupplierLongListEditor, { SupplierCandidate } from "./SupplierLongListEditor";
 
 const input = "mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900 disabled:bg-slate-100";
 const taskRef = (projectId: string, id: string) => doc(db, "sopSteps", `${projectId}_sourcing-${id}`);
@@ -65,6 +66,11 @@ function TaskEditor({ projectId, step, record, users, currentUser, records, even
     setBusy(true); setMessage("");
     try {
       const uid = auth.currentUser?.uid; if (!uid) throw new Error("Oturum açın.");
+      if (action === "save" && step.id === "A.A.3" && isAdmin) {
+        const companies: SupplierCandidate[] = draft.supplierLongList ?? [];
+        if (companies.some(company => !company.name.trim())) throw new Error("Lütfen listedeki her firmanın adını girin veya boş firmayı çıkarın.");
+        if (new TextEncoder().encode(JSON.stringify(companies)).length > 500000) throw new Error("Firma listesi çok büyük. Lütfen uzun notları kısaltın.");
+      }
       if (step.id === "A.A.2" && new TextEncoder().encode(JSON.stringify(draft.targetSpecification || [])).length > 500000) throw new Error("Özellik formu çok büyük. Lütfen uzun içerikleri belge bağlantısı olarak ekleyin.");
       await runTransaction(db, async tx => {
         const ref = taskRef(projectId, step.id); const snapshot = await tx.get(ref);
@@ -92,6 +98,7 @@ function TaskEditor({ projectId, step, record, users, currentUser, records, even
             approval: draft.workflowStatus === "completed" ? "pending" : "none", completedBy: draft.workflowStatus === "completed" ? uid : "",
             rejectionReason: "", updatedAt: serverTimestamp(),
             ...(step.id === "A.A.2" && isAdmin ? { targetSpecification: draft.targetSpecification ?? createTargetSpecification() } : {}),
+            ...(step.id === "A.A.3" && isAdmin ? { supplierLongList: draft.supplierLongList ?? [] } : {}),
           };
         } else {
           if (!current || current.approverUid !== uid || (action === "approve" && current.completedBy === uid)) throw new Error("Yalnızca atanmış onaylayan karar verebilir; işlemi yapan kişi kendi işini onaylayamaz.");
@@ -117,7 +124,8 @@ function TaskEditor({ projectId, step, record, users, currentUser, records, even
       <span className={`rounded-full px-2 py-1 text-xs ${approved ? "bg-emerald-100 text-emerald-800" : record?.approval === "pending" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}`}>{approved ? "Onaylandı" : record?.approval === "pending" ? "Onay bekliyor" : workflowStatuses[record?.workflowStatus || "not_started"]}</span><span className="text-xs text-slate-500">{step.days} gün</span><span className="text-indigo-600">Ayrıntılar ↕</span>
     </summary>
     <div className="space-y-4 border-t p-4">
-      {step.id === "A.A.2" && <TargetSpecificationEditor sections={draft.targetSpecification ?? createTargetSpecification()} onChange={sections => setDraft(previous => ({ ...previous, targetSpecification: sections }))} disabled={!isAdmin || busy || approved} />}
+      {step.id === "A.A.2" && <TargetSpecificationEditor sections={draft.targetSpecification ?? createTargetSpecification()} onChange={sections => setDraft(previous => ({ ...previous, targetSpecification: sections }))} disabled={!isAdmin || busy || approved} />
+      {step.id === "A.A.3" && <SupplierLongListEditor companies={draft.supplierLongList ?? []} onChange={companies => setDraft(previous => ({ ...previous, supplierLongList: companies }))} disabled={!isAdmin || busy || approved} />}}
       <div className="grid gap-4 text-sm text-slate-600 sm:grid-cols-2"><p><strong>KPI:</strong> {translated?.kpiMetric || step.metric}</p><p><strong>Gerekli çıktı:</strong> {translated?.requiredOutputs || step.outputs}</p><p><strong>Ön koşul:</strong> {dependencies[step.id]?.join(", ") || "Yok"}</p><p><strong>Reddedilirse dönüş:</strong> {step.returnTo || "Aynı adım"}</p></div>
       {blocked.length > 0 && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Beklenen ön koşullar: {blocked.join(", ")}</p>}
       {record?.rejectionReason && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800">İade gerekçesi: {record.rejectionReason}</p>}
