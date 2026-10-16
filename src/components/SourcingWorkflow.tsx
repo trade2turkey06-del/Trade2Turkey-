@@ -8,6 +8,7 @@ import { UserTenant } from "../data/usersData";
 import { affectedSteps, canAdvance, dependencies, TaskRecord, validateCompletion, workflowStatuses } from "../domain/workflow";
 import { eventData, operationCollection } from "../lib/operationsStore";
 import GoogleDriveFolder from "./GoogleDriveFolder";
+import TargetSpecificationEditor, { createTargetSpecification } from "./TargetSpecificationEditor";
 
 const input = "mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900 disabled:bg-slate-100";
 const taskRef = (projectId: string, id: string) => doc(db, "sopSteps", `${projectId}_sourcing-${id}`);
@@ -41,7 +42,7 @@ export default function SourcingWorkflow({ projectId, currentUser }: { projectId
     {error && <p role="alert" className="my-3 text-red-700">{error}</p>}
     {loading ? <p>Yükleniyor…</p> : ["A.A.", "A.B."].map(prefix => <div key={prefix} className="mt-6">
       <h3 className="mb-3 font-bold">{prefix === "A.A." ? "A.A · Keşif ve Fizibilite" : "A.B · Teklif, Kalite ve Uyumluluk"}</h3>
-      <div className="space-y-3">{sourcingWorkflow.filter(step => step.id.startsWith(prefix)).map(step => <TaskEditor key={step.id} projectId={projectId} step={step} record={records[step.id]} users={users} currentUser={currentUser} records={records} events={events.filter(event => event.entityId === step.id)} />)}</div>
+      <div className="space-y-3">{sourcingWorkflow.filter(step => step.id.startsWith(prefix)).map(step => <TaskEditor key={`${projectId}:${step.id}`} projectId={projectId} step={step} record={records[step.id]} users={users} currentUser={currentUser} records={records} events={events.filter(event => event.entityId === step.id)} />)}</div>
     </div>)}
   </section>;
 }
@@ -64,6 +65,7 @@ function TaskEditor({ projectId, step, record, users, currentUser, records, even
     setBusy(true); setMessage("");
     try {
       const uid = auth.currentUser?.uid; if (!uid) throw new Error("Oturum açın.");
+      if (step.id === "A.A.2" && new TextEncoder().encode(JSON.stringify(draft.targetSpecification || [])).length > 500000) throw new Error("Özellik formu çok büyük. Lütfen uzun içerikleri belge bağlantısı olarak ekleyin.");
       await runTransaction(db, async tx => {
         const ref = taskRef(projectId, step.id); const snapshot = await tx.get(ref);
         const current = snapshot.data() as TaskRecord | undefined;
@@ -89,6 +91,7 @@ function TaskEditor({ projectId, step, record, users, currentUser, records, even
             dueDate: candidate.dueDate, notes: draft.notes || "", evidenceName: draft.evidenceName || "", evidenceUrl: draft.evidenceUrl || "",
             approval: draft.workflowStatus === "completed" ? "pending" : "none", completedBy: draft.workflowStatus === "completed" ? uid : "",
             rejectionReason: "", updatedAt: serverTimestamp(),
+            ...(step.id === "A.A.2" && isAdmin ? { targetSpecification: draft.targetSpecification ?? createTargetSpecification() } : {}),
           };
         } else {
           if (!current || current.approverUid !== uid || (action === "approve" && current.completedBy === uid)) throw new Error("Yalnızca atanmış onaylayan karar verebilir; işlemi yapan kişi kendi işini onaylayamaz.");
@@ -114,6 +117,7 @@ function TaskEditor({ projectId, step, record, users, currentUser, records, even
       <span className={`rounded-full px-2 py-1 text-xs ${approved ? "bg-emerald-100 text-emerald-800" : record?.approval === "pending" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}`}>{approved ? "Onaylandı" : record?.approval === "pending" ? "Onay bekliyor" : workflowStatuses[record?.workflowStatus || "not_started"]}</span><span className="text-xs text-slate-500">{step.days} gün</span><span className="text-indigo-600">Ayrıntılar ↕</span>
     </summary>
     <div className="space-y-4 border-t p-4">
+      {step.id === "A.A.2" && <TargetSpecificationEditor sections={draft.targetSpecification ?? createTargetSpecification()} onChange={sections => setDraft(previous => ({ ...previous, targetSpecification: sections }))} disabled={!isAdmin || busy || approved} />}
       <div className="grid gap-4 text-sm text-slate-600 sm:grid-cols-2"><p><strong>KPI:</strong> {translated?.kpiMetric || step.metric}</p><p><strong>Gerekli çıktı:</strong> {translated?.requiredOutputs || step.outputs}</p><p><strong>Ön koşul:</strong> {dependencies[step.id]?.join(", ") || "Yok"}</p><p><strong>Reddedilirse dönüş:</strong> {step.returnTo || "Aynı adım"}</p></div>
       {blocked.length > 0 && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Beklenen ön koşullar: {blocked.join(", ")}</p>}
       {record?.rejectionReason && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800">İade gerekçesi: {record.rejectionReason}</p>}
