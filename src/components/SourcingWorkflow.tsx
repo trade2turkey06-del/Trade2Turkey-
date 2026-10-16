@@ -10,6 +10,7 @@ import { eventData, operationCollection } from "../lib/operationsStore";
 import GoogleDriveFolder from "./GoogleDriveFolder";
 import TargetSpecificationEditor, { createTargetSpecification } from "./TargetSpecificationEditor";
 import SupplierLongListEditor, { SupplierCandidate } from "./SupplierLongListEditor";
+import RfqSubmissionEditor, { createRfqForm } from "./RfqSubmissionEditor";
 
 const input = "mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900 disabled:bg-slate-100";
 const taskRef = (projectId: string, id: string) => doc(db, "sopSteps", `${projectId}_sourcing-${id}`);
@@ -66,6 +67,7 @@ function TaskEditor({ projectId, step, record, users, currentUser, records, even
     setBusy(true); setMessage("");
     try {
       const uid = auth.currentUser?.uid; if (!uid) throw new Error("Oturum açın.");
+      if (action === "save" && step.id === "A.A.4" && new TextEncoder().encode(JSON.stringify(draft.rfqForms ?? [])).length > 500000) throw new Error("RFQ formları çok büyük. Lütfen uzun yanıtları belge bağlantısı olarak ekleyin.");
       if (action === "save" && step.id === "A.A.3" && isAdmin) {
         const companies: SupplierCandidate[] = draft.supplierLongList ?? [];
         if (companies.some(company => !company.name.trim())) throw new Error("Lütfen listedeki her firmanın adını girin veya boş firmayı çıkarın.");
@@ -99,6 +101,7 @@ function TaskEditor({ projectId, step, record, users, currentUser, records, even
             rejectionReason: "", updatedAt: serverTimestamp(),
             ...(step.id === "A.A.2" && isAdmin ? { targetSpecification: draft.targetSpecification ?? createTargetSpecification() } : {}),
             ...(step.id === "A.A.3" && isAdmin ? { supplierLongList: draft.supplierLongList ?? [] } : {}),
+            ...(step.id === "A.A.4" && isAdmin ? { rfqForms: draft.rfqForms ?? [createRfqForm()] } : {}),
           };
         } else {
           if (!current || current.approverUid !== uid || (action === "approve" && current.completedBy === uid)) throw new Error("Yalnızca atanmış onaylayan karar verebilir; işlemi yapan kişi kendi işini onaylayamaz.");
@@ -126,6 +129,7 @@ function TaskEditor({ projectId, step, record, users, currentUser, records, even
     <div className="space-y-4 border-t p-4">
       {step.id === "A.A.2" && <TargetSpecificationEditor sections={draft.targetSpecification ?? createTargetSpecification()} onChange={sections => setDraft(previous => ({ ...previous, targetSpecification: sections }))} disabled={!isAdmin || busy || approved} />}
       {step.id === "A.A.3" && <SupplierLongListEditor companies={draft.supplierLongList ?? []} onChange={companies => setDraft(previous => ({ ...previous, supplierLongList: companies }))} disabled={!isAdmin || busy || approved} />}
+      {step.id === "A.A.4" && <RfqSubmissionEditor forms={draft.rfqForms ?? [createRfqForm()]} onChange={forms => setDraft(previous => ({ ...previous, rfqForms: forms }))} disabled={!isAdmin || busy || approved} />}
       <div className="grid gap-4 text-sm text-slate-600 sm:grid-cols-2"><p><strong>KPI:</strong> {translated?.kpiMetric || step.metric}</p><p><strong>Gerekli çıktı:</strong> {translated?.requiredOutputs || step.outputs}</p><p><strong>Ön koşul:</strong> {dependencies[step.id]?.join(", ") || "Yok"}</p><p><strong>Reddedilirse dönüş:</strong> {step.returnTo || "Aynı adım"}</p></div>
       {blocked.length > 0 && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Beklenen ön koşullar: {blocked.join(", ")}</p>}
       {record?.rejectionReason && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800">İade gerekçesi: {record.rejectionReason}</p>}
