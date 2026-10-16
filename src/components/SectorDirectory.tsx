@@ -15,9 +15,9 @@ const emptyCompany = (sectorId: string): DirectoryCompany => ({ id: crypto.rando
 
 // First sector and company requested for the trial; written once when the directory is empty.
 // Company facts were taken from www.mtclinen.com and should be verified with the manufacturer.
-const seedSector: Sector = { id: "towel", name: "Towel" };
+const seedSector: Sector = { id: "havlu", name: "Havlu" };
 const seedCompany: DirectoryCompany = {
-  id: "mtc-linen", sectorId: "towel", name: "MTC Linen", website: "https://www.mtclinen.com",
+  id: "mtc-linen", sectorId: "havlu", name: "MTC Linen", website: "https://www.mtclinen.com",
   description: "1978'den beri faaliyet gösteren, Denizli merkezli havlu ve ev tekstili üreticisi. İplikten konfeksiyona dikey üretim; sürdürülebilirlik odaklı.",
   foundedYear: "1978", employees: "300+", location: "Denizli, Türkiye", address: "Bozburun, 7060. Sk. No:5, 20100 Merkezefendi/Denizli",
   phone: "+90 258 371 37 07", email: "contact@mtclinen.com",
