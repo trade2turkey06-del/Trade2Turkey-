@@ -1,6 +1,10 @@
 import type { Messages } from "../tr";
 
 export const common: Messages["common"] = {
+  screenFailed: "Could not load this screen",
+  screenFailedHelp: "Your saved records are preserved. Reload the page to try again.",
+  reload: "Reload",
+
   save: "Save",
   saving: "Saving…",
   saved: "Saved.",

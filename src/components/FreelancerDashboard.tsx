@@ -386,7 +386,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
         userId: activeUser?.id ?? "",
         assignedTo: activeUser?.id ?? "",
         score: 100,
-        productCategory: "Unlu Mamüller",
+        productCategory: t.discovery.bakeryProducts,
         sop_steps: freelanceSOPData.map(s => ({
           step: s.step,
           task: s.task,
@@ -642,10 +642,10 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
               >
                 {saving ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin text-slate-950" /> Kaydediliyor...
+                    <Loader2 className="h-4 w-4 animate-spin text-slate-950" /> {t.discovery.saving}
                   </>
                 ) : (
-                  "Profili Kaydet ve Devam Et"
+                  t.discovery.saveProfileContinue
                 )}
               </button>
             </div>
@@ -866,7 +866,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                 onClick={() => setShowAddLeadModal(true)}
                 className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-slate-950 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-2 font-mono"
               >
-                <span>+ Yeni Aday Ekle</span>
+                <span>{t.discovery.addLeadShort}</span>
               </button>
             )}
           </div>
@@ -1068,7 +1068,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                                           <th className="p-4 w-[28%]">Task Activity</th>
                                           <th className="p-4">Owner</th>
                                           <th className="p-4">KPI / Standard Metric</th>
-                                          <th className="p-4">Durum</th>
+                                          <th className="p-4">{t.discovery.status}</th>
                                           <th className="p-4">Evidence Storage</th>
                                           <th className="p-4 text-center">Interactive Area</th>
                                         </tr>

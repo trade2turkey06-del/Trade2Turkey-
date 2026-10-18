@@ -1,3 +1,5 @@
+import { ai } from "./ai";
+import { market } from "./market";
 import { workspaceAdmin } from "./workspaceAdmin";
 import { api } from "./api";
 import { discovery } from "./discovery";
@@ -16,4 +18,4 @@ import { productSpec } from "./productSpec";
 import { errors } from "./errors";
 import { countries } from "./countries";
 
-export const en: Messages = { workspaceAdmin, api, discovery, sectors, reports, actionCenter, logistics, operations, common, language, shell, login, status, steps, sourcing, editors, rfqMatrix, drive, vault, productSpec, errors, countries };
+export const en: Messages = { ai, market, workspaceAdmin, api, discovery, sectors, reports, actionCenter, logistics, operations, common, language, shell, login, status, steps, sourcing, editors, rfqMatrix, drive, vault, productSpec, errors, countries };

@@ -192,4 +192,10 @@ export const discovery = {
   not_evaluated: "Değerlendirilmedi",
   oneDayAgo: "1 gün önce",
   companySingle: "Firma",
+  globalTestNetwork: "Küresel (Test Ağı)",
+  saveProfileContinue: "Profili Kaydet ve Devam Et",
+  saving: "Kaydediliyor...",
+  addLeadShort: "+ Yeni Aday Ekle",
+  status: "Durum",
+  bakeryProducts: "Unlu Mamüller",
 };

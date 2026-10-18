@@ -193,7 +193,7 @@ function CompanyForm({ company, onChange, onSave, onCancel, busy }: { company: D
     <div className="space-y-2"><h5 className="text-sm font-semibold text-navy">{msg("sectors", "contacts")}</h5>
       {company.contacts.map(person => <div key={person.id} className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-[1fr_1fr_1fr_1fr_28px]">
         {(["name", "title", "phone", "email"] as const).map(key => <label key={key} className="text-xs text-slate-500">{{ name: msg("sectors", "fullName"), title: msg("sectors", "jobTitleDepartment"), phone: msg("sectors", "phone"), email: msg("sectors", "email") }[key]}<input className={input} maxLength={key === "email" ? 254 : 200} type={key === "email" ? "email" : "text"} value={person[key]} onChange={e => setContact(person.id, { [key]: e.target.value })} /></label>)}
-        <button type="button" aria-label={msg("sectors", "removeContactValue", person.name || "Kişi")} className="mt-5 text-red-700" onClick={() => set({ contacts: company.contacts.filter(item => item.id !== person.id) })}><Trash2 className="h-4 w-4" /></button>
+        <button type="button" aria-label={msg("sectors", "removeContactValue", person.name || msg("sectors", "contact"))} className="mt-5 text-red-700" onClick={() => set({ contacts: company.contacts.filter(item => item.id !== person.id) })}><Trash2 className="h-4 w-4" /></button>
       </div>)}
       <button type="button" className="flex items-center gap-2 text-sm font-semibold text-teal-700" onClick={() => set({ contacts: [...company.contacts, { id: crypto.randomUUID(), name: "", title: "", phone: "", email: "" }] })}><Plus className="h-4 w-4" /> {msg("sectors", "addContact")}</button>
     </div>

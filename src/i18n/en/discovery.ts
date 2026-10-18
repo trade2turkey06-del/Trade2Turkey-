@@ -192,4 +192,10 @@ export const discovery = {
   not_evaluated: "Not assessed",
   oneDayAgo: "1 day ago",
   companySingle: "Company",
+  globalTestNetwork: "Global (test network)",
+  saveProfileContinue: "Save profile and continue",
+  saving: "Saving…",
+  addLeadShort: "+ Add lead",
+  status: "Status",
+  bakeryProducts: "Bakery Products",
 };

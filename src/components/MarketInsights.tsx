@@ -1,3 +1,5 @@
+import { priceComparison } from "../domain/market";
+import { message as msg } from "../i18n";
 import { formatPercent, useI18n } from "../i18n";
 import { apiFetch } from "../lib/api";
 import React, { useState, useEffect } from "react";
@@ -18,24 +20,17 @@ export interface MarketInsight {
   pricePerGram: number;
   claims: string[];
   t2tPrice: number;
-  priceAdvantage: string;
+  priceAdvantage?: string;
+  currency?: string;
+  priceAdvantageKind?: "lower" | "higher" | "equal";
+  priceAdvantagePct?: number;
   createdAt: string;
 }
 
 // Helper to compute price advantage text
 const calculatePriceAdvantageText = (shelfPrice: number, t2tPrice: number): string => {
-  const sPrice = Number(shelfPrice);
-  const tPrice = Number(t2tPrice);
-  if (isNaN(sPrice) || isNaN(tPrice) || sPrice === 0) return "Eşit Fiyat";
-
-  if (sPrice > tPrice) {
-    const pct = ((sPrice - tPrice) / sPrice) * 100;
-    return `${formatPercent(pct, 0)} Daha Ucuz`;
-  } else if (sPrice < tPrice) {
-    const pct = ((tPrice - sPrice) / sPrice) * 100;
-    return `${formatPercent(pct, 0)} Daha Pahalı`;
-  }
-  return "Eşit Fiyat";
+  const result = priceComparison(Number(shelfPrice), Number(t2tPrice));
+  return result.kind === "equal" ? msg("market", "samePrice") : msg("market", result.kind === "lower" ? "valueLower" : "valueHigher", formatPercent(result.percentage, 0));
 };
 
 // Helper to compute price per gram
@@ -50,7 +45,7 @@ const calculatePricePerGram = (shelfPrice: number, weight: number): number => {
 // 1. ADMIN PANEL: CRUD MANAGEMENT BİLİŞENİ (FMCG)
 // ----------------------------------------------------
 export function MarketInsightsManagement({ currentProjectId }: { currentProjectId: string }) {
-  useI18n(); // Refresh module-level comparison formatting when the language changes.
+  const { fmt, lang, t } = useI18n();
   const [insights, setInsights] = useState<MarketInsight[]>([]);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -60,27 +55,27 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
 
   // Cost fields configuration in Turkish as requested
   const costFields = [
-    { key: "cogs", label: "Birim Üretim Maliyeti (Hammadde Kırılımları Dahil COGS)" },
-    { key: "logistics", label: "Birim Başına Uluslararası ve Yurtiçi Lojistik Maliyeti" },
-    { key: "importDuties", label: "Birim Başına İthalat Vergileri ve Gümrük Masrafları" },
-    { key: "customsBroker", label: "Birim Başına Gümrük Müşavirliği Maliyeti" },
-    { key: "additionalImport", label: "Birim Başına Ek İthalat Gereksinimleri" },
-    { key: "borderProtection", label: "Birim Başına Gümrük ve Sınır Koruma Maliyeti" },
-    { key: "storage", label: "Birim Başına Depolama Maliyeti" },
-    { key: "fulfilment", label: "Birim Başına Sipariş Karşılama (Fulfillment) Maliyeti" },
-    { key: "adminExpenses", label: "Birim Başına Yönetim Giderleri" },
-    { key: "outsource", label: "Birim Başına Dış Kaynak (Outsource) Gideri" },
-    { key: "returns", label: "Birim Başına Beklenen Ürün İade Maliyeti" },
-    { key: "retailerOther", label: "Birim Başına Perakendeci Diğer Maliyetleri (Paketleme, Denetim vb.)" },
-    { key: "marketing", label: "Birim Başına Pazarlama Bütçesi" },
-    { key: "netProfit", label: "Birim Başına Net Kar" },
-    { key: "brandMargin", label: "Birim Başına Perakendeci Marka Marjı" },
-    { key: "frontMargin", label: "Birim Başına Perakendeci Raf Marjı" }
+    { key: "cogs", label: msg("market", "unitProductionCostCogsIncludingRawMaterials") },
+    { key: "logistics", label: msg("market", "internationalDomesticLogisticsCostPerUnit") },
+    { key: "importDuties", label: msg("market", "importDutiesCustomsChargesPerUnit") },
+    { key: "customsBroker", label: msg("market", "customsBrokerageCostPerUnit") },
+    { key: "additionalImport", label: msg("market", "additionalImportRequirementsPerUnit") },
+    { key: "borderProtection", label: msg("market", "customsBorderProtectionCostPerUnit") },
+    { key: "storage", label: msg("market", "storageCostPerUnit") },
+    { key: "fulfilment", label: msg("market", "orderFulfilmentCostPerUnit") },
+    { key: "adminExpenses", label: msg("market", "administrationCostPerUnit") },
+    { key: "outsource", label: msg("market", "outsourcingCostPerUnit") },
+    { key: "returns", label: msg("market", "expectedProductReturnsCostPerUnit") },
+    { key: "retailerOther", label: msg("market", "otherRetailerCostsPerUnitPackingInspectionEtc") },
+    { key: "marketing", label: msg("market", "marketingBudgetPerUnit") },
+    { key: "netProfit", label: msg("market", "netProfitPerUnit") },
+    { key: "brandMargin", label: msg("market", "retailerBrandMarginPerUnit") },
+    { key: "frontMargin", label: msg("market", "retailerShelfMarginPerUnit") }
   ];
 
   const volumeFields = [
-    { key: "salesForecast", label: "Proje Satış Tahmini (Adet/Hacim)" },
-    { key: "containerCapacity", label: "1 Konteynere Yükleme Adeti" }
+    { key: "salesForecast", label: msg("market", "projectSalesForecastUnitsVolume") },
+    { key: "containerCapacity", label: msg("market", "unitsPerContainer") }
   ];
 
   const [costForm, setCostForm] = useState<Record<string, string>>({});
@@ -149,7 +144,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
       }
     });
     return () => unsub();
-  }, [currentProjectId]);
+  }, [currentProjectId, lang]);
 
   const getIncludedKeysForIncoterm = (incoterm: string): string[] => {
     switch (incoterm) {
@@ -269,10 +264,10 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
         cost_breakdown: breakdown,
         packaging_details: cleanPackagingDetails
       });
-      showFeedback("💰 Proje kapasite ve maliyet tablosu başarıyla kaydedildi.");
+      showFeedback(msg("market", "projectCapacityAndCostingSaved"));
     } catch (err) {
       console.error("Error saving cost breakdown:", err);
-      showFeedback("Hata: Veriler kaydedilemedi.");
+      showFeedback(msg("market", "couldNotSaveData"));
     }
   };
 
@@ -312,7 +307,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
       setManufacturers(list);
     });
     return () => unsub();
-  }, [currentProjectId]);
+  }, [currentProjectId, lang]);
 
   const handleGenerateAiMatch = async (competitor: MarketInsight) => {
     setLoadingAi(prev => ({ ...prev, [competitor.id]: true }));
@@ -324,15 +319,16 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
         },
         body: JSON.stringify({
           competitor,
-          manufacturers
+          manufacturers,
+          language: lang
         })
       });
       if (!res.ok) throw new Error("API request failed");
       const data = await res.json();
-      setAiRecommendations(prev => ({ ...prev, [competitor.id]: data.recommendation }));
+      setAiRecommendations(prev => ({ ...prev, [`${competitor.id}:${lang}`]: data.recommendation }));
     } catch (err) {
       console.error("AI matchmaking failed:", err);
-      alert("Yapay zeka eşleştirme önerisi oluşturulamadı.");
+      alert(msg("market", "couldNotGenerateTheManufacturerMatchingRecommendation"));
     } finally {
       setLoadingAi(prev => ({ ...prev, [competitor.id]: false }));
     }
@@ -355,14 +351,14 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ queryText: aiSearchQuery })
+        body: JSON.stringify({ queryText: aiSearchQuery, language: lang })
       });
       if (!res.ok) throw new Error("Search failed");
       const data = await res.json();
       setAiSearchResults(data.results || []);
     } catch (err) {
       console.error("AI shelf search failed:", err);
-      showFeedback("Hata: Canlı raf fiyatı araştırması gerçekleştirilemedi.");
+      showFeedback(msg("market", "couldNotCompleteTheLiveShelfPriceResearch"));
     } finally {
       setLoadingAiSearch(false);
     }
@@ -384,14 +380,15 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
         weight: weightVal,
         pricePerGram: calculatePricePerGram(priceVal, weightVal),
         t2tPrice: t2tVal,
-        priceAdvantage: calculatePriceAdvantageText(priceVal, t2tVal),
+        priceAdvantageKind: priceComparison(priceVal, t2tVal).kind,
+        priceAdvantagePct: priceComparison(priceVal, t2tVal).percentage,
         claims: result.claims || [],
         createdAt: new Date().toISOString()
       });
-      showFeedback(`✅ ${result.brand} (${result.supermarket}) başarıyla kıyaslama tablosuna eklendi.`);
+      showFeedback(msg("market", "valueValueAddedToTheBenchmarkTable", result.brand, result.supermarket));
     } catch (err) {
       console.error("Failed to add AI result to Firestore:", err);
-      showFeedback("Hata: Kıyaslama kaydı eklenemedi.");
+      showFeedback(msg("market", "couldNotAddTheBenchmarkRecord"));
     }
   };
 
@@ -415,13 +412,13 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
         // Backward compatibility parsing
         const parsed = items.map(it => ({
           ...it,
-          supermarket: it.supermarket || (it as any).competitorName || "Süpermarket",
-          brand: it.brand || "Kendi Markası",
+          supermarket: it.supermarket || (it as any).competitorName || msg("market", "supermarket"),
+          brand: it.brand || msg("market", "privateLabel"),
           shelfPrice: it.shelfPrice ?? (it as any).competitorPrice ?? 0,
           weight: it.weight ?? 1000,
           pricePerGram: it.pricePerGram ?? calculatePricePerGram(it.shelfPrice ?? (it as any).competitorPrice ?? 0, it.weight ?? 1000),
           t2tPrice: it.t2tPrice ?? (it as any).ourPrice ?? 0,
-          priceAdvantage: it.priceAdvantage || calculatePriceAdvantageText(it.shelfPrice ?? (it as any).competitorPrice ?? 0, it.t2tPrice ?? (it as any).ourPrice ?? 0)
+          priceAdvantage: calculatePriceAdvantageText(it.shelfPrice ?? (it as any).competitorPrice ?? 0, it.t2tPrice ?? (it as any).ourPrice ?? 0)
         }));
         setInsights(parsed);
         setLoading(false);
@@ -431,7 +428,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
     });
 
     return () => unsub();
-  }, [currentProjectId]);
+  }, [currentProjectId, lang]);
 
   // Add Tag Handlers
   const handleAddTag = (e: React.KeyboardEvent) => {
@@ -489,7 +486,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
   const handleCreateInsight = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supermarket || !brand || !shelfPrice || !weight || !t2tPrice) {
-      showFeedback("Hata: Lütfen zorunlu alanları doldurun.");
+      showFeedback(msg("market", "completeAllRequiredFields"));
       return;
     }
 
@@ -506,7 +503,8 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
         weight: weightVal,
         pricePerGram: calculatePricePerGram(priceVal, weightVal),
         t2tPrice: t2tVal,
-        priceAdvantage: calculatePriceAdvantageText(priceVal, t2tVal),
+        priceAdvantageKind: priceComparison(priceVal, t2tVal).kind,
+        priceAdvantagePct: priceComparison(priceVal, t2tVal).percentage,
         claims: claims,
         createdAt: new Date().toISOString()
       });
@@ -518,23 +516,23 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
       setWeight("");
       setT2tPrice("");
       setClaims([]);
-      showFeedback("🎉 FMCG rekabet analiz verisi başarıyla eklendi.");
+      showFeedback(msg("market", "fmcgCompetitorAnalysisAdded"));
     } catch (err) {
       console.error("Failed to add insight:", err);
-      showFeedback("Hata: Kayıt eklenemedi.");
+      showFeedback(msg("market", "couldNotAddTheRecord"));
     }
   };
 
   // Delete Action
   const handleDeleteInsight = async (id: string) => {
-    if (!window.confirm("Bu rakip analiz kaydını kalıcı olarak silmek istediğinize emin misiniz?")) return;
+    if (!window.confirm(msg("market", "permanentlyDeleteThisCompetitorAnalysisRecord"))) return;
     try {
       const docRef = doc(db, "projects", currentProjectId, "market_insights", id);
       await deleteDoc(docRef);
-      showFeedback("🗑️ Kayıt başarıyla silindi.");
+      showFeedback(msg("market", "recordDeleted"));
     } catch (err) {
       console.error("Failed to delete insight:", err);
-      showFeedback("Hata: Kayıt silinemedi.");
+      showFeedback(msg("market", "couldNotDeleteTheRecord"));
     }
   };
 
@@ -553,7 +551,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
   // Save Edit
   const saveEdit = async (id: string) => {
     if (!editSupermarket || !editBrand || !editShelfPrice || !editWeight || !editT2tPrice) {
-      showFeedback("Hata: Lütfen tüm alanları doldurun.");
+      showFeedback(msg("market", "completeAllFields"));
       return;
     }
     const priceVal = Number(editShelfPrice);
@@ -569,14 +567,15 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
         weight: weightVal,
         pricePerGram: calculatePricePerGram(priceVal, weightVal),
         t2tPrice: t2tVal,
-        priceAdvantage: calculatePriceAdvantageText(priceVal, t2tVal),
+        priceAdvantageKind: priceComparison(priceVal, t2tVal).kind,
+        priceAdvantagePct: priceComparison(priceVal, t2tVal).percentage,
         claims: editClaims
       });
       setEditingId(null);
-      showFeedback("💾 Değişiklikler başarıyla kaydedildi.");
+      showFeedback(msg("market", "changesSaved"));
     } catch (err) {
       console.error("Failed to save insight:", err);
-      showFeedback("Hata: Kaydedilemedi.");
+      showFeedback(msg("market", "couldNotSave"));
     }
   };
 
@@ -601,7 +600,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
               : "text-slate-500 hover:text-slate-900"
           }`}
         >
-          🔍 Rakip Fiyat Kıyaslama (Benchmarking)
+          {msg("market", "competitorPriceBenchmarking")}
         </button>
         <button
           type="button"
@@ -612,7 +611,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
               : "text-slate-500 hover:text-slate-900"
           }`}
         >
-          🧮 Birim Maliyet Hesaplama Tablosu
+          {msg("market", "unitCostCalculator")}
         </button>
       </div>
 
@@ -624,8 +623,8 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
               <div className="flex items-center gap-2.5">
                 <span className="text-xl">✨</span>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800 uppercase font-mono tracking-wider">AI Canlı Raf Fiyatı Araştırması</h4>
-                  <p className="text-[10px] text-slate-550 leading-normal">Gemini Google Search Grounding ile süpermarketlerin güncel fiziksel mağaza raf fiyatlarını tarayın.</p>
+                  <h4 className="text-xs font-bold text-slate-800 uppercase font-mono tracking-wider">{msg("market", "aiLiveShelfPriceResearch")}</h4>
+                  <p className="text-[10px] text-slate-550 leading-normal">{msg("market", "researchCurrentInStoreSupermarketShelfPricesUsingGemini")}</p>
                 </div>
               </div>
               <button 
@@ -633,7 +632,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                 onClick={() => setShowAiSearchPanel(!showAiSearchPanel)} 
                 className="text-[10px] font-bold text-blue-600 hover:text-blue-800 font-mono bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-xl border border-blue-200/50 cursor-pointer transition select-none self-start md:self-auto"
               >
-                {showAiSearchPanel ? "Kapat" : "Araştırma Panelini Aç"}
+                {showAiSearchPanel ? msg("market", "close") : msg("market", "openResearchPanel")}
               </button>
             </div>
 
@@ -643,7 +642,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                   <input
                     type="text"
                     required
-                    placeholder="örn. İngiltere supermarket tortilla fiyatları, UK high protein wrap shelf prices..."
+                    placeholder={msg("market", "eGUkSupermarketTortillaPricesHighProteinWrap")}
                     value={aiSearchQuery}
                     onChange={(e) => setAiSearchQuery(e.target.value)}
                     className="flex-1 px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-850 focus:outline-none focus:border-navy transition font-medium placeholder-slate-400"
@@ -653,13 +652,13 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                     disabled={loadingAiSearch}
                     className="bg-navy hover:bg-navy-light text-white font-bold text-xs px-5 py-2.5 rounded-xl transition cursor-pointer select-none font-mono shrink-0"
                   >
-                    {loadingAiSearch ? "Taranıyor..." : "Arama Yap"}
+                    {loadingAiSearch ? msg("market", "searching") : msg("market", "runSearch")}
                   </button>
                 </form>
 
                 {loadingAiSearch && (
                   <div className="py-8 text-center text-xs text-slate-400 font-mono">
-                    🔎 Fiziksel mağaza raf fiyatı verileri Google Arama üzerinde aranıyor ve analiz ediliyor...
+                    {msg("market", "searchingAndAnalysingPhysicalStoreShelfPricesUsingGoogle")}
                   </div>
                 )}
 
@@ -674,8 +673,8 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                               <span className="text-xs font-extrabold text-slate-850 block">{result.brand}</span>
                             </div>
                             <div className="text-right">
-                              <span className="text-xs font-black text-slate-800 font-mono block">${Number(result.shelfPrice).toFixed(2)}</span>
-                              <span className="text-[9px] text-slate-450 font-mono block">{result.weight} gr</span>
+                              <span className="text-xs font-black text-slate-800 font-mono block">{fmt.currency(Number(result.shelfPrice), "USD")}</span>
+                              <span className="text-[9px] text-slate-450 font-mono block">{fmt.number(Number(result.weight))} {msg("market", "g")}</span>
                             </div>
                           </div>
                           {result.claims && result.claims.length > 0 && (
@@ -693,7 +692,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                           onClick={() => handleAddAiResultToInsights(result)}
                           className="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-[10px] py-2 rounded-xl transition cursor-pointer font-mono text-center flex items-center justify-center gap-1"
                         >
-                          📥 Kıyaslama Tablosuna Ekle
+                          {msg("market", "addToBenchmarkTable")}
                         </button>
                       </div>
                     ))}
@@ -708,16 +707,16 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
           {/* ADD FORM */}
           <form onSubmit={handleCreateInsight} className="xl:col-span-4 bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4 h-fit">
             <div className="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase font-mono tracking-wider">
-              <Plus className="h-4.5 w-4.5 text-navy" /> Perakende Fiyat Kıyaslama Kaydı Ekle
+              <Plus className="h-4.5 w-4.5 text-navy" /> {msg("market", "addRetailPriceBenchmark")}
             </div>
 
             <div className="space-y-3.5">
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">Süpermarket (Zincir)</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">{msg("market", "supermarketChain")}</label>
               <input
                 type="text"
                 required
-                placeholder="örn., Costco Wholesale"
+                placeholder={msg("market", "eGCostcoWholesale")}
                 value={supermarket}
                 onChange={(e) => setSupermarket(e.target.value)}
                 className="w-full p-2.5 bg-slate-50 border rounded-xl text-xs text-slate-800 focus:outline-none focus:border-navy focus:bg-white transition font-semibold"
@@ -725,11 +724,11 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
             </div>
 
             <div className="space-y-1">
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">Marka (Brand)</label>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">{msg("market", "brand")}</label>
               <input
                 type="text"
                 required
-                placeholder="örn., Kirkland Signature"
+                placeholder={msg("market", "eGKirklandSignature")}
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
                 className="w-full p-2.5 bg-slate-50 border rounded-xl text-xs text-slate-800 focus:outline-none focus:border-navy focus:bg-white transition"
@@ -738,7 +737,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">Raf Fiyatı ($ / €)</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">{msg("market", "shelfPriceUsd")}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -750,11 +749,11 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                 />
               </div>
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">Gramaj (gr)</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">{msg("market", "netWeightG")}</label>
                 <input
                   type="number"
                   required
-                  placeholder="örn. 1000"
+                  placeholder={msg("market", "eG1000")}
                   value={weight}
                   onChange={(e) => setWeight(e.target.value)}
                   className="w-full p-2.5 bg-slate-50 border rounded-xl text-xs text-slate-800 focus:outline-none focus:border-navy focus:bg-white transition font-mono"
@@ -763,7 +762,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
             </div>
 
             <div className="space-y-1">
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">Bizim T2T Fiyatımız ($ / €)</label>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">{msg("market", "t2tPriceUsd")}</label>
               <input
                 type="number"
                 step="0.01"
@@ -779,11 +778,11 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
             {previewPricePerGram > 0 && (
               <div className="p-3.5 bg-slate-55 border border-slate-200 rounded-xl space-y-1.5 text-[11px] font-mono leading-none">
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Gram Fiyatı:</span>
-                  <span className="text-slate-800 font-bold">${previewPricePerGram.toFixed(4)} /gr</span>
+                  <span className="text-slate-500">{msg("market", "pricePerGram")}</span>
+                  <span className="text-slate-800 font-bold">{fmt.currency(previewPricePerGram, "USD", 4)} /g</span>
                 </div>
                 <div className="flex justify-between border-t border-slate-200/60 pt-1.5 mt-1.5">
-                  <span className="text-slate-500">T2T Fiyat Avantajı:</span>
+                  <span className="text-slate-500">{msg("market", "t2tPriceAdvantage")}</span>
                   <span className={`font-black ${Number(shelfPrice) > Number(t2tPrice) ? "text-emerald-600" : "text-rose-600"}`}>
                     {previewPriceAdvantage}
                   </span>
@@ -793,12 +792,12 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
 
             <div className="space-y-1">
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                Üründeki İddialar / Özellikler
+                {msg("market", "productClaimsFeatures")}
               </label>
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Yazıp Enter'a basın..."
+                  placeholder={msg("market", "typeAndPressEnter")}
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
                   onKeyDown={handleAddTag}
@@ -809,7 +808,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                   onClick={handleAddTagClick}
                   className="px-3 bg-slate-100 hover:bg-slate-200 border rounded-xl text-xs font-bold text-slate-700 transition"
                 >
-                  Ekle
+                  {msg("market", "add")}
                 </button>
               </div>
               
@@ -838,7 +837,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
               type="submit"
               className="w-full bg-navy hover:bg-navy-light text-white font-semibold text-xs py-3 rounded-xl transition cursor-pointer shadow-sm mt-3"
             >
-              Kıyaslama Kaydını Ekle
+              {msg("market", "addBenchmarkRecord")}
             </button>
           </div>
         </form>
@@ -847,29 +846,29 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
         <div className="xl:col-span-8 space-y-4 overflow-hidden">
           <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
             <Shield className="h-5 w-5 text-navy" />
-            <h3 className="text-base font-bold text-slate-900 font-display">Kayıtlı Rekabet Analizi & Benchmarking</h3>
+            <h3 className="text-base font-bold text-slate-900 font-display">{msg("market", "savedCompetitorAnalysisBenchmarks")}</h3>
           </div>
 
           {loading ? (
-            <div className="text-xs text-slate-500 py-12 text-center font-mono">Pazar verileri yükleniyor...</div>
+            <div className="text-xs text-slate-500 py-12 text-center font-mono">{msg("market", "loadingMarketData")}</div>
           ) : insights.length === 0 ? (
             <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center text-xs text-slate-500 italic">
-              Bu proje için henüz girilmiş bir fiyat kıyaslaması bulunmamaktadır.
+              {msg("market", "noPriceBenchmarksHaveBeenRecordedForThisProject")}
             </div>
           ) : (
             <div className="overflow-x-auto bg-white border border-slate-200 rounded-3xl shadow-sm">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 font-mono uppercase tracking-wider text-[10px]">
-                    <th className="p-4">Market</th>
-                    <th className="p-4">Marka</th>
-                    <th className="p-4">Ürün İddiaları</th>
-                    <th className="p-4">Raf Fiyatı</th>
-                    <th className="p-4">Gramaj</th>
-                    <th className="p-4">Gram Fiyatı</th>
-                    <th className="p-4 bg-teal-500/5 text-teal-800 font-extrabold border-x border-slate-200/60">T2T Fiyatı</th>
-                    <th className="p-4 bg-teal-500/10 text-teal-700 font-extrabold border-r border-slate-200/60">Fiyat Avantajı</th>
-                    <th className="p-4 text-right">Eylemler</th>
+                    <th className="p-4">{msg("market", "retailer")}</th>
+                    <th className="p-4">{msg("market", "brand2")}</th>
+                    <th className="p-4">{msg("market", "productClaims")}</th>
+                    <th className="p-4">{msg("market", "shelfPrice")}</th>
+                    <th className="p-4">{msg("market", "netWeight")}</th>
+                    <th className="p-4">{msg("market", "pricePerGram2")}</th>
+                    <th className="p-4 bg-teal-500/5 text-teal-800 font-extrabold border-x border-slate-200/60">{msg("market", "t2tPrice")}</th>
+                    <th className="p-4 bg-teal-500/10 text-teal-700 font-extrabold border-r border-slate-200/60">{msg("market", "priceAdvantage")}</th>
+                    <th className="p-4 text-right">{msg("market", "actions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -888,14 +887,14 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                                   value={editSupermarket}
                                   onChange={(e) => setEditSupermarket(e.target.value)}
                                   className="p-2 border rounded-lg text-xs"
-                                  placeholder="Market"
+                                  placeholder={msg("market", "retailer")}
                                 />
                                 <input
                                   type="text"
                                   value={editBrand}
                                   onChange={(e) => setEditBrand(e.target.value)}
                                   className="p-2 border rounded-lg text-xs"
-                                  placeholder="Marka"
+                                  placeholder={msg("market", "brand2")}
                                 />
                               </div>
                               <div className="flex flex-wrap gap-1">
@@ -905,7 +904,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                                   onChange={(e) => setEditTagInput(e.target.value)}
                                   onKeyDown={handleEditAddTag}
                                   className="p-1.5 border rounded-lg text-xs w-28"
-                                  placeholder="İddia ekle..."
+                                  placeholder={msg("market", "addClaim")}
                                 />
                                 {editClaims.map((tag, idx) => (
                                   <span key={idx} className="px-1.5 py-0.5 bg-teal-55 text-teal-700 rounded text-[10px] flex items-center gap-1">
@@ -934,7 +933,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                             />
                           </td>
                           <td className="p-3 font-mono text-slate-400">
-                            ${calculatePricePerGram(Number(editShelfPrice), Number(editWeight)).toFixed(4)}
+                            {fmt.currency(calculatePricePerGram(Number(editShelfPrice), Number(editWeight)), "USD", 4)}
                           </td>
                           <td className="p-3 bg-teal-500/5 border-x border-slate-200/60">
                             <input
@@ -950,8 +949,8 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                           </td>
                           <td className="p-3 text-right">
                             <div className="flex gap-1 justify-end">
-                              <button onClick={() => setEditingId(null)} className="p-1 border rounded hover:bg-white" title="İptal"><X className="h-3.5 w-3.5" /></button>
-                              <button onClick={() => saveEdit(item.id)} className="p-1 bg-navy text-white rounded hover:bg-navy-light" title="Kaydet"><Check className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => setEditingId(null)} className="p-1 border rounded hover:bg-white" title={msg("market", "cancel")}><X className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => saveEdit(item.id)} className="p-1 bg-navy text-white rounded hover:bg-navy-light" title={msg("market", "save")}><Check className="h-3.5 w-3.5" /></button>
                             </div>
                           </td>
                         </tr>
@@ -972,16 +971,16 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                               ))}
                             </div>
                           </td>
-                          <td className="p-4 font-mono text-slate-700">${item.shelfPrice.toFixed(2)}</td>
-                          <td className="p-4 font-mono text-slate-500">{item.weight} gr</td>
-                          <td className="p-4 font-mono text-slate-400">${item.pricePerGram.toFixed(4)} /gr</td>
+                          <td className="p-4 font-mono text-slate-700">{fmt.currency(item.shelfPrice, item.currency || "USD")}</td>
+                          <td className="p-4 font-mono text-slate-500">{fmt.number(item.weight)} {msg("market", "g")}</td>
+                          <td className="p-4 font-mono text-slate-400">{fmt.currency(item.pricePerGram, item.currency || "USD", 4)} /g</td>
                           <td className="p-4 bg-teal-500/5 font-extrabold font-mono text-teal-700 border-x border-slate-200/60 text-sm">
-                            ${item.t2tPrice.toFixed(2)}
+                            {fmt.currency(item.t2tPrice, item.currency || "USD")}
                           </td>
                           <td className={`p-4 bg-teal-500/10 font-black font-mono border-r border-slate-200/60 text-sm ${
                             hasAdvantage ? "text-emerald-600" : "text-rose-600"
                           }`}>
-                            {item.priceAdvantage}
+                            {calculatePriceAdvantageText(item.shelfPrice, item.t2tPrice)}
                           </td>
                           <td className="p-4 text-right">
                             <div className="flex gap-1.5 justify-end items-center">
@@ -990,24 +989,24 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                                 onClick={() => handleGenerateAiMatch(item)}
                                 disabled={loadingAi[item.id]}
                                 className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 text-[10px] font-bold rounded-lg transition flex items-center gap-1 font-mono cursor-pointer"
-                                title="Yapay Zeka Fırsat Analizi"
+                                title={msg("market", "aiOpportunityAnalysis")}
                               >
-                                {loadingAi[item.id] ? "Analiz..." : "✨ AI Analizi"}
+                                {loadingAi[item.id] ? msg("market", "analysing") : msg("market", "aiAnalysis")}
                               </button>
-                              <button onClick={() => startEdit(item)} className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded transition cursor-pointer" title="Düzenle"><Edit2 className="h-3.5 w-3.5" /></button>
-                              <button onClick={() => handleDeleteInsight(item.id)} className="p-1.5 hover:bg-red-50 text-red-500 hover:text-red-700 rounded transition cursor-pointer" title="Sil"><Trash2 className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => startEdit(item)} className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded transition cursor-pointer" title={msg("market", "edit")}><Edit2 className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => handleDeleteInsight(item.id)} className="p-1.5 hover:bg-red-50 text-red-500 hover:text-red-700 rounded transition cursor-pointer" title={msg("market", "delete")}><Trash2 className="h-3.5 w-3.5" /></button>
                             </div>
                           </td>
                         </tr>
-                        {aiRecommendations[item.id] && (
+                        {aiRecommendations[`${item.id}:${lang}`] && (
                           <tr className="bg-blue-50/40 border-b border-slate-200">
                             <td colSpan={9} className="p-4 text-xs">
                               <div className="flex items-start gap-2.5">
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black font-mono uppercase bg-blue-900/10 border border-blue-800/20 text-blue-700 rounded-lg shrink-0">
-                                  ✨ Yapay Zeka Önerisi
+                                  {msg("market", "aiRecommendation")}
                                 </span>
                                 <span className="font-semibold text-slate-700 leading-relaxed font-sans">
-                                  {aiRecommendations[item.id]}
+                                  {aiRecommendations[`${item.id}:${lang}`]}
                                 </span>
                               </div>
                             </td>
@@ -1031,19 +1030,19 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-6">
           <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
             <DollarSign className="h-5 w-5 text-navy" />
-            <h3 className="text-base font-bold text-slate-900 font-display">Proje Kapasite ve Birim Maliyet Hesaplama Modülü</h3>
+            <h3 className="text-base font-bold text-slate-900 font-display">{msg("market", "projectCapacityUnitCostCalculator")}</h3>
           </div>
 
           {/* BÖLÜM 1: Proje Hacim ve Kapasite (Üst Kısım) */}
           <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl space-y-4">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
               <h4 className="text-xs font-bold text-slate-700 uppercase font-mono tracking-wider">
-                Bölüm 1: Proje Hacim ve Kapasite
+                {msg("market", "section1ProjectVolumeCapacity")}
               </h4>
               
               {/* Currency Selector */}
               <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 shadow-sm select-none">
-                <span className="text-[9px] font-bold text-slate-405 font-mono uppercase px-2">Para Birimi:</span>
+                <span className="text-[9px] font-bold text-slate-405 font-mono uppercase px-2">{msg("market", "currency")}</span>
                 {["USD", "EUR", "GBP"].map((curr) => {
                   const symbol = curr === "USD" ? "$" : curr === "EUR" ? "€" : "£";
                   const isActive = (costForm.currency || "USD") === curr;
@@ -1070,11 +1069,11 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
               {/* Alıcı Adı / Firma */}
               <div className="space-y-1.5 font-sans md:col-span-3">
                 <label className="block text-[10px] font-bold text-slate-550 uppercase tracking-wide">
-                  Alıcı Adı / Firma
+                  {msg("market", "buyerNameCompany")}
                 </label>
                 <input
                   type="text"
-                  placeholder="örn. Lüks Yaşam A.Ş."
+                  placeholder={msg("market", "eGExampleTradingLtd")}
                   value={costForm.buyerName || ""}
                   onChange={(e) => {
                     setCostForm({
@@ -1089,11 +1088,11 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
               {/* İthalat Ülkesi */}
               <div className="space-y-1.5 font-sans md:col-span-3">
                 <label className="block text-[10px] font-bold text-slate-550 uppercase tracking-wide">
-                  İthalat Ülkesi
+                  {msg("market", "importCountry")}
                 </label>
                 <input
                   type="text"
-                  placeholder="örn. İngiltere"
+                  placeholder={msg("market", "eGUnitedKingdom")}
                   value={costForm.importCountry || ""}
                   onChange={(e) => {
                     setCostForm({
@@ -1108,11 +1107,11 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
               {/* HS Code (GTİP) */}
               <div className="space-y-1.5 font-sans md:col-span-3">
                 <label className="block text-[10px] font-bold text-slate-550 uppercase tracking-wide">
-                  HS Code (GTİP)
+                  {msg("market", "hsCode")}
                 </label>
                 <input
                   type="text"
-                  placeholder="örn. 1905.90"
+                  placeholder={msg("market", "eG190590")}
                   value={costForm.hsCode || ""}
                   onChange={(e) => {
                     setCostForm({
@@ -1127,12 +1126,12 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
               {/* Gümrük Vergisi Oranı (%) */}
               <div className="space-y-1.5 font-sans md:col-span-3">
                 <label className="block text-[10px] font-bold text-slate-550 uppercase tracking-wide">
-                  Gümrük Vergisi Oranı (%)
+                  {msg("market", "customsDutyRate")}
                 </label>
                 <div className="relative">
                   <input
                     type="number"
-                    placeholder="örn. 8"
+                    placeholder={msg("market", "eG8")}
                     value={costForm.hsCodeTaxRate || ""}
                     onChange={(e) => handleUpdateTaxRate(e.target.value)}
                     className="w-full pr-8 pl-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-navy transition font-mono font-semibold"
@@ -1144,11 +1143,11 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
               {/* Proje Satış Tahmini */}
               <div className="space-y-1.5 font-sans md:col-span-4">
                 <label className="block text-[10px] font-bold text-slate-550 uppercase tracking-wide">
-                  Proje Satış Tahmini (Adet/Hacim)
+                  {msg("market", "projectSalesForecastUnitsVolume")}
                 </label>
                 <input
                   type="number"
-                  placeholder="örn. 10000"
+                  placeholder={msg("market", "eG10000")}
                   value={costForm.salesForecast || ""}
                   onChange={(e) => {
                     setCostForm({
@@ -1163,11 +1162,11 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
               {/* 1 Konteynere Yükleme Adeti */}
               <div className="space-y-1.5 font-sans md:col-span-4">
                 <label className="block text-[10px] font-bold text-slate-550 uppercase tracking-wide">
-                  1 Konteynere Yükleme Adeti
+                  {msg("market", "unitsPerContainer")}
                 </label>
                 <input
                   type="number"
-                  placeholder="örn. 1000"
+                  placeholder={msg("market", "eG1000")}
                   value={costForm.containerCapacity || ""}
                   onChange={(e) => handleUpdateContainerCapacity(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-navy transition font-mono font-semibold"
@@ -1178,17 +1177,17 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
               <div className="space-y-1.5 font-sans md:col-span-4">
                 <div className="flex justify-between items-center">
                   <label className="block text-[10px] font-bold text-slate-550 uppercase tracking-wide">
-                    Toplam Navlun Bedeli
+                    {msg("market", "totalFreightCost")}
                   </label>
                   <span className="text-[8px] font-bold font-mono text-cyan-600 bg-cyan-50 px-1.5 py-0.2 rounded uppercase">
-                    Birim Oto-Hesaplar
+                    {msg("market", "automaticUnitCalculations")}
                   </span>
                 </div>
                 <div className="relative">
                   <span className="absolute left-3 top-2.5 text-slate-400 font-mono text-xs">{currencySymbol}</span>
                   <input
                     type="number"
-                    placeholder="örn. 4500"
+                    placeholder={msg("market", "eG4500")}
                     value={costForm.totalFreightCost || ""}
                     onChange={(e) => handleUpdateTotalFreight(e.target.value)}
                     className="w-full pl-7 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-navy transition font-mono font-semibold"
@@ -1205,10 +1204,10 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
           <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-700 uppercase font-mono tracking-wider">
-                Teslim Şekli (Incoterm) Seçimi:
+                {msg("market", "selectIncoterm")}
               </span>
               <span className="text-[10px] font-mono text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded border border-cyan-200/50 uppercase font-bold">
-                Otomatik Hesaplama Aktif
+                {msg("market", "automaticCalculationEnabled")}
               </span>
             </div>
             <div className="grid grid-cols-4 gap-2">
@@ -1230,16 +1229,16 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
             
             <div className="text-[10px] text-slate-500 font-sans leading-relaxed pt-1 flex flex-col gap-1">
               {selectedIncoterm === "EXW" && (
-                <p>🔹 <strong>EXW:</strong> Sadece Birim Üretim Maliyeti (COGS), Yönetim Giderleri, Dış Kaynak Giderleri ve Net Kar dahildir. Lojistik ve gümrük maliyetleri alıcıya aittir.</p>
+                <p>🔹 <strong>EXW:</strong> {msg("market", "includesUnitProductionCostCogsAdministrationOutsourcingAndNet")}</p>
               )}
               {selectedIncoterm === "FOB" && (
-                <p>🔹 <strong>FOB:</strong> EXW maliyetlerine ek olarak Türkiye Gümrük Müşavirliği maliyeti dahildir. Uluslararası nakliye ve ithalat işlemleri alıcıya aittir.</p>
+                <p>🔹 <strong>FOB:</strong> {msg("market", "includesExwCostsPlusCustomsBrokerageInTRkiye")}</p>
               )}
               {selectedIncoterm === "CIF" && (
-                <p>🔹 <strong>CIF:</strong> FOB maliyetlerine ek olarak Uluslararası Lojistik/Navlun maliyeti dahildir. İthalat vergileri ve gümrük çekim işlemleri alıcıya aittir.</p>
+                <p>🔹 <strong>CIF:</strong> {msg("market", "includesFobCostsPlusInternationalLogisticsFreightImportDuties")}</p>
               )}
               {selectedIncoterm === "DDP" && (
-                <p>🔹 <strong>DDP:</strong> Tüm maliyetler (Lojistik, İthalat Vergileri, Gümrük Çekimi, Sınır Koruma, Depolama, Sipariş Karşılama, Perakendeci Marjları, İade ve Pazarlama Giderleri) dahildir. Alıcı için tam kapı teslim fiyatıdır.</p>
+                <p>🔹 <strong>DDP:</strong> {msg("market", "includesAllConfiguredCostsLogisticsImportDutiesCustomsClearance")}</p>
               )}
             </div>
           </div>
@@ -1249,7 +1248,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
           {/* BÖLÜM 2: Birim Maliyet Kırılımları (Alt Kısım) */}
           <div className="space-y-4">
             <h4 className="text-xs font-bold text-slate-700 uppercase font-mono tracking-wider">
-              Bölüm 2: Birim Maliyet Kırılımları
+              {msg("market", "section2UnitCostBreakdown")}
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {costFields.map((f) => {
@@ -1262,7 +1261,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                       </label>
                       {!isIncluded && (
                         <span className="text-[8px] font-mono font-bold text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded uppercase">
-                          Hariç ({selectedIncoterm})
+                          {msg("market", "excluded")}{selectedIncoterm})
                         </span>
                       )}
                     </div>
@@ -1300,10 +1299,10 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h4 className="text-xs font-bold text-slate-700 uppercase font-mono tracking-wider">
-                Bölüm 3: Ürün ve Paketleme Konfigürasyonu
+                {msg("market", "section3ProductPackagingConfiguration")}
               </h4>
               <span className="text-[10px] font-mono text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded border border-cyan-200/50 uppercase font-bold">
-                Dinamik Varyantlar
+                {msg("market", "productVariants")}
               </span>
             </div>
 
@@ -1311,16 +1310,16 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
               <table className="w-full text-left border-collapse min-w-[1400px]">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 align-middle">
-                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[150px]">Ürün adı / Varyant</th>
-                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[120px]">Tekli Ürün Ağırlığı</th>
-                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[140px]">Paketleme biçimi</th>
-                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[180px]">Küçük ambalaj içindeki ürün adeti</th>
-                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[180px]">Büyük koli içindeki paket adeti</th>
-                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[160px]">Palet içindeki koli adeti</th>
-                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[120px]">Koli net ağırlığı</th>
-                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[120px]">Koli bürüt ağırlığı</th>
-                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[140px]">Koli ölçüleri</th>
-                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[160px]">Toplam gross ürün ağırlığı</th>
+                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[150px]">{msg("market", "productNameVariant")}</th>
+                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[120px]">{msg("market", "unitProductWeight")}</th>
+                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[140px]">{msg("market", "packagingType")}</th>
+                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[180px]">{msg("market", "unitsPerInnerPack")}</th>
+                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[180px]">{msg("market", "packsPerMasterCarton")}</th>
+                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[160px]">{msg("market", "cartonsPerPallet")}</th>
+                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[120px]">{msg("market", "cartonNetWeight")}</th>
+                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[120px]">{msg("market", "cartonGrossWeight")}</th>
+                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[140px]">{msg("market", "cartonDimensions")}</th>
+                    <th className="p-3 text-[10px] font-bold text-slate-550 uppercase tracking-wider text-left align-middle whitespace-nowrap min-w-[160px]">{msg("market", "totalGrossProductWeight")}</th>
                     <th className="p-3 text-[10px] font-bold text-slate-555 uppercase tracking-wider text-left align-middle w-12 text-center"></th>
                   </tr>
                 </thead>
@@ -1328,7 +1327,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                   {packagingDetails.length === 0 ? (
                     <tr>
                       <td colSpan={11} className="p-8 text-center text-xs text-slate-400 font-medium">
-                        Henüz paketleme varyantı eklenmemiş. Aşağıdaki butondan yeni satır ekleyebilirsiniz.
+                        {msg("market", "noPackagingVariantsYetAddARowUsingThe")}
                       </td>
                     </tr>
                   ) : (
@@ -1337,7 +1336,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                         <td className="p-2">
                           <input
                             type="text"
-                            placeholder="örn. Tortilla 25cm"
+                            placeholder={msg("market", "eG25CmTortilla")}
                             value={row.productVariant || ""}
                             onChange={(e) => handleUpdatePackagingCell(idx, "productVariant", e.target.value)}
                             className="w-full px-2 py-1.5 bg-transparent border-0 rounded focus:outline-none focus:bg-slate-100/70 transition font-medium focus:ring-1 focus:ring-slate-350 text-xs text-slate-800"
@@ -1356,7 +1355,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                         <td className="p-2">
                           <input
                             type="text"
-                            placeholder="örn. Oluklu Koli"
+                            placeholder={msg("market", "eGCorrugatedCarton")}
                             value={row.packagingStyle || ""}
                             onChange={(e) => handleUpdatePackagingCell(idx, "packagingStyle", e.target.value)}
                             className="w-full px-2 py-1.5 bg-transparent border-0 rounded focus:outline-none focus:bg-slate-100/70 transition font-medium focus:ring-1 focus:ring-slate-350 text-xs text-slate-800"
@@ -1412,7 +1411,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                         <td className="p-2">
                           <input
                             type="text"
-                            placeholder="örn. 40x30x20 cm"
+                            placeholder={msg("market", "eG403020Cm")}
                             value={row.cartonDimensions || ""}
                             onChange={(e) => handleUpdatePackagingCell(idx, "cartonDimensions", e.target.value)}
                             className="w-full px-2 py-1.5 bg-transparent border-0 rounded focus:outline-none focus:bg-slate-100/70 transition font-mono focus:ring-1 focus:ring-slate-350 text-xs text-slate-800"
@@ -1451,7 +1450,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
                 className="flex items-center gap-1.5 border border-dashed border-slate-300 hover:border-navy bg-white hover:bg-slate-50 text-slate-600 hover:text-navy px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer shadow-sm"
               >
                 <Plus className="h-4 w-4" />
-                Yeni Paketleme Varyantı Ekle
+                {msg("market", "addPackagingVariant")}
               </button>
             </div>
           </div>
@@ -1462,17 +1461,17 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
           <div className="bg-emerald-50 border border-emerald-250/80 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-center gap-2 select-none shadow-sm mt-6">
             <div>
               <span className="text-[10px] text-emerald-800 font-extrabold uppercase font-mono tracking-widest block">
-                {selectedIncoterm === "DDP" ? "GENEL TOPLAM BİRİM MALİYET" : `TEKLİF EDİLEN BİRİM ${selectedIncoterm} FİYATI`}
+                {selectedIncoterm === "DDP" ? msg("market", "totalLandedUnitCost") : msg("market", "quotedUnitValuePrice", selectedIncoterm)}
               </span>
               <span className="text-xs text-emerald-600 font-mono">
-                {selectedIncoterm === "EXW" && "EXW Fabrika Teslim Fiyatı"}
-                {selectedIncoterm === "FOB" && "FOB Liman Teslim Fiyatı"}
-                {selectedIncoterm === "CIF" && "CIF Varış Limanı Teslim Fiyatı"}
-                {selectedIncoterm === "DDP" && "DDP Gümrük Ödenmiş Kapı Teslim Fiyatı"}
+                {selectedIncoterm === "EXW" && msg("market", "exwExWorksPrice")}
+                {selectedIncoterm === "FOB" && msg("market", "fobFreeOnBoardPrice")}
+                {selectedIncoterm === "CIF" && msg("market", "cifCostInsuranceFreightPrice")}
+                {selectedIncoterm === "DDP" && msg("market", "ddpDeliveredDutyPaidPrice")}
               </span>
             </div>
             <div className="text-2xl font-black text-emerald-700 font-mono">
-              {currencySymbol}{totalLandedCost.toFixed(2)}
+              {fmt.currency(totalLandedCost, costForm.currency || "USD")}
             </div>
           </div>
 
@@ -1483,7 +1482,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
               onClick={handleSaveCosts}
               className="bg-navy hover:bg-navy-light text-white font-semibold text-xs px-6 py-3 rounded-xl transition cursor-pointer shadow-sm"
             >
-              Tüm Verileri Kaydet
+              {msg("market", "saveAllData")}
             </button>
           </div>
         </div>
@@ -1497,7 +1496,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
 // 2. FREELANCER PORTAL: READ ONLY VIEW BİLİŞENİ (FMCG)
 // ----------------------------------------------------
 export function MarketInsightsView({ currentProjectId }: { currentProjectId: string }) {
-  useI18n(); // Refresh module-level comparison formatting when the language changes.
+  const { fmt, lang, t } = useI18n();
   const [insights, setInsights] = useState<MarketInsight[]>([]);
   const [loading, setLoading] = useState(true);
   const [manufacturers, setManufacturers] = useState<any[]>([]);
@@ -1512,7 +1511,7 @@ export function MarketInsightsView({ currentProjectId }: { currentProjectId: str
       setManufacturers(list);
     });
     return () => unsub();
-  }, [currentProjectId]);
+  }, [currentProjectId, lang]);
 
   const handleGenerateAiMatch = async (competitor: MarketInsight) => {
     setLoadingAi(prev => ({ ...prev, [competitor.id]: true }));
@@ -1524,15 +1523,16 @@ export function MarketInsightsView({ currentProjectId }: { currentProjectId: str
         },
         body: JSON.stringify({
           competitor,
-          manufacturers
+          manufacturers,
+          language: lang
         })
       });
       if (!res.ok) throw new Error("API request failed");
       const data = await res.json();
-      setAiRecommendations(prev => ({ ...prev, [competitor.id]: data.recommendation }));
+      setAiRecommendations(prev => ({ ...prev, [`${competitor.id}:${lang}`]: data.recommendation }));
     } catch (err) {
       console.error("AI matchmaking failed:", err);
-      alert("Yapay zeka eşleştirme önerisi oluşturulamadı.");
+      alert(msg("market", "couldNotGenerateTheManufacturerMatchingRecommendation"));
     } finally {
       setLoadingAi(prev => ({ ...prev, [competitor.id]: false }));
     }
@@ -1553,13 +1553,13 @@ export function MarketInsightsView({ currentProjectId }: { currentProjectId: str
       // Backward compatibility parsing
       const parsed = items.map(it => ({
         ...it,
-        supermarket: it.supermarket || (it as any).competitorName || "Süpermarket",
-        brand: it.brand || "Kendi Markası",
+        supermarket: it.supermarket || (it as any).competitorName || msg("market", "supermarket"),
+        brand: it.brand || msg("market", "privateLabel"),
         shelfPrice: it.shelfPrice ?? (it as any).competitorPrice ?? 0,
         weight: it.weight ?? 1000,
         pricePerGram: it.pricePerGram ?? calculatePricePerGram(it.shelfPrice ?? (it as any).competitorPrice ?? 0, it.weight ?? 1000),
         t2tPrice: it.t2tPrice ?? (it as any).ourPrice ?? 0,
-        priceAdvantage: it.priceAdvantage || calculatePriceAdvantageText(it.shelfPrice ?? (it as any).competitorPrice ?? 0, it.t2tPrice ?? (it as any).ourPrice ?? 0)
+        priceAdvantage: calculatePriceAdvantageText(it.shelfPrice ?? (it as any).competitorPrice ?? 0, it.t2tPrice ?? (it as any).ourPrice ?? 0)
       }));
       setInsights(parsed);
       setLoading(false);
@@ -1569,12 +1569,12 @@ export function MarketInsightsView({ currentProjectId }: { currentProjectId: str
     });
 
     return () => unsub();
-  }, [currentProjectId]);
+  }, [currentProjectId, lang]);
 
   if (loading) {
     return (
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center text-xs text-slate-400 font-mono">
-        Pazar araştırmaları ve perakende kıyaslama verileri yükleniyor...
+        {msg("market", "loadingMarketResearchAndRetailBenchmarks")}
       </div>
     );
   }
@@ -1582,7 +1582,7 @@ export function MarketInsightsView({ currentProjectId }: { currentProjectId: str
   if (insights.length === 0) {
     return (
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center text-xs text-slate-500 italic">
-        Bu proje için henüz kaydedilmiş bir pazar araştırması bulunmamaktadır. Veriler admin tarafından yüklendiğinde burada listelenecektir.
+        {msg("market", "noMarketResearchHasBeenSavedForThisProject")}
       </div>
     );
   }
@@ -1593,7 +1593,7 @@ export function MarketInsightsView({ currentProjectId }: { currentProjectId: str
       {/* Title */}
       <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
         <Globe className="h-5 w-5 text-teal-400" />
-        <h3 className="text-base font-black text-white uppercase tracking-wider font-mono">Perakende Pazar Kıyaslaması (FMCG Benchmarking)</h3>
+        <h3 className="text-base font-black text-white uppercase tracking-wider font-mono">{msg("market", "retailMarketBenchmarkingFmcg")}</h3>
       </div>
 
       {/* Read-only Table */}
@@ -1601,15 +1601,15 @@ export function MarketInsightsView({ currentProjectId }: { currentProjectId: str
         <table className="w-full text-left border-collapse text-xs">
           <thead>
               <tr className="border-b border-slate-800 bg-slate-950/80 text-slate-500 font-mono uppercase tracking-wider text-[10px]">
-                <th className="p-4">Market</th>
-                <th className="p-4">Marka</th>
-                <th className="p-4">Ürün İddiaları</th>
-                <th className="p-4 font-mono">Raf Fiyatı</th>
-                <th className="p-4 font-mono">Gramaj</th>
-                <th className="p-4 font-mono">Gram Fiyatı</th>
-                <th className="p-4 bg-teal-500/5 text-teal-400 font-extrabold border-x border-slate-800">T2T Fiyatı</th>
-                <th className="p-4 bg-teal-500/10 text-teal-300 font-extrabold border-r border-slate-800">Fiyat Avantajı</th>
-                <th className="p-4 text-right">Eylem</th>
+                <th className="p-4">{msg("market", "retailer")}</th>
+                <th className="p-4">{msg("market", "brand2")}</th>
+                <th className="p-4">{msg("market", "productClaims")}</th>
+                <th className="p-4 font-mono">{msg("market", "shelfPrice")}</th>
+                <th className="p-4 font-mono">{msg("market", "netWeight")}</th>
+                <th className="p-4 font-mono">{msg("market", "pricePerGram2")}</th>
+                <th className="p-4 bg-teal-500/5 text-teal-400 font-extrabold border-x border-slate-800">{msg("market", "t2tPrice")}</th>
+                <th className="p-4 bg-teal-500/10 text-teal-300 font-extrabold border-r border-slate-800">{msg("market", "priceAdvantage")}</th>
+                <th className="p-4 text-right">{msg("market", "action")}</th>
               </tr>
           </thead>
           <tbody className="divide-y divide-slate-850">
@@ -1630,16 +1630,16 @@ export function MarketInsightsView({ currentProjectId }: { currentProjectId: str
                         ))}
                       </div>
                     </td>
-                    <td className="p-4 font-mono text-slate-300">${item.shelfPrice.toFixed(2)}</td>
-                    <td className="p-4 font-mono text-slate-400">{item.weight} gr</td>
-                    <td className="p-4 font-mono text-slate-500">${item.pricePerGram.toFixed(4)} /gr</td>
+                    <td className="p-4 font-mono text-slate-300">{fmt.currency(item.shelfPrice, item.currency || "USD")}</td>
+                    <td className="p-4 font-mono text-slate-400">{fmt.number(item.weight)} {msg("market", "g")}</td>
+                    <td className="p-4 font-mono text-slate-500">{fmt.currency(item.pricePerGram, item.currency || "USD", 4)} /g</td>
                     <td className="p-4 bg-teal-500/5 font-extrabold font-mono text-teal-400 border-x border-slate-800 text-sm">
-                      ${item.t2tPrice.toFixed(2)}
+                      {fmt.currency(item.t2tPrice, item.currency || "USD")}
                     </td>
                     <td className={`p-4 bg-teal-500/10 font-black font-mono border-r border-slate-800 text-sm ${
                       hasAdvantage ? "text-emerald-400" : "text-rose-400"
                     }`}>
-                      {item.priceAdvantage}
+                      {calculatePriceAdvantageText(item.shelfPrice, item.t2tPrice)}
                     </td>
                     <td className="p-4 text-right">
                       <button
@@ -1647,21 +1647,21 @@ export function MarketInsightsView({ currentProjectId }: { currentProjectId: str
                         onClick={() => handleGenerateAiMatch(item)}
                         disabled={loadingAi[item.id]}
                         className="px-2.5 py-1 bg-teal-500/10 hover:bg-teal-500/20 text-teal-450 text-[10px] font-bold rounded-lg transition flex items-center gap-1 font-mono cursor-pointer"
-                        title="Yapay Zeka Fırsat Analizi"
+                        title={msg("market", "aiOpportunityAnalysis")}
                       >
-                        {loadingAi[item.id] ? "Analiz..." : "✨ AI Analizi"}
+                        {loadingAi[item.id] ? msg("market", "analysing") : msg("market", "aiAnalysis")}
                       </button>
                     </td>
                   </tr>
-                  {aiRecommendations[item.id] && (
+                  {aiRecommendations[`${item.id}:${lang}`] && (
                     <tr className="bg-slate-950/60 border-b border-slate-850">
                       <td colSpan={9} className="p-4 text-xs">
                         <div className="flex items-start gap-2.5">
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black font-mono uppercase bg-teal-500/10 border border-teal-500/20 text-teal-400 rounded-lg shrink-0">
-                            ✨ Yapay Zeka Önerisi
+                            {msg("market", "aiRecommendation")}
                           </span>
                           <span className="font-semibold text-slate-350 leading-relaxed font-sans">
-                            {aiRecommendations[item.id]}
+                            {aiRecommendations[`${item.id}:${lang}`]}
                           </span>
                         </div>
                       </td>

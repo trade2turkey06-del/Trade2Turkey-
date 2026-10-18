@@ -1,5 +1,9 @@
 // Ortak metinler, dil seçici, uygulama kabuğu (kenar menü, üst bar, yeni proje) ve giriş ekranı.
 export const common = {
+  screenFailed: "Bu ekran yüklenemedi",
+  screenFailedHelp: "Kaydedilmiş verileriniz korunur. Sayfayı yenileyerek tekrar deneyebilirsiniz.",
+  reload: "Yeniden yükle",
+
   save: "Kaydet",
   saving: "Kaydediliyor…",
   saved: "Kaydedildi.",

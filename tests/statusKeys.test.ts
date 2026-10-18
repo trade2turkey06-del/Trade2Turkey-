@@ -9,3 +9,10 @@ test('Legacy labels and canonical status keys resolve identically; unknown value
   assert.notEqual(leadStatusKey('Olumsuz Sonuçlandı'),leadStatusKey('Reddedildi'));
   assert.equal(companyTypeKey('Distribütör'),'distributor');assert.equal(urgencyKey('1-3 Ay İçinde'),'within_1_3_months');
 });
+
+test('Price advantage is numeric and independent of UI language',async()=>{
+ const {priceComparison}=await import('../src/domain/market');
+ assert.deepEqual(priceComparison(10,7),{kind:'lower',percentage:30});
+ assert.deepEqual(priceComparison(10,12),{kind:'higher',percentage:20});
+ for(const value of [0,NaN,Infinity])assert.deepEqual(priceComparison(value,3),{kind:'equal',percentage:0});
+});

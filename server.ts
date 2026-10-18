@@ -1,3 +1,4 @@
+import { aiText } from "./server/language";
 import { apiMessage, outputInstruction } from "./server/language";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { requireUser, hasProjectAccess } from "./server/security";
@@ -411,44 +412,44 @@ app.post("/api/ai/evaluate-lead", async (req, res) => {
     const volume = (ld.estimatedVolume || "").toLowerCase();
     const price = (ld.targetPrice || "").toLowerCase();
 
-    let sectorFit = "Uyumsuz";
+    let sectorFit = aiText(req, "notAligned");
     if (category.includes("mobilya") || category.includes("furniture") || category.includes("puf") || category.includes("ottoman") || category.includes("sofa") || category.includes("koltuk") || category.includes("chair") ||
         notes.includes("mobilya") || notes.includes("furniture") || notes.includes("puf") || notes.includes("ottoman") || notes.includes("sofa") || notes.includes("koltuk") || notes.includes("chair")) {
-      sectorFit = "Uyumlu (Mobilya)";
+      sectorFit = aiText(req, "alignedFurniture");
     } else if (category.includes("meyve suyu") || category.includes("juice") || category.includes("nectar") || category.includes("konsantre") || category.includes("concentrate") ||
                notes.includes("meyve suyu") || notes.includes("juice") || notes.includes("nectar") || notes.includes("konsantre") || notes.includes("concentrate")) {
-      sectorFit = "Uyumlu (Meyve Suyu)";
+      sectorFit = aiText(req, "alignedFruitJuice");
     }
 
-    let emailCheck = "Gmail-Yahoo Genel Domain";
+    let emailCheck = aiText(req, "publicEmailDomain");
     if (contact.includes("@") && !contact.includes("@gmail.com") && !contact.includes("@yahoo.com") && !contact.includes("@hotmail.com") && !contact.includes("@outlook.com")) {
-      emailCheck = "Kurumsal Domain";
+      emailCheck = aiText(req, "corporateEmailDomain");
     }
 
-    let decisionMakerAuthority = "Orta Yetki";
+    let decisionMakerAuthority = aiText(req, "moderatePurchasingAuthority");
     if (dmTitle.includes("purchasing") || dmTitle.includes("ceo") || dmTitle.includes("sourcing") || dmTitle.includes("director") || dmTitle.includes("manager") || dmTitle.includes("buyer") || dmTitle.includes("müdür") || dmTitle.includes("kurucu") || dmTitle.includes("owner")) {
-      decisionMakerAuthority = "Yüksek Yetki (" + (ld.decisionMakerTitle || "Yönetici") + ")";
+      decisionMakerAuthority = aiText(req, "highPurchasingAuthority") + (ld.decisionMakerTitle || aiText(req, "manager")) + ")";
     } else if (dmTitle.includes("sales") || dmTitle.includes("rep") || dmTitle.includes("info") || dmTitle.includes("marketing") || dmTitle.includes("pazarlama")) {
-      decisionMakerAuthority = "Düşük Yetki (" + (ld.decisionMakerTitle || "Temsilci") + ")";
+      decisionMakerAuthority = aiText(req, "limitedPurchasingAuthority") + (ld.decisionMakerTitle || aiText(req, "representative")) + ")";
     }
 
-    let financialFit = "%100 Peşin T/T Uyumlu";
+    let financialFit = aiText(req, "compatibleWith100AdvanceTT");
     if (payment.includes("lc") || payment.includes("akreditif") || payment.includes("vadeli") || payment.includes("credit") || payment.includes("letter of credit") ||
         notes.includes("lc") || notes.includes("akreditif") || notes.includes("vadeli") || notes.includes("credit") || notes.includes("letter of credit")) {
-      financialFit = "Riskli (Akreditif/Vadeli Talebi)";
+      financialFit = aiText(req, "reviewRequiredLetterOfCreditCreditTerms");
     }
 
-    let volumeCheck = "Düşük Hacim";
+    let volumeCheck = aiText(req, "lowVolume");
     if (volume.includes("fcl") || volume.includes("container") || volume.includes("konteyner") || volume.includes("40hq") || volume.includes("20ft") ||
         notes.includes("fcl") || notes.includes("container") || notes.includes("konteyner")) {
-      volumeCheck = "Konteyner Hacmi (FCL)";
+      volumeCheck = aiText(req, "fullContainerLoadFcl");
     } else if (volume.includes("lcl") || volume.includes("parsiyel") || volume.includes("toptan") || volume.includes("volume") ||
                notes.includes("lcl") || notes.includes("parsiyel") || notes.includes("toptan") || notes.includes("volume")) {
-      volumeCheck = "Parsiyel Hacim (LCL)";
+      volumeCheck = aiText(req, "lessThanContainerLoadLcl");
     }
 
-    const specClarity = (specs.length > 20 || notes.length > 50) ? "Detaylı Teknik Bilgi" : "Eksik Teknik Detaylar";
-    const targetPriceCheck = (price.length > 2 || notes.includes("hedef fiyat") || notes.includes("target price") || notes.includes("$") || notes.includes("€") || notes.includes("fiyat")) ? "Gerçekçi Hedef Fiyat" : "Fiyat Belirtilmemiş";
+    const specClarity = (specs.length > 20 || notes.length > 50) ? aiText(req, "detailedTechnicalInformation") : aiText(req, "technicalDetailsIncomplete");
+    const targetPriceCheck = (price.length > 2 || notes.includes("hedef fiyat") || notes.includes("target price") || notes.includes("$") || notes.includes("€") || notes.includes("fiyat")) ? aiText(req, "targetPriceProvided") : aiText(req, "priceNotSpecified");
 
     return {
       sectorFit,
@@ -520,16 +521,16 @@ app.post("/api/ai/evaluate-lead", async (req, res) => {
 
     if (score >= 85) {
       dashboard_status = "QUOTE READY";
-      scouter_geri_bildirim_notu = "Tebrikler, talep yeterince net.";
-      analiz_gerekcesi = "Firma alanında aktif bir distribütör ve satın alma doğrudan karar verici seviyesinde. Sektör, yetkinlik ve netlik durumu mükemmel.";
+      scouter_geri_bildirim_notu = aiText(req, "theOpportunityIsSufficientlyWellDefined");
+      analiz_gerekcesi = aiText(req, "theAssessmentIndicatesAStrongFitAcrossSectorPurchasing");
     } else if (score >= 50) {
       dashboard_status = "LEAD REVIEW";
-      scouter_geri_bildirim_notu = "Lütfen hedef fiyatı ve alım hacmini (FCL/LCL) netleştirin ya da karar vericinin satın alma yetkisini teyit edin.";
-      analiz_gerekcesi = "Sektör ve firma uyumlu görünüyor ancak ödeme detayları veya karar verici unvanı belirsizlik içeriyor.";
+      scouter_geri_bildirim_notu = aiText(req, "clarifyTheTargetPriceAndPurchasingVolumeFclLcl");
+      analiz_gerekcesi = aiText(req, "theSectorAndCompanyAppearAlignedButPaymentDetails");
     } else {
       dashboard_status = "REJECTED";
-      scouter_geri_bildirim_notu = "Talep reddedildi. Trade2Turkey kriterlerine (özellikle Advance T/T ödeme veya ana odak sektörler olan mobilya/meyve suyu odağına) uyum sağlamıyor.";
-      analiz_gerekcesi = "Ödeme yöntemi veya sektörel odak Trade2Turkey risk yönetimi ve uzmanlık alanları ile uyuşmuyor.";
+      scouter_geri_bildirim_notu = aiText(req, "theLeadDoesNotMeetTheCurrentTrade2turkeyScreening");
+      analiz_gerekcesi = aiText(req, "thePaymentMethodOrSectorFocusIsOutsideThe");
     }
 
     return {
@@ -616,7 +617,7 @@ app.post("/api/ai/match-manufacturers", async (req, res) => {
 
   const localMatchFallback = () => {
     const list = manufacturers.map((m: any) => {
-      const name = m.name || "Üretici";
+      const name = m.name || aiText(req, "manufacturer");
       const certs = (m.vaultDetails?.certifications?.certificates || []).map((c: any) => String(c).toLowerCase());
       const hasBrc = certs.some((c: any) => c.includes("brc") || c.includes("helal") || c.includes("ifs") || c.includes("iso"));
       const price = parseFloat(m.vaultDetails?.pricingCapacity?.exwPriceList) || 0;
@@ -624,7 +625,7 @@ app.post("/api/ai/match-manufacturers", async (req, res) => {
     });
 
     const best = list[0] || { name: "Bakker", hasBrc: true, price: 5 };
-    return `Öneri: ${best.name} üreticisinin hattı, bu rakibe karşı fiyat avantajı ve gerekli kalite sertifikalarına sahiptir. Bu ürüne odaklanılması önerilir.`;
+    return aiText(req, "recommendationReviewValueAsAPotentialManufacturingPartnerFor", best.name);
   };
 
   if (!process.env.GEMINI_API_KEY) {
@@ -688,52 +689,52 @@ app.post("/api/ai/search-shelf-prices", async (req, res) => {
     if (qLower.includes("tortilla") || qLower.includes("lavaş") || qLower.includes("unlu")) {
       return [
         {
-          supermarket: "Tesco Metro (Fiziksel Mağaza)",
+          supermarket: aiText(req, "tescoMetroPhysicalStore"),
           brand: "Tesco Finest Bakery",
           shelfPrice: 2.10,
           weight: 360,
-          claims: ["Geleneksel", "Katkısız"]
+          claims: [aiText(req, "traditional"), aiText(req, "noAdditives")]
         },
         {
           supermarket: "Sainsbury's Local",
           brand: "Sainsbury's Organic",
           shelfPrice: 2.75,
           weight: 320,
-          claims: ["Organik", "Vegan"]
+          claims: [aiText(req, "organic"), "Vegan"]
         },
         {
           supermarket: "Marks & Spencer Foodhall",
           brand: "M&S Selection",
           shelfPrice: 3.49,
           weight: 400,
-          claims: ["Premium", "Yüksek Protein"]
+          claims: ["Premium", aiText(req, "highProtein")]
         }
       ];
     } else if (qLower.includes("meyve") || qLower.includes("juice") || qLower.includes("içecek")) {
       return [
         {
-          supermarket: "Aldi (Fiziksel Mağaza)",
+          supermarket: aiText(req, "aldiPhysicalStore"),
           brand: "Sun Quench",
           shelfPrice: 1.49,
           weight: 1000,
-          claims: ["%100 Meyve", "İlave Şekersiz"]
+          claims: [aiText(req, "100Fruit"), aiText(req, "noAddedSugar")]
         },
         {
-          supermarket: "Lidl (Fiziksel Mağaza)",
+          supermarket: aiText(req, "lidlPhysicalStore"),
           brand: "Solevita Premium",
           shelfPrice: 1.85,
           weight: 1000,
-          claims: ["Soğuk Sıkım", "Katkısız"]
+          claims: [aiText(req, "coldPressed"), aiText(req, "noAdditives")]
         }
       ];
     } else {
       return [
         {
-          supermarket: "Tesco Superstore (Fiziksel)",
+          supermarket: aiText(req, "tescoSuperstorePhysicalStore"),
           brand: "Tesco Value",
           shelfPrice: 1.99,
           weight: 500,
-          claims: ["Ekonomik Boy"]
+          claims: [aiText(req, "valuePack")]
         }
       ];
     }

@@ -45,7 +45,7 @@ export function formatters(lang: Lang) {
     locale,
     number: (value: number | null | undefined, maximumFractionDigits = 2) => value === null || value === undefined || !Number.isFinite(value) ? "" : new Intl.NumberFormat(locale, { maximumFractionDigits, useGrouping: false }).format(value),
     percent: (value: number | null | undefined, digits = 2, minimumDigits = 0) => percent(value, lang, digits, minimumDigits),
-    currency: (value: number, currency = "USD") => new Intl.NumberFormat(locale, { style: "currency", currency, maximumFractionDigits: 2 }).format(value),
+    currency: (value: number, currency = "USD", maximumFractionDigits = 2) => new Intl.NumberFormat(locale, { style: "currency", currency, maximumFractionDigits }).format(value),
     date: (value: Date | number | string, options: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" }) => new Intl.DateTimeFormat(locale, { timeZone: "Europe/Istanbul", ...options }).format(new Date(value)),
     dateTime: (value: Date | number) => new Intl.DateTimeFormat(locale, { timeZone: "Europe/Istanbul", dateStyle: "short", timeStyle: "short" }).format(new Date(value)),
     lower: (text: string) => text.toLocaleLowerCase(locale),

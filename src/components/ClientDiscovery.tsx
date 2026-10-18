@@ -95,63 +95,9 @@ interface ClientLead {
   processStage?: string;
 }
 
-const DEFAULT_SCOUTERS: Scouter[] = [
-  {
-    id: "freelancer_scouter",
-    name: "Zulqarnain Deen",
-    region: "Küresel (Test Ağı)",
-    activeLeadsCount: 0,
-    lastActivityDays: 0,
-    status: "active",
-    email: "freelancer@trade2turkey.com"
-  }
-];
-
-const DEFAULT_LEADS: ClientLead[] = [
-  {
-    id: "lead_unlumamuller_nordic",
-    companyName: "Nordic Bakery Import GmbH",
-    country: "Almanya",
-    decisionMakerName: "Marcus Weber",
-    decisionMakerTitle: "Satın Alma Müdürü",
-    contactInfo: "m.weber@nordicbakery.de | +49 89 123456",
-    status: "in_progress",
-    assignedScouterId: "freelancer_scouter",
-    lastUpdateDays: 3,
-    demandNotes: "Türk simidi, poğaça ve dondurulmuş unlu mamüller ithalatıyla ilgileniyor. IFS ve BRC sertifikaları talep etti.",
-    projectId: "PROJE-UNLU MAMÜLLER",
-    score: 92,
-    grade: "A-Grade",
-    aiFeedback: "Mükemmel B2B uyumu! Sektör eşleşmesi tam, kontak kişi satın alma yetkilisi ve ödeme Advance T/T standartlarımıza uygun.",
-    aiReasoning: "Firma alanında aktif bir distribütör ve satın alma doğrudan karar verici seviyesinde. Fiyatlandırma aşamasına geçilebilir.",
-    pillars: {
-      sectorFit: "Uyumlu (Unlu Mamüller)",
-      emailCheck: "Kurumsal Domain",
-      decisionMakerAuthority: "Yüksek Yetki (Satın Alma Müdürü)",
-      financialFit: "%100 Peşin T/T Uyumlu",
-      volumeCheck: "Konteyner Hacmi (FCL)",
-      specClarity: "Detaylı Teknik Bilgi",
-      targetPriceCheck: "Gerçekçi Hedef Fiyat"
-    },
-    website: "https://www.nordicbakery.de",
-    linkedinProfile: "https://www.linkedin.com/company/nordic-bakery",
-    companyType: "distributor",
-    decisionMakerEmail: "m.weber@nordicbakery.de",
-    decisionMakerPhone: "+49 89 123456",
-    productCategory: "Unlu Mamüller / Dondurulmuş Gıda",
-    technicalSpecs: "Dondurulmuş simit ve börek ürün grubu, BRC/IFS sertifikaları.",
-    urgency: "within_1_3_months",
-    estimatedVolume: "Aylık 2 x 40HQ Konteyner",
-    targetPrice: "$1.20 / Adet (FOB Izmir)",
-    paymentTerms: "%30 Peşin, %70 BL karşılığı T/T",
-    hsCode: "1905.90.80",
-    deliveryTerm: "FOB"
-  }
-];
-
 export default function ClientDiscovery({ currentProjectId, currentUser, projects }: ClientDiscoveryProps) {
   const { t, fmt, lang } = useI18n();
-  // Load scouters dynamically from Firestore (fallback to DEFAULT_SCOUTERS)
+  // Read actual users and leads; never insert implicit sample data.
   const [scouters, setScouters] = useState<Scouter[]>([]);
 
   const [leads, setLeads] = useState<ClientLead[]>([]);
@@ -1423,7 +1369,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
               {/* Bölge */}
               <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl space-y-1">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">{msg("discovery", "region")}</span>
-                <p className="font-bold text-white text-sm">{selectedScouterForDetail.region || "Küresel (Test Ağı)"}</p>
+                <p className="font-bold text-white text-sm">{selectedScouterForDetail.region || t.discovery.globalTestNetwork}</p>
               </div>
 
               {/* Ana E-posta */}
