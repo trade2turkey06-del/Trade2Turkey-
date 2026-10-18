@@ -1,5 +1,10 @@
-// sectors: application labels; user-entered data is never translated.
+// sectors: application labels; persisted bilingual content is handled separately.
 export const sectors = {
+  headOffice: "Head Office",
+  sample: "sample",
+  notTranslated: "Not translated",
+  bilingualHint: "Enter translatable text in TR and EN. Proper names and contact details are shared.",
+
   "companyName": "Company name *",
   "website": "Website",
   "catalogueUrl": "Catalogue URL",

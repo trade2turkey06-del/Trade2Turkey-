@@ -269,3 +269,19 @@ test("dil tercihi: kullanıcı kendi profiline yalnızca tr/en yazabilir, başka
   await assertFails(updateDoc(doc(dbFor("other"),"users/client"),{language:"en"}));
   await assertSucceeds(updateDoc(doc(dbFor("admin"),"users/client"),{language:"en"}));
 });
+
+test("iki dilli rehber admin tarafından yazılır; TR/kimlik korunur ve diğer rollere kapalıdır",async()=>{
+ const admin=dbFor('admin'),sector=doc(admin,'sectors/bilingual'),company=doc(admin,'directoryCompanies/bilingual');
+ await assertSucceeds(setDoc(sector,{name:'Havlu',archived:false,translations:{en:{name:'Towels & Bathrobes'}}}));
+ const original={name:'Evliyaoğlu Tekstil',sectorId:'bilingual',description:'Üretici',location:'Denizli, Honaz',contacts:[{id:'emel',name:'Emel Özler',title:'Pazarlama Müdürü',phone:'',email:''}]};
+ await assertSucceeds(setDoc(company,original));
+ await assertSucceeds(updateDoc(company,{'translations.en.description':'Manufacturer','translations.en.contactTitles.emel':'Marketing Manager'}));
+ const {translations,...unchanged}=(await getDoc(company)).data()!;assert.deepEqual(unchanged,original);
+ assert.equal(translations.en.contactTitles.emel,'Marketing Manager');
+ for(const uid of ['client','freelancer']){
+  await assertFails(updateDoc(doc(dbFor(uid),'sectors/bilingual'),{'translations.en.name':'Changed'}));
+  await assertFails(updateDoc(doc(dbFor(uid),'directoryCompanies/bilingual'),{'translations.en.description':'Changed'}));
+  await assertFails(getDoc(doc(dbFor(uid),'directoryCompanies/bilingual')));
+ }
+ await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(),'sectors/bilingual')));
+});

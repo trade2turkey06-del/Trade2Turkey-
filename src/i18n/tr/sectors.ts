@@ -1,5 +1,10 @@
-// sectors: application labels; user-entered data is never translated.
+// sectors: application labels; persisted bilingual content is handled separately.
 export const sectors = {
+  headOffice: "Genel Merkez",
+  sample: "örnek",
+  notTranslated: "Çevrilmedi",
+  bilingualHint: "Çevrilebilir metinleri TR ve EN olarak girin. Özel isimler ve iletişim bilgileri ortak kalır.",
+
   "companyName": "Firma adı *",
   "website": "Web sitesi",
   "catalogueUrl": "Katalog bağlantısı",

@@ -1,0 +1,546 @@
+{
+  "status": "awaiting_translation_approval_no_live_writes",
+  "scannedAt": "2026-10-18T18:43:32.350Z",
+  "sourceSha256": "0c87f9e26f6854662c34d6808ba18deb3934b391566b1ffbfd951ad4b5bf8b0a",
+  "sourceVersions": {
+    "sectors/hazir-giyim": "2026-10-16T10:57:37.912849Z",
+    "sectors/meyve-suyu": "2026-10-16T11:08:43.729636Z",
+    "sectors/towel": "2026-10-16T10:36:13.482135Z",
+    "directoryCompanies/gokhan-tekstil": "2026-10-16T10:52:25.567391Z",
+    "directoryCompanies/kigili": "2026-10-16T10:57:38.263327Z",
+    "directoryCompanies/sarar": "2026-10-16T10:57:38.392584Z",
+    "directoryCompanies/makroteks-tekstil": "2026-10-16T10:52:26.786205Z",
+    "directoryCompanies/mtc-linen": "2026-10-16T10:33:43.592594Z",
+    "directoryCompanies/pmg": "2026-10-16T11:18:27.895708Z",
+    "directoryCompanies/anadolu-moda-demo": "2026-10-16T10:57:38.511760Z",
+    "directoryCompanies/lenora-tekstil": "2026-10-16T10:40:19.658810Z",
+    "directoryCompanies/elite-naturel": "2026-10-16T11:08:44.288208Z",
+    "directoryCompanies/evliyaoglu-tekstil": "2026-10-16T10:52:26.658593Z",
+    "directoryCompanies/goknur": "2026-10-16T11:08:44.172455Z"
+  },
+  "rows": [
+    {
+      "record": "sectors/hazir-giyim",
+      "name": "Hazır Giyim",
+      "field": "name",
+      "tr": "Hazır Giyim",
+      "en": "Apparel"
+    },
+    {
+      "record": "sectors/meyve-suyu",
+      "name": "Meyve Suyu",
+      "field": "name",
+      "tr": "Meyve Suyu",
+      "en": "Fruit Juice"
+    },
+    {
+      "record": "sectors/towel",
+      "name": "Havlu",
+      "field": "name",
+      "tr": "Havlu",
+      "en": "Towels & Bathrobes"
+    },
+    {
+      "record": "directoryCompanies/gokhan-tekstil",
+      "name": "Gökhan Tekstil (Soft Cotton)",
+      "field": "description",
+      "tr": "1977'den beri faaliyet gösteren, Denizli merkezli havlu ve bornoz üreticisi. İplikten nakışa dikey entegre üretim; 1999'dan beri kendi markası Soft Cotton ile satış.",
+      "en": "A Denizli-based towel and bathrobe manufacturer operating since 1977. Vertically integrated production from yarn to embroidery; selling under its own Soft Cotton brand since 1999."
+    },
+    {
+      "record": "directoryCompanies/gokhan-tekstil",
+      "name": "Gökhan Tekstil (Soft Cotton)",
+      "field": "products",
+      "tr": "Havlu, bornoz, ev ve yatak tekstili, iplik, dokuma kumaş",
+      "en": "Towels, bathrobes, home and bed textiles, yarn, woven fabric"
+    },
+    {
+      "record": "directoryCompanies/gokhan-tekstil",
+      "name": "Gökhan Tekstil (Soft Cotton)",
+      "field": "capacity",
+      "tr": "65.000 m² kapalı alan; aylık 400.000 m kumaş ve 100 ton havlu kumaşı; iplik, dokuma, boya-terbiye, konfeksiyon ve nakış tesisleri",
+      "en": "65.000 m² of indoor space; monthly output of 400.000 m of fabric and 100 tonnes of terry fabric; yarn, weaving, dyeing and finishing, garment manufacturing and embroidery facilities"
+    },
+    {
+      "record": "directoryCompanies/gokhan-tekstil",
+      "name": "Gökhan Tekstil (Soft Cotton)",
+      "field": "certificates",
+      "tr": "OEKO-TEX Standard 100, GOTS, Control Union, ISO",
+      "en": "OEKO-TEX Standard 100, GOTS, Control Union, ISO"
+    },
+    {
+      "record": "directoryCompanies/gokhan-tekstil",
+      "name": "Gökhan Tekstil (Soft Cotton)",
+      "field": "markets",
+      "tr": "Üretimin yaklaşık %95'i 4 kıtada 50+ ülkeye ihraç ediliyor; dünyaca bilinen markalara fason üretim; İstanbul bölge ofisi (Şişli)",
+      "en": "Approximately %95 of production is exported to 50+ countries across 4 continents; contract manufacturing for internationally recognised brands; regional office in İstanbul (Şişli)"
+    },
+    {
+      "record": "directoryCompanies/gokhan-tekstil",
+      "name": "Gökhan Tekstil (Soft Cotton)",
+      "field": "notes",
+      "tr": "Bilgiler firmanın web sitesinden ve Heimtextil 2027 katılımcı kaydından alınmıştır; doğrulanacak.",
+      "en": "Information sourced from the company website and its Heimtextil 2027 exhibitor listing; to be verified."
+    },
+    {
+      "record": "directoryCompanies/kigili",
+      "name": "Kiğılı Giyim Tic. A.Ş.",
+      "field": "products",
+      "tr": "Erkek giyim; takım elbise, ceket, gömlek, pantolon, triko, dış giyim, aksesuar",
+      "en": "Menswear; suits, jackets, shirts, trousers, knitwear, outerwear, accessories"
+    },
+    {
+      "record": "directoryCompanies/kigili",
+      "name": "Kiğılı Giyim Tic. A.Ş.",
+      "field": "notes",
+      "tr": "Telefon ve yetkili kişi doğrulanmadı.",
+      "en": "Telephone number and contact person have not been verified."
+    },
+    {
+      "record": "directoryCompanies/sarar",
+      "name": "Sarar",
+      "field": "products",
+      "tr": "Erkek ve kadın giyim; takım elbise, ceket, gömlek, palto, Sarev ev tekstili, markalar için fason (private label) üretim",
+      "en": "Menswear and womenswear; suits, jackets, shirts, overcoats, Sarev home textiles, contract (private label) manufacturing for brands"
+    },
+    {
+      "record": "directoryCompanies/sarar",
+      "name": "Sarar",
+      "field": "notes",
+      "tr": "Telefon ve yetkili kişi doğrulanmadı.",
+      "en": "Telephone number and contact person have not been verified."
+    },
+    {
+      "record": "directoryCompanies/makroteks-tekstil",
+      "name": "Makroteks Tekstil",
+      "field": "description",
+      "tr": "1993'te kurulan, Denizli merkezli otel tekstili ve havlu üreticisi. Dokumadan paketlemeye entegre üretim; ABD'de ofis ve New York showroom'u.",
+      "en": "A Denizli-based hotel textiles and towel manufacturer established in 1993. Integrated production from weaving to packaging; an office in ABD and a New York showroom."
+    },
+    {
+      "record": "directoryCompanies/makroteks-tekstil",
+      "name": "Makroteks Tekstil",
+      "field": "products",
+      "tr": "Otel tekstili, havlu, paspas, bornoz, mutfak havlusu, bebek ve çocuk ürünleri, nevresim",
+      "en": "Hotel textiles, towels, bath mats, bathrobes, kitchen towels, baby and children’s products, duvet covers"
+    },
+    {
+      "record": "directoryCompanies/makroteks-tekstil",
+      "name": "Makroteks Tekstil",
+      "field": "capacity",
+      "tr": "11.500 m² kapalı alan; dokumadan paketlemeye entegre üretim hattı",
+      "en": "11.500 m² of indoor space; integrated production line from weaving to packaging"
+    },
+    {
+      "record": "directoryCompanies/makroteks-tekstil",
+      "name": "Makroteks Tekstil",
+      "field": "markets",
+      "tr": "27 ülkeye ihracat; ilk ihracat 1996'da ABD'ye. ABD ofisi Stratford, CT ve New York showroom'u (sales@makroteks.com, +1 860 371 4227). Markalar: Lunanino, Fabrikalite, Home & Bath, Salbakos, Classic Turkish Towels, Towels Beyond",
+      "en": "Exports to 27 countries; first export to ABD in 1996. ABD office in Stratford, CT and a New York showroom (sales@makroteks.com, +1 860 371 4227). Brands: Lunanino, Fabrikalite, Home & Bath, Salbakos, Classic Turkish Towels, Towels Beyond"
+    },
+    {
+      "record": "directoryCompanies/makroteks-tekstil",
+      "name": "Makroteks Tekstil",
+      "field": "notes",
+      "tr": "Bilgiler firmanın web sitesinden alınmıştır; doğrulanacak.",
+      "en": "Information sourced from the company website; to be verified."
+    },
+    {
+      "record": "directoryCompanies/mtc-linen",
+      "name": "MTC Linen",
+      "field": "description",
+      "tr": "1978'den beri faaliyet gösteren, Denizli merkezli havlu ve ev tekstili üreticisi. İplikten konfeksiyona dikey üretim; sürdürülebilirlik odaklı.",
+      "en": "A Denizli-based towel and home textiles manufacturer operating since 1978. Vertically integrated production from yarn to sewing; focused on sustainability."
+    },
+    {
+      "record": "directoryCompanies/mtc-linen",
+      "name": "MTC Linen",
+      "field": "products",
+      "tr": "Havlu, plaj havlusu / peştemal, bornoz, spa, otel tekstili, mutfak tekstili, paspas, yatak örtüsü / battaniye, çocuk ürünleri, duş perdesi",
+      "en": "Towels, beach towels / peshtemals, bathrobes, spa textiles, hotel textiles, kitchen textiles, bath mats, bedspreads / blankets, children’s products, shower curtains"
+    },
+    {
+      "record": "directoryCompanies/mtc-linen",
+      "name": "MTC Linen",
+      "field": "capacity",
+      "tr": "5.000 m² üretim alanı; 4 tesis (iplik, boya, çözgü, dokuma, konfeksiyon)",
+      "en": "5.000 m² of production space; 4 facilities (yarn, dyeing, warping, weaving, sewing)"
+    },
+    {
+      "record": "directoryCompanies/mtc-linen",
+      "name": "MTC Linen",
+      "field": "certificates",
+      "tr": "Made in Green, GOTS, OCS, GRS, RCS",
+      "en": "Made in Green, GOTS, OCS, GRS, RCS"
+    },
+    {
+      "record": "directoryCompanies/mtc-linen",
+      "name": "MTC Linen",
+      "field": "markets",
+      "tr": "ABD (West Haven, CT) ve Almanya (Bornheim) ofisleri; Amazon, Walmart, Target, Wayfair üzerinden satış",
+      "en": "Offices in ABD (West Haven, CT) and Almanya (Bornheim); sales through Amazon, Walmart, Target, Wayfair"
+    },
+    {
+      "record": "directoryCompanies/mtc-linen",
+      "name": "MTC Linen",
+      "field": "notes",
+      "tr": "Bilgiler firmanın web sitesinden alınmıştır; doğrulanacak.",
+      "en": "Information sourced from the company website; to be verified."
+    },
+    {
+      "record": "directoryCompanies/mtc-linen",
+      "name": "MTC Linen",
+      "field": "contactTitles.mtc-export",
+      "contactName": "Şenay Karakozak",
+      "tr": "İhracat Müdürü",
+      "en": "Export Manager"
+    },
+    {
+      "record": "directoryCompanies/pmg",
+      "name": "PMG Gıda",
+      "field": "products",
+      "tr": "NFC bulanık meyve suyu, donuk ve aseptik formatta: nar, üzüm, vişne, kiraz, portakal, limon, karpuz, yeşil elma, elma, armut, ayva\nNFC sebze suları: havuç, mor havuç, kırmızı pancar\nDonuk meyve püresi: çilek\nKısıt: Berrak (clear) meyve suyu üretmiyor, sadece bulanık",
+      "en": "NFC cloudy fruit juice, in frozen and aseptic formats: pomegranate, grape, sour cherry, sweet cherry, orange, lemon, watermelon, green apple, apple, pear, quince\nNFC vegetable juices: carrot, purple carrot, beetroot\nFrozen fruit purée: strawberry\nLimitation: Does not produce clear fruit juice; cloudy juice only"
+    },
+    {
+      "record": "directoryCompanies/pmg",
+      "name": "PMG Gıda",
+      "field": "capacity",
+      "tr": "Günde yaklaşık 200 ton ham meyve işleme, yıllık yaklaşık 20.000 ton üretim (firma beyanı)\nToplam alan 10.000 m²: 600 m² kapalı üretim, 1.400 m² lojistik\n1.000 m² soğuk depo: 2 şok dondurma odası (-35°C), 2 donuk depo (-18°C), 2 soğuk oda (+5°C)\nKapalı devre aseptik üretim, sıcaklık ve süre meyveye göre otomatik ayarlanıyor\nHammadde 10 ilden, ana meyveler 50 km içinden temin ediliyor",
+      "en": "Approximately 200 tonnes of raw fruit processed per day, approximately 20.000 tonnes of annual production (company statement)\nTotal area of 10.000 m²: 600 m² of indoor production space, 1.400 m² for logistics\n1.000 m² of cold storage: 2 blast-freezing rooms (-35°C), 2 frozen storage rooms (-18°C), 2 chilled rooms (+5°C)\nClosed-loop aseptic production, with temperature and time automatically adjusted for each fruit\nRaw materials sourced from 10 provinces; main fruits sourced within 50 km"
+    },
+    {
+      "record": "directoryCompanies/pmg",
+      "name": "PMG Gıda",
+      "field": "certificates",
+      "tr": "ISO 22000:2018, FSSC 22000, ISO 9001:2015",
+      "en": "ISO 22000:2018, FSSC 22000, ISO 9001:2015"
+    },
+    {
+      "record": "directoryCompanies/pmg",
+      "name": "PMG Gıda",
+      "field": "markets",
+      "tr": "6 ülkeye ihracat imkânı belirtilmiş, ülkeler açıklanmamış\nSevkiyat İzmir Limanı'ndan",
+      "en": "Export capability to 6 countries is stated; countries are not disclosed\nDispatch from İzmir Port"
+    },
+    {
+      "record": "directoryCompanies/pmg",
+      "name": "PMG Gıda",
+      "field": "notes",
+      "tr": "İçecek üreticileri, juice/smoothie markaları ve HoReCa işleyicileri için uygun.\nHazır raf ürünü arayan İngiliz perakendeciler için uygun değil.\nBRCGS ve organik sertifika yok, bazı İngiliz alıcılar bunu sorabilir.\nFirma genç (2020) ve kapalı üretim alanı küçük. Kapasite iddiası ve ihracat referansları teyit edilmeli.\nYetkili kişi ve tam ticari unvan sitede belirtilmemiş.",
+      "en": "Suitable for beverage manufacturers, juice/smoothie brands and HoReCa processors.\nNot suitable for British retailers seeking ready-to-sell shelf products.\nNo BRCGS or organic certification; some British buyers may request these.\nThe company is young (2020) and its indoor production space is small. Capacity claims and export references should be verified.\nThe contact person and full legal company name are not stated on the website."
+    },
+    {
+      "record": "directoryCompanies/pmg",
+      "name": "PMG Gıda",
+      "field": "companyType",
+      "tr": "B2B yarı mamul üreticisi (perakende şişe ürünü yok)",
+      "en": "B2B manufacturer of semi-finished products (no bottled retail products)"
+    },
+    {
+      "record": "directoryCompanies/pmg",
+      "name": "PMG Gıda",
+      "field": "productSummary",
+      "tr": "NFC bulanık meyve suyu (donuk & aseptik), donuk meyve püresi",
+      "en": "NFC cloudy fruit juice (frozen & aseptic), frozen fruit purée"
+    },
+    {
+      "record": "directoryCompanies/pmg",
+      "name": "PMG Gıda",
+      "field": "locationNote",
+      "tr": "Tesis nar bahçelerinin içinde, İzmir Limanı'na yaklaşık 240 km",
+      "en": "The facility is located within pomegranate orchards, approximately 240 km from İzmir Port"
+    },
+    {
+      "record": "directoryCompanies/pmg",
+      "name": "PMG Gıda",
+      "field": "technicalSpecs",
+      "tr": "Nar suyu örneği: Brix 14–18, asitlik %0,8–2,0 (sitrik asit cinsinden), pH 2,80–3,40\nKoruyucu ve katkı maddesi yok",
+      "en": "Pomegranate juice example: Brix 14–18, acidity %0,8–2,0 (as citric acid), pH 2,80–3,40\nNo preservatives or additives"
+    },
+    {
+      "record": "directoryCompanies/pmg",
+      "name": "PMG Gıda",
+      "field": "packaging",
+      "tr": "Konik çelik varil içinde 200 kg PE torba veya aseptik torba\nAhşap palette 4 varil\nİstek üzerine başka ambalaj seçenekleri",
+      "en": "200 kg PE bag or aseptic bag in a conical steel drum\n4 drums per wooden pallet\nOther packaging options on request"
+    },
+    {
+      "record": "directoryCompanies/pmg",
+      "name": "PMG Gıda",
+      "field": "missingCertificates",
+      "tr": "BRCGS, IFS, Helal, Koşer, Organik",
+      "en": "BRCGS, IFS, Halal, Kosher, Organic"
+    },
+    {
+      "record": "directoryCompanies/pmg",
+      "name": "PMG Gıda",
+      "field": "contactTitles.pmg-sales",
+      "contactName": "",
+      "tr": "Satış",
+      "en": "Sales"
+    },
+    {
+      "record": "directoryCompanies/pmg",
+      "name": "PMG Gıda",
+      "field": "contactTitles.pmg-procurement",
+      "contactName": "",
+      "tr": "Tarımsal satın alma",
+      "en": "Agricultural Procurement"
+    },
+    {
+      "record": "directoryCompanies/anadolu-moda-demo",
+      "name": "Anadolu Moda Konfeksiyon Ltd. Şti.",
+      "field": "products",
+      "tr": "Kadın ve erkek hazır giyim, örme t-shirt ve sweatshirt, denim, private label üretim, ihracata yönelik küçük/orta seri sipariş",
+      "en": "Womenswear and menswear, knitted T-shirts and sweatshirts, denim, private label manufacturing, small/medium production runs for export"
+    },
+    {
+      "record": "directoryCompanies/anadolu-moda-demo",
+      "name": "Anadolu Moda Konfeksiyon Ltd. Şti.",
+      "field": "notes",
+      "tr": "DEMO / KURGUSAL FİRMA – gerçek bir tedarikçi değildir.",
+      "en": "DEMO / FICTIONAL COMPANY – not a real supplier."
+    },
+    {
+      "record": "directoryCompanies/lenora-tekstil",
+      "name": "Lenora Tekstil A.Ş.",
+      "field": "description",
+      "tr": "Denizli merkezli ev ve otel tekstili üreticisi. Yurt dışı müşteriler için tedarik, ürün geliştirme, kalite kontrol, sipariş ve sevkiyat takibi hizmetleri de veriyor.",
+      "en": "A Denizli-based manufacturer of home and hotel textiles. Also provides sourcing, product development, quality control, order tracking and shipment coordination services for international customers."
+    },
+    {
+      "record": "directoryCompanies/lenora-tekstil",
+      "name": "Lenora Tekstil A.Ş.",
+      "field": "products",
+      "tr": "Havlu ve havlu ürünleri, bornoz, plaj koleksiyonu, nevresim / yatak tekstili (düz, jakarlı, baskılı)",
+      "en": "Towels and terry products, bathrobes, beach collection, duvet covers / bed textiles (plain, jacquard, printed)"
+    },
+    {
+      "record": "directoryCompanies/lenora-tekstil",
+      "name": "Lenora Tekstil A.Ş.",
+      "field": "capacity",
+      "tr": "Aylık ~250.000 adet havlu / bornoz; dokuma ve konfeksiyon tesisi (tahmini)",
+      "en": "~250.000 towels / bathrobes per month; weaving and sewing facility (estimated)"
+    },
+    {
+      "record": "directoryCompanies/lenora-tekstil",
+      "name": "Lenora Tekstil A.Ş.",
+      "field": "certificates",
+      "tr": "OEKO-TEX Standard 100, GOTS, BSCI / amfori, ISO 9001 (tahmini)",
+      "en": "OEKO-TEX Standard 100, GOTS, BSCI / amfori, ISO 9001 (estimated)"
+    },
+    {
+      "record": "directoryCompanies/lenora-tekstil",
+      "name": "Lenora Tekstil A.Ş.",
+      "field": "markets",
+      "tr": "Almanya, Hollanda, İngiltere, ABD; otel tedarikçileri ve perakende zincirleri (tahmini)",
+      "en": "Almanya, Hollanda, İngiltere, ABD; hotel suppliers and retail chains (estimated)"
+    },
+    {
+      "record": "directoryCompanies/lenora-tekstil",
+      "name": "Lenora Tekstil A.Ş.",
+      "field": "notes",
+      "tr": "Adres, telefon, e-posta ve ürünler web sitesinden alınmıştır. “(tahmini)” yazan alanlar doğrulanmamış yer tutuculardır; firmadan teyit edilecek.",
+      "en": "Address, telephone number, email and products sourced from the website. Fields marked “(estimated)” are unverified placeholders; to be confirmed with the company."
+    },
+    {
+      "record": "directoryCompanies/lenora-tekstil",
+      "name": "Lenora Tekstil A.Ş.",
+      "field": "contactTitles.lenora-faruk",
+      "contactName": "Faruk Oğuz",
+      "tr": "General Manager (Industrial Engineer)",
+      "en": "General Manager (Industrial Engineer)"
+    },
+    {
+      "record": "directoryCompanies/elite-naturel",
+      "name": "Elite Naturel Organik Gıda San. ve Tic. A.Ş.",
+      "field": "products",
+      "tr": "Organik meyve suyu, soğuk sıkım meyve suları, shot'lar (zencefil vb.), organik gıda",
+      "en": "Organic fruit juice, cold-pressed juices, shots (ginger, etc.), organic food"
+    },
+    {
+      "record": "directoryCompanies/elite-naturel",
+      "name": "Elite Naturel Organik Gıda San. ve Tic. A.Ş.",
+      "field": "certificates",
+      "tr": "ROC (Regenerative Organic Certified)",
+      "en": "ROC (Regenerative Organic Certified)"
+    },
+    {
+      "record": "directoryCompanies/elite-naturel",
+      "name": "Elite Naturel Organik Gıda San. ve Tic. A.Ş.",
+      "field": "notes",
+      "tr": "Borsa İstanbul'da işlem görüyor (ELITE).",
+      "en": "Listed on Borsa İstanbul (ELITE)."
+    },
+    {
+      "record": "directoryCompanies/evliyaoglu-tekstil",
+      "name": "Evliyaoğlu Tekstil (MaxxSoftHome)",
+      "field": "description",
+      "tr": "1978'de iplik ticaretiyle başlayıp havlu ve bornoz üretimine geçen Denizli firması. Kendi ipliğini üretiyor; MaxxSoftHome® markasıyla 45 ülkeye satış.",
+      "en": "A Denizli company that began trading yarn in 1978 and subsequently moved into towel and bathrobe manufacturing. Produces its own yarn; sells to 45 countries under the MaxxSoftHome® brand."
+    },
+    {
+      "record": "directoryCompanies/evliyaoglu-tekstil",
+      "name": "Evliyaoğlu Tekstil (MaxxSoftHome)",
+      "field": "products",
+      "tr": "Havlu, bornoz, paspas, otel tekstili, mutfak tekstili, baskılı dekoratif yastık",
+      "en": "Towels, bathrobes, bath mats, hotel textiles, kitchen textiles, printed decorative cushions"
+    },
+    {
+      "record": "directoryCompanies/evliyaoglu-tekstil",
+      "name": "Evliyaoğlu Tekstil (MaxxSoftHome)",
+      "field": "capacity",
+      "tr": "Kendi iplik üretimi; yeni ve çevre dostu üretim tesisleri",
+      "en": "In-house yarn production; new, environmentally friendly production facilities"
+    },
+    {
+      "record": "directoryCompanies/evliyaoglu-tekstil",
+      "name": "Evliyaoğlu Tekstil (MaxxSoftHome)",
+      "field": "certificates",
+      "tr": "GOTS, OEKO-TEX Standard 100, V-Label, Green Label, BSCI",
+      "en": "GOTS, OEKO-TEX Standard 100, V-Label, Green Label, BSCI"
+    },
+    {
+      "record": "directoryCompanies/evliyaoglu-tekstil",
+      "name": "Evliyaoğlu Tekstil (MaxxSoftHome)",
+      "field": "markets",
+      "tr": "2002'den beri Avrupa'ya ihracat; bugün 45 ülkeye satış",
+      "en": "Exporting to Europe since 2002; currently selling to 45 countries"
+    },
+    {
+      "record": "directoryCompanies/evliyaoglu-tekstil",
+      "name": "Evliyaoğlu Tekstil (MaxxSoftHome)",
+      "field": "notes",
+      "tr": "Bilgiler 2025 Heimtextil fuar broşüründen alınmıştır; ilgili kişi güncelliği doğrulanacak.",
+      "en": "Information sourced from the 2025 Heimtextil trade fair brochure; contact person’s details to be checked to ensure they are current."
+    },
+    {
+      "record": "directoryCompanies/evliyaoglu-tekstil",
+      "name": "Evliyaoğlu Tekstil (MaxxSoftHome)",
+      "field": "contactTitles.evliyaoglu-emel-ozler",
+      "contactName": "Emel Özler",
+      "tr": "Pazarlama Müdürü",
+      "en": "Marketing Manager"
+    },
+    {
+      "record": "directoryCompanies/goknur",
+      "name": "Göknur Gıda Maddeleri Enerji İmalat İthalat İhracat Tic. ve San. A.Ş.",
+      "field": "products",
+      "tr": "Meyve suyu konsantresi, meyve püresi, NFC meyve suyu, dondurulmuş meyve (elma, vişne, kayısı vb.)",
+      "en": "Fruit juice concentrate, fruit purée, NFC fruit juice, frozen fruit (apple, sour cherry, apricot, etc.)"
+    },
+    {
+      "record": "directoryCompanies/goknur",
+      "name": "Göknur Gıda Maddeleri Enerji İmalat İthalat İhracat Tic. ve San. A.Ş.",
+      "field": "notes",
+      "tr": "Borsa İstanbul'da işlem görüyor (GOKNR), ihracatçı.",
+      "en": "Listed on Borsa İstanbul (GOKNR); exporter."
+    },
+    {
+      "record": "directoryCompanies/gokhan-tekstil",
+      "name": "Gökhan Tekstil (Soft Cotton)",
+      "field": "foundedYear",
+      "tr": "1977",
+      "en": "1977"
+    },
+    {
+      "record": "directoryCompanies/gokhan-tekstil",
+      "name": "Gökhan Tekstil (Soft Cotton)",
+      "field": "employees",
+      "tr": "600+",
+      "en": "600+"
+    },
+    {
+      "record": "directoryCompanies/kigili",
+      "name": "Kiğılı Giyim Tic. A.Ş.",
+      "field": "foundedYear",
+      "tr": "1938",
+      "en": "1938"
+    },
+    {
+      "record": "directoryCompanies/kigili",
+      "name": "Kiğılı Giyim Tic. A.Ş.",
+      "field": "employees",
+      "tr": "1.500–1.999",
+      "en": "1.500–1.999"
+    },
+    {
+      "record": "directoryCompanies/sarar",
+      "name": "Sarar",
+      "field": "foundedYear",
+      "tr": "1944",
+      "en": "1944"
+    },
+    {
+      "record": "directoryCompanies/sarar",
+      "name": "Sarar",
+      "field": "employees",
+      "tr": "2.000–2.999",
+      "en": "2.000–2.999"
+    },
+    {
+      "record": "directoryCompanies/makroteks-tekstil",
+      "name": "Makroteks Tekstil",
+      "field": "foundedYear",
+      "tr": "1993",
+      "en": "1993"
+    },
+    {
+      "record": "directoryCompanies/mtc-linen",
+      "name": "MTC Linen",
+      "field": "foundedYear",
+      "tr": "1978",
+      "en": "1978"
+    },
+    {
+      "record": "directoryCompanies/mtc-linen",
+      "name": "MTC Linen",
+      "field": "employees",
+      "tr": "300+",
+      "en": "300+"
+    },
+    {
+      "record": "directoryCompanies/pmg",
+      "name": "PMG Gıda",
+      "field": "foundedYear",
+      "tr": "2020",
+      "en": "2020"
+    },
+    {
+      "record": "directoryCompanies/anadolu-moda-demo",
+      "name": "Anadolu Moda Konfeksiyon Ltd. Şti.",
+      "field": "foundedYear",
+      "tr": "2009",
+      "en": "2009"
+    },
+    {
+      "record": "directoryCompanies/anadolu-moda-demo",
+      "name": "Anadolu Moda Konfeksiyon Ltd. Şti.",
+      "field": "employees",
+      "tr": "150–200",
+      "en": "150–200"
+    },
+    {
+      "record": "directoryCompanies/lenora-tekstil",
+      "name": "Lenora Tekstil A.Ş.",
+      "field": "foundedYear",
+      "tr": "2012 (tahmini)",
+      "en": "2012 (estimated)"
+    },
+    {
+      "record": "directoryCompanies/lenora-tekstil",
+      "name": "Lenora Tekstil A.Ş.",
+      "field": "employees",
+      "tr": "150+ (tahmini)",
+      "en": "150+ (estimated)"
+    },
+    {
+      "record": "directoryCompanies/evliyaoglu-tekstil",
+      "name": "Evliyaoğlu Tekstil (MaxxSoftHome)",
+      "field": "foundedYear",
+      "tr": "1978",
+      "en": "1978"
+    }
+  ]
+}

@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "tsx --test tests/domain.test.ts tests/rfqMatrix.test.ts tests/productSpec.test.ts tests/vaultDetails.test.ts tests/i18n.test.ts tests/statusKeys.test.ts tests/apiLanguage.test.ts",
+    "test": "tsx --test tests/domain.test.ts tests/rfqMatrix.test.ts tests/productSpec.test.ts tests/vaultDetails.test.ts tests/i18n.test.ts tests/statusKeys.test.ts tests/apiLanguage.test.ts tests/directoryTranslations.test.ts",
     "test:rules": "tsx --test --test-concurrency=1 tests/rules.test.ts",
     "check": "npm run lint && npm test && npm run build"
   },
