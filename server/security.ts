@@ -1,3 +1,4 @@
+import { apiMessage } from "./language";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import type { Request, Response, NextFunction } from "express";
@@ -23,16 +24,16 @@ export function createRateLimiter(limit: number, windowMs: number) {
 const allowed = createRateLimiter(60, 60000);
 export async function requireUser(req: Request, res: Response, next: NextFunction) {
   const token = req.get("X-Firebase-Token");
-  if (!token || token.length > 8192) { res.status(401).json({ error: "Geçerli Firebase oturumu gerekli." }); return; }
+  if (!token || token.length > 8192) { res.status(401).json({ error: apiMessage(req,"sessionRequired") }); return; }
   try {
     const identity = await getAuth().verifyIdToken(token);
     const response = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/users/${encodeURIComponent(identity.uid)}`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10000) });
-    if (!response.ok) { res.status(403).json({ error: "Kullanıcı profili doğrulanamadı." }); return; }
+    if (!response.ok) { res.status(403).json({ error: apiMessage(req,"profileFailed") }); return; }
     const data = await response.json(); const fields = data.fields || {};
     const profile: Profile = { role: fields.role?.stringValue || "", projectId: fields.projectId?.stringValue || "", assignedProjects: (fields.assignedProjects?.arrayValue?.values || []).map((item: any) => item.stringValue), status: fields.status?.stringValue || "active" };
-    if (["admin","owner"].includes(profile.role) && !trustedAdministrator(identity.uid, identity)) { res.status(403).json({error:"Yönetici yetkisi doğrulanamadı."});return; }
-    if (!profile.role || ["suspended", "Askıya Alındı"].includes(profile.status)) { res.status(403).json({ error: "Hesap erişimi kapalı." }); return; }
-    if (!allowed(identity.uid)) { res.status(429).json({ error: "İstek sınırına ulaşıldı. Bir dakika sonra deneyin." }); return; }
+    if (["admin","owner"].includes(profile.role) && !trustedAdministrator(identity.uid, identity)) { res.status(403).json({error:apiMessage(req,"adminFailed")});return; }
+    if (!profile.role || ["suspended", "Askıya Alındı"].includes(profile.status)) { res.status(403).json({ error: apiMessage(req,"accountClosed") }); return; }
+    if (!allowed(identity.uid)) { res.status(429).json({ error: apiMessage(req,"rateLimited") }); return; }
     res.locals.uid = identity.uid; res.locals.profile = profile; next();
-  } catch { res.status(401).json({ error: "Oturum doğrulanamadı. Yeniden giriş yapın." }); }
+  } catch { res.status(401).json({ error: apiMessage(req,"sessionFailed") }); }
 }

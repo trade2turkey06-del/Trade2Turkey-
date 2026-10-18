@@ -1,3 +1,4 @@
+import { apiMessage, outputInstruction } from "./server/language";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { requireUser, hasProjectAccess } from "./server/security";
 import express from "express";
@@ -34,7 +35,7 @@ app.use((_req, res, next) => {
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
 app.use("/api", requireUser);
 // Free-only deployment: never invoke metered Gemini services without a separate future authorization.
-app.use("/api/ai", (_req, res) => { res.status(503).json({ error: "Ek kullanım ücreti oluşmaması için yapay zekâ API çağrıları kapalı. Manuel kayıt ve yerel rapor özelliklerini kullanabilirsiniz." }); });
+app.use("/api/ai", (req, res) => { res.status(503).json({ error: apiMessage(req,"aiDisabled") }); });
 
 
 // AI Sourcing Matrix Evaluation endpoint
@@ -214,7 +215,7 @@ app.post("/api/ai/evaluate-matrix", async (req, res) => {
   }
 
   try {
-    const prompt = `You are a professional B2B Sourcing Evaluator for the Trade2Turkey agency.
+    const prompt = outputInstruction(req) + `You are a professional B2B Sourcing Evaluator for the Trade2Turkey agency.
 Analyze the qualitative and quantitative supplier response inputs provided below, and autonomously score each response from 0 to 100.
 Evaluate strictly based on global sourcing best practices, risk levels, certification status, and Trade2Turkey sourcing standards.
 
@@ -282,7 +283,7 @@ app.post("/api/ai/audit-rfq", async (req, res) => {
   }
 
   try {
-    const prompt = `You are a professional B2B sourcing auditor and supply chain expert for the Trade2Turkey digital sourcing agency.
+    const prompt = outputInstruction(req) + `You are a professional B2B sourcing auditor and supply chain expert for the Trade2Turkey digital sourcing agency.
 Analyze the target specification and the incoming supplier quotations (RFQ submissions) for the product "${targetSpec.productName}" and generate a structured compatibility audit report in clean Markdown.
 
 ### TARGET SPECIFICATIONS:
@@ -337,7 +338,7 @@ app.post("/api/ai/summarize-report", async (req, res) => {
   }
 
   try {
-    const prompt = `You are a high-level executive B2B sourcing consultant for the Trade2Turkey digital sourcing program.
+    const prompt = outputInstruction(req) + `You are a high-level executive B2B sourcing consultant for the Trade2Turkey digital sourcing program.
 Summarize the following digital sourcing campaign logs and operations data into a professional, stakeholder-ready executive summary.
 
 ### 1. Sourcing SOP Milestones:
@@ -548,9 +549,9 @@ app.post("/api/ai/evaluate-lead", async (req, res) => {
   }
 
   try {
-    const prompt = `Sen, Trade2Turkey platformunun "Müşteri Keşfi" operasyonları için çalışan uzman bir AI Kalite Denetim ve Lead Skorlama asistanısın. 
+    const prompt = outputInstruction(req) + `Sen, Trade2Turkey platformunun "Müşteri Keşfi" operasyonları için çalışan uzman bir AI Kalite Denetim ve Lead Skorlama asistanısın.
 
-Görevin: Saha satıcıları (Scouter'lar) tarafından sisteme girilen B2B ithalatçı/distribütör verilerini 4 ana kritere göre analiz etmek ve 0-100 arası bir skor belirlemektir. 
+Görevin: Saha satıcıları (Scouter'lar) tarafından sisteme girilen B2B ithalatçı/distribütör verilerini 4 ana kritere göre analiz etmek ve 0-100 arası bir skor belirlemektir.
 
 DEĞERLENDİRME KRİTERLERİ VE AĞIRLIKLAR:
 1. Sektör & Firma Uyumu (%30): Talep edilen ürünlerin ana operasyon alanlarımız olan "Mobilya" veya "Meyve Suyu" sektörleriyle tam eşleşmesi gerekir. Firmanın web sitesi, LinkedIn profili ve tipi (Distribütör, İthalatçı vb.) üzerinden pazar gücünü ve sektör uyumunu analiz et. Alakasız sektörler düşük puan alır.
@@ -633,7 +634,7 @@ app.post("/api/ai/match-manufacturers", async (req, res) => {
   }
 
   try {
-    const prompt = `You are a professional B2B digital sourcing matchmaker for Trade2Turkey.
+    const prompt = outputInstruction(req) + `You are a professional B2B digital sourcing matchmaker for Trade2Turkey.
 Compare a competitor supermarket product's retail details against a list of verified Turkish manufacturers and suggest which manufacturer is the best fit to exploit this market gap.
 
 COMPETITOR PRODUCT:
@@ -655,7 +656,7 @@ Manufacturer #${idx + 1}: ${m.name}
 INSTRUCTIONS:
 1. Compare the competitor product (price, claims like Gluten-free, Organic, Vegan, and certifications) with each manufacturer's capabilities.
 2. Select the single best manufacturer that can offer a matching or better alternative at a competitive price advantage.
-3. Write a single, highly commercial recommendation sentence in TURKISH.
+3. Write a single, highly commercial recommendation sentence in the requested output language.
 4. Keep it concise, punchy, and direct, matching this style:
 "Öneri: Bakker üreticisinin donuk hattı, bu rakibe karşı %22 fiyat avantajı ve gerekli BRC sertifikasına sahip. Bu ürüne odaklanın."
 
@@ -745,7 +746,7 @@ app.post("/api/ai/search-shelf-prices", async (req, res) => {
   }
 
   try {
-    const prompt = `You are a professional FMCG B2B retail market researcher for Trade2Turkey.
+    const prompt = outputInstruction(req) + `You are a professional FMCG B2B retail market researcher for Trade2Turkey.
 Search specifically for in-store physical shelf prices (instore retail prices, physical store pricing, shelf prices) of supermarkets (e.g. Tesco, Sainsbury's, Aldi, Lidl, Walmart, M&S, Costco) for the following query:
 
 QUERY: "${queryText}"
@@ -790,8 +791,8 @@ Do not include markdown formatting or any other explanatory text.`;
 app.get("/api/auth/google-url", (req, res) => {
   const client_id = process.env.GOOGLE_CLIENT_ID || process.env.CLIENT_ID;
   if (!client_id) {
-    return res.status(400).json({ 
-      error: "Google Client ID is missing. Please set GOOGLE_CLIENT_ID in your Secrets." 
+    return res.status(400).json({
+      error: "Google Client ID is missing. Please set GOOGLE_CLIENT_ID in your Secrets."
     });
   }
 
@@ -990,8 +991,8 @@ app.post("/api/drive/upload", upload.single("file"), async (req, res) => {
     const rootFolderId = await findOrCreateFolder("Trade2Turkey Logistics");
 
     // Step B: Find/Create Project-specific subfolder (e.g. "PROJ-BEANBAG (ComfortPro Bean Bags)")
-    const projectSubfolderName = cleanProjectId === "PROJ-BEANBAG" 
-      ? "PROJ-BEANBAG (ComfortPro Bean Bags)" 
+    const projectSubfolderName = cleanProjectId === "PROJ-BEANBAG"
+      ? "PROJ-BEANBAG (ComfortPro Bean Bags)"
       : cleanProjectId === "PROJ-VELVET"
         ? "PROJ-VELVET (Luxury Velvet Ottoman)"
         : cleanProjectId;
@@ -1002,7 +1003,7 @@ app.post("/api/drive/upload", upload.single("file"), async (req, res) => {
 
     // Step D: Physically upload the binary file into the step folder
     console.log(`Uploading file ${file.originalname} into step folder ${stepFolderId}`);
-    
+
     const boundary = "-------314159265358979323846";
     const delimiter = `\r\n--${boundary}\r\n`;
     const closeDelimiter = `\r\n--${boundary}--`;

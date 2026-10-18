@@ -17,3 +17,7 @@ Read-only live enum scan is retained in `I18N_PHASE2_STATUS_SCAN.json`. Missing 
 Report display, text download and email draft share the same localised summary. Browser download-event capture timed out; no downloaded-file verification is claimed. Print/PDF uses the same rendered report; the operating-system print dialog is not translated by the application.
 
 | Sectors | Sector navigation, company card and Add company form inspected in English | Stored sector `Havlu`; company location, products, profile text and contact `Şenay Karakozak` remain unchanged | TypeScript, 45 unit tests, 25 rules tests and build passed |
+
+| Client Discovery | Legacy lead expanded, Add lead form, pipeline filters and shared client workspace controls inspected in English | `Yerel Test Yöneticisi`, `Türkçe Test Firması`, `Test Kişisi`, `Satın Alma Müdürü` and `Kullanıcı notu: değiştirilmeden korunmalı.` (fixture user data) | TypeScript, 46 unit tests, 25 rules tests and build passed |
+
+Both lead writers now use canonical status keys. Legacy TR/EN labels are normalised on read; company-type and urgency choices write keys. Unknown and missing stored values are not migrated. AI calls carry `language`; all six server prompts receive a request-local output-language instruction. The global AI 503 block remains enabled and is regression-tested.

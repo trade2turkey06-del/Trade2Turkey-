@@ -1,3 +1,4 @@
+import { message as msg } from "./i18n";
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -332,7 +333,7 @@ export default function App() {
     ));
     if (currentUser.role === "admin") unsubscribers.push(onSnapshot(collection(db, "users"), snapshot => {
       setCustomUsers(snapshot.docs.map(item => ({ ...item.data(), id: item.id } as UserTenant)));
-    }, () => setAppError("Kullanıcı listesi yüklenemedi.")));
+    }, () => setAppError(msg("workspaceAdmin", "couldNotLoadUsers"))));
     setLoadedProjectId(activeProjectId);
     return () => unsubscribers.forEach(stop => stop());
   }, [activeProjectId, currentUser?.id, currentUser?.role]);
@@ -362,18 +363,18 @@ export default function App() {
   // Add Dynamic user workspace as administrator
   const handleAddClientAction = async (e: React.FormEvent) => {
     e.preventDefault();
-    setAdminFeedback("Hesap oluşturuluyor…");
+    setAdminFeedback(msg("workspaceAdmin", "creatingAccount"));
     try {
       const result = await inviteUser({ email: newClientEmail, companyName: newClientCompany, projectId: newClientProject, role: "client" });
       setAdminFeedback(result);
       setNewClientEmail(""); setNewClientCompany("");
-    } catch (error) { setAdminFeedback(error instanceof Error ? error.message : "Kullanıcı oluşturulamadı."); }
+    } catch (error) { setAdminFeedback(error instanceof Error ? error.message : msg("workspaceAdmin", "couldNotCreateTheUserAccount")); }
   };
 
   // Switch workspace context and simulate dynamic client login
   const handleAdminInspectClient = React.useCallback((tenant: UserTenant) => {
     setActiveProjectId(tenant.projectId);
-    setAdminFeedback(`🔍 İnceleme Modu: Konuk kiracı ile ilişkili çalışma alanı görüntüleniyor "${tenant.companyName}". Yönetici bağlamını geri yüklemek için navigasyon çubuğundaki seçim açılır menüsünü kapatın.`);
+    setAdminFeedback(msg("workspaceAdmin", "reviewModeViewingTheWorkspaceAssociatedWithValueUse", tenant.companyName));
     window.scrollTo({ top: 380, behavior: "smooth" });
   }, []);
 
@@ -428,14 +429,14 @@ export default function App() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
               <div>
                 <h4 className="text-base font-bold text-slate-900 flex items-center gap-2 font-display">
-                  <Users className="h-5 w-5 text-navy" /> Kurumsal Müşteri Çalışma Alanları ve Kiracı Yönetimi
+                  <Users className="h-5 w-5 text-navy" /> {msg("workspaceAdmin", "clientWorkspacesAccessManagement")}
                 </h4>
                 <p className="text-xs text-slate-500 mt-1">
-                  İzole edilmiş iş akışları oluşturun, özel Google Drive dizinlerini eşleştirin ve aktif kullanıcıları anında denetleyin.
+                  {msg("workspaceAdmin", "createSeparateProjectWorkflowsOrganiseDedicatedGoogleDriveFolders")}
                 </p>
               </div>
               <span className="text-[10px] bg-navy/5 text-navy font-extrabold px-3 py-1 rounded-full border border-navy/10 uppercase font-mono tracking-wider">
-                Çoklu Kiracı Senkronizasyonu Aktif
+                {msg("workspaceAdmin", "clientWorkspaceSynchronisationActive")}
               </span>
             </div>
 
@@ -451,18 +452,18 @@ export default function App() {
               {/* Form: Add New Corporate Client */}
               <form onSubmit={handleAddClientAction} className="lg:col-span-5 bg-slate-50 p-5 rounded-2xl border border-slate-150 space-y-4">
                 <div className="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase font-mono tracking-wider">
-                  <PlusCircle className="h-4.5 w-4.5 text-navy" /> Kurumsal Çalışma Alanı Tahsis Et
+                  <PlusCircle className="h-4.5 w-4.5 text-navy" /> {msg("workspaceAdmin", "assignClientWorkspace")}
                 </div>
 
                 <div className="space-y-3.5">
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                      Müşteri Şirket Adı
+                      {msg("workspaceAdmin", "clientCompanyName")}
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="örn., Lüks Yaşam A.Ş."
+                      placeholder={msg("workspaceAdmin", "eGExampleTradingLtd")}
                       value={newClientCompany}
                       onChange={(e) => setNewClientCompany(e.target.value)}
                       className="w-full p-2.5 bg-white border rounded-xl text-xs text-slate-855 placeholder:text-slate-400 focus:outline-none focus:border-navy transition"
@@ -470,7 +471,7 @@ export default function App() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">Kullanıcı Kurumsal E-postası</label>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">{msg("workspaceAdmin", "userBusinessEmail")}</label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                       <input
@@ -485,7 +486,7 @@ export default function App() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">Tedarik Hattı Projesi Ata</label>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">{msg("workspaceAdmin", "assignSourcingProject")}</label>
                     <select
                       value={newClientProject}
                       onChange={(e) => setNewClientProject(e.target.value)}
@@ -498,21 +499,21 @@ export default function App() {
                   </div>
 
                   <div className="p-3 bg-slate-100 border border-slate-200 rounded-xl text-[11px] leading-relaxed text-slate-700">
-                    💡 <strong>Şifre Kuralı:</strong> Erişim şifresi otomatik olarak e-posta ön eki + "2026" olarak yapılandırılır. (Örn. E-posta <code>client@company.com</code> ise, şifre <code>client2026</code> olur).
+                    {msg("workspaceAdmin", "aPasswordSetupEmailIsSentToTheUser")}
                   </div>
 
                   <button
                     type="submit"
                     className="w-full bg-navy hover:bg-navy-light text-white font-semibold text-xs py-3 rounded-xl transition cursor-pointer shadow-sm"
                   >
-                    Güvenli İzole Çalışma Alanı Oluştur
+                    {msg("workspaceAdmin", "createClientWorkspace")}
                   </button>
                 </div>
               </form>
 
               {/* Grid: View and switch between active corporate clients */}
               <div className="lg:col-span-7 space-y-3">
-                <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Aktif Kayıtlı Müşteri Çalışma Alanları</span>
+                <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">{msg("workspaceAdmin", "registeredClientWorkspaces")}</span>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[360px] overflow-y-auto pr-1">
                   {allCurrentTenantsList.map((tenant) => {
@@ -542,7 +543,7 @@ export default function App() {
 
                         <div className="flex items-center justify-between border-t border-slate-250/10 pt-2.5 mt-1 select-none">
                           <span className={`text-[10px] font-mono ${isViewing && tenant.role !== "freelancer" ? "text-sky-300 font-bold" : "text-slate-400"}`}>
-                            {tenant.role === "freelancer" ? "Saha Temsilcisi (Freelancer)" : (isViewing ? "● Aktif İnceleme" : "İnceleme Devre Dışı")}
+                            {tenant.role === "freelancer" ? msg("workspaceAdmin", "fieldRepresentativeFreelancer") : (isViewing ? msg("workspaceAdmin", "reviewActive") : msg("workspaceAdmin", "reviewInactive"))}
                           </span>
                           
                           <button
@@ -560,7 +561,7 @@ export default function App() {
                                 : "bg-slate-100 hover:bg-slate-200 text-slate-700"
                             }`}
                           >
-                            Çalışma Alanını İncele
+                            {msg("workspaceAdmin", "reviewWorkspace")}
                           </button>
                         </div>
                       </div>
@@ -580,7 +581,7 @@ export default function App() {
           </div>
         )}
 
-        {appError && <div role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-800">{appError}<button className="ml-4 underline" onClick={() => setAppError("")}>Kapat</button></div>}
+        {appError && <div role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-800">{appError}<button className="ml-4 underline" onClick={() => setAppError("")}>{msg("workspaceAdmin", "close")}</button></div>}
         {/* Dynamic active View Renderer Router logic */}
         <div className="space-y-6">
 
@@ -762,17 +763,17 @@ export default function App() {
             <div className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <span className="bg-red-500/10 text-red-400 text-[10px] font-black uppercase font-mono px-2.5 py-1 rounded-md border border-red-500/25 tracking-wider animate-pulse">
-                  ⚠️ DENETİM MODU (SALT OKUNUR)
+                  {msg("workspaceAdmin", "auditModeReadOnly")}
                 </span>
                 <h3 className="text-base font-black text-white font-display">
-                  Denetim Modu: {auditedFreelancer.name || auditedFreelancer.displayName || auditedFreelancer.companyName || auditedFreelancer.email} Çalışma Alanı
+                  {msg("workspaceAdmin", "auditMode")} {auditedFreelancer.name || auditedFreelancer.displayName || auditedFreelancer.companyName || auditedFreelancer.email} {msg("workspaceAdmin", "workspace")}
                 </h3>
               </div>
               
               <button
                 onClick={() => setAuditedFreelancer(null)}
                 className="text-slate-400 hover:text-white transition cursor-pointer p-1 rounded-lg hover:bg-slate-850"
-                title="Denetim Modundan Çık"
+                title={msg("workspaceAdmin", "exitAuditMode")}
               >
                 <span className="text-lg font-bold">✕</span>
               </button>

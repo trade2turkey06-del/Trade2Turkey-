@@ -1,14 +1,17 @@
+import { message as msg } from "../i18n";
+import { useI18n } from "../i18n";
+import { userStatusKey, leadStatusKey, companyTypeKey, urgencyKey } from "../domain/statusKeys";
 import { inviteUser } from "../lib/userInvites";
 import { apiFetch } from "../lib/api";
 import React, { useState, useEffect, useMemo } from "react";
-import { 
-  Compass, Users, Search, AlertTriangle, Plus, CheckCircle, 
-  MapPin, Clock, Sparkles, ChevronDown, ChevronUp, AlertOctagon, 
+import {
+  Compass, Users, Search, AlertTriangle, Plus, CheckCircle,
+  MapPin, Clock, Sparkles, ChevronDown, ChevronUp, AlertOctagon,
   RefreshCw, TrendingUp, ShieldAlert, Award, UserCheck, UserX, Loader2, UserPlus
 } from "lucide-react";
 import { UserTenant } from "../data/usersData";
 import { db } from "../lib/firebase";
-import { 
+import {
   collection, query, onSnapshot, doc, setDoc, where, updateDoc, arrayUnion, arrayRemove, getDocs
 } from "firebase/firestore";
 import { PROJECT_NAMES } from "../data/driveData";
@@ -25,7 +28,7 @@ interface Scouter {
   region: string;
   activeLeadsCount: number;
   lastActivityDays: number;
-  status: "Aktif" | "Kritik Eylemsizlik Uyarısı" | "Askıya Alındı" | string;
+  status: "active" | "inactivity_warning" | "suspended" | string;
   email: string;
   companyName?: string;
   contactPerson?: string;
@@ -48,7 +51,7 @@ interface ClientLead {
   decisionMakerName: string;
   decisionMakerTitle: string;
   contactInfo: string;
-  status: "Devam Ediyor" | "Olumsuz Sonuçlandı" | "Olumlu Sonuçlandı" | "İlk Temas" | "Teklif Aşaması" | "Nitelikli Talep" | "Görüşülüyor" | "Reddedildi";
+  status: "in_progress" | "closed_lost" | "closed_won" | "initial_contact" | "quotation" | "qualified" | "negotiating" | "rejected";
   assignedScouterId: string;
   lastUpdateDays: number;
   demandNotes: string;
@@ -66,11 +69,11 @@ interface ClientLead {
     specClarity: string;
     targetPriceCheck: string;
   };
-  
+
   // Firma Temel Kimlik ve Güvenilirlik Verileri
   website?: string;
   linkedinProfile?: string;
-  companyType?: "Distribütör" | "İthalatçı" | "Toptancı" | "Perakende Zinciri" | "E-Ticaret Satıcısı";
+  companyType?: "distributor" | "importer" | "wholesaler" | "retail_chain" | "ecommerce_seller";
 
   // Karar Verici Yetkinlik Verileri
   decisionMakerEmail?: string;
@@ -79,7 +82,7 @@ interface ClientLead {
   // Ürün Spesifikasyonları ve Sektörel Detaylar
   productCategory?: string;
   technicalSpecs?: string;
-  urgency?: "Hemen" | "1-3 Ay İçinde" | "1 yıl" | "1 yıldan uzun";
+  urgency?: "immediate" | "within_1_3_months" | "within_1_year" | "over_1_year";
 
   // Operasyonel ve Finansal Beklentiler
   estimatedVolume?: string;
@@ -99,7 +102,7 @@ const DEFAULT_SCOUTERS: Scouter[] = [
     region: "Küresel (Test Ağı)",
     activeLeadsCount: 0,
     lastActivityDays: 0,
-    status: "Aktif",
+    status: "active",
     email: "freelancer@trade2turkey.com"
   }
 ];
@@ -112,7 +115,7 @@ const DEFAULT_LEADS: ClientLead[] = [
     decisionMakerName: "Marcus Weber",
     decisionMakerTitle: "Satın Alma Müdürü",
     contactInfo: "m.weber@nordicbakery.de | +49 89 123456",
-    status: "Devam Ediyor",
+    status: "in_progress",
     assignedScouterId: "freelancer_scouter",
     lastUpdateDays: 3,
     demandNotes: "Türk simidi, poğaça ve dondurulmuş unlu mamüller ithalatıyla ilgileniyor. IFS ve BRC sertifikaları talep etti.",
@@ -132,12 +135,12 @@ const DEFAULT_LEADS: ClientLead[] = [
     },
     website: "https://www.nordicbakery.de",
     linkedinProfile: "https://www.linkedin.com/company/nordic-bakery",
-    companyType: "Distribütör",
+    companyType: "distributor",
     decisionMakerEmail: "m.weber@nordicbakery.de",
     decisionMakerPhone: "+49 89 123456",
     productCategory: "Unlu Mamüller / Dondurulmuş Gıda",
     technicalSpecs: "Dondurulmuş simit ve börek ürün grubu, BRC/IFS sertifikaları.",
-    urgency: "1-3 Ay İçinde",
+    urgency: "within_1_3_months",
     estimatedVolume: "Aylık 2 x 40HQ Konteyner",
     targetPrice: "$1.20 / Adet (FOB Izmir)",
     paymentTerms: "%30 Peşin, %70 BL karşılığı T/T",
@@ -147,6 +150,7 @@ const DEFAULT_LEADS: ClientLead[] = [
 ];
 
 export default function ClientDiscovery({ currentProjectId, currentUser, projects }: ClientDiscoveryProps) {
+  const { t, fmt, lang } = useI18n();
   // Load scouters dynamically from Firestore (fallback to DEFAULT_SCOUTERS)
   const [scouters, setScouters] = useState<Scouter[]>([]);
 
@@ -163,7 +167,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
     setLoadingLeads(true);
     const q = query(collection(db, "leads"));
     const unsubscribe = onSnapshot(q, async (snapshot) => {
-      setLeads(snapshot.docs.map(item => ({ ...item.data(), id: item.id } as ClientLead)));
+      setLeads(snapshot.docs.map(item => ({ ...item.data(), id: item.id, status: leadStatusKey(item.data().status) || item.data().status, companyType: companyTypeKey(item.data().companyType) || item.data().companyType, urgency: urgencyKey(item.data().urgency) || item.data().urgency } as ClientLead)));
       setLoadingLeads(false);
     }, (error) => {
       console.error("Firestore leads sync error:", error);
@@ -182,11 +186,11 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
         const u = docSnap.data();
         fetched.push({
           id: docSnap.id,
-          name: u.name || "Test Satıcı",
-          region: u.region || "Küresel (Test Ağı)",
+          name: u.name || u.companyName || u.email || docSnap.id,
+          region: u.region || "",
           activeLeadsCount: u.activeLeadsCount ?? 0,
           lastActivityDays: u.lastActivityDays ?? 0,
-          status: u.status === "pending_auth" ? "Askıya Alındı" : (u.status === "active" ? "Aktif" : u.status || "Aktif"),
+          status: userStatusKey(u.status) || u.status || "active",
           email: u.email || docSnap.id,
           companyName: u.companyName || "",
           contactPerson: u.contactPerson || "",
@@ -195,7 +199,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
           workPhone: u.workPhone || "",
           cellPhone: u.cellPhone || "",
           website: u.website || "",
-          onboardingCompleted: u.status === "active",
+          onboardingCompleted: userStatusKey(u.status) === "active",
           projectId: u.projectId || "",
           assignedProjects: u.assignedProjects || [],
           uid: u.uid || "",
@@ -222,7 +226,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteName.trim() || !inviteEmail.trim()) {
-      setInviteFeedback("Lütfen gerekli tüm alanları doldurun.");
+      setInviteFeedback(msg("discovery", "completeAllRequiredFields"));
       return;
     }
     const emailKey = inviteEmail.trim().toLowerCase();
@@ -238,7 +242,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
       }, 2000);
     } catch (err) {
       console.error("Failed to invite scouter:", err);
-      setInviteFeedback(err instanceof Error ? err.message : "Davet gönderilemedi.");
+      setInviteFeedback(err instanceof Error ? err.message : msg("discovery", "couldNotSendTheInvitation"));
     }
   };
 
@@ -255,12 +259,12 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
   // New Form states
   const [newWebsite, setNewWebsite] = useState("");
   const [newLinkedinProfile, setNewLinkedinProfile] = useState("");
-  const [newCompanyType, setNewCompanyType] = useState<"Distribütör" | "İthalatçı" | "Toptancı" | "Perakende Zinciri" | "E-Ticaret Satıcısı">("Distribütör");
+  const [newCompanyType, setNewCompanyType] = useState<"distributor" | "importer" | "wholesaler" | "retail_chain" | "ecommerce_seller">("distributor");
   const [newDMEmail, setNewDMEmail] = useState("");
   const [newDMPhone, setNewDMPhone] = useState("");
   const [newProductCategory, setNewProductCategory] = useState("");
   const [newTechnicalSpecs, setNewTechnicalSpecs] = useState("");
-  const [newUrgency, setNewUrgency] = useState<"Hemen" | "1-3 Ay İçinde" | "1 yıl" | "1 yıldan uzun">("1-3 Ay İçinde");
+  const [newUrgency, setNewUrgency] = useState<"immediate" | "within_1_3_months" | "within_1_year" | "over_1_year">("within_1_3_months");
   const [newEstimatedVolume, setNewEstimatedVolume] = useState("");
   const [newTargetPrice, setNewTargetPrice] = useState("");
   const [newPaymentTerms, setNewPaymentTerms] = useState("");
@@ -269,29 +273,28 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
 
   // Search, Filter and Accordion states
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("Hepsi");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null);
 
   // Admin logs state
-  const [actionLogs, setActionLogs] = useState<string[]>([]);
+  const [actionLogs, setActionLogs] = useState<{at: Date; key: keyof typeof t.discovery; values: unknown[]}[]>([]);
 
-  const addLog = (log: string) => {
-    const time = new Date().toLocaleTimeString("tr-TR");
-    setActionLogs(prev => [`[${time}] ${log}`, ...prev.slice(0, 4)]);
+  const addLog = (key: keyof typeof t.discovery, ...values: unknown[]) => {
+    setActionLogs(prev => [{at: new Date(), key, values}, ...prev.slice(0,4)]);
   };
 
   // Filtered Leads (excluding C-grade leads from general pipeline in terms of KPI or matching projectId)
   const filteredLeads = useMemo(() => {
     return leads.filter(l => {
       if (l.projectId !== currentProjectId) return false;
-      
-      const matchesSearch = 
+
+      const matchesSearch =
         l.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         l.country.toLowerCase().includes(searchTerm.toLowerCase()) ||
         l.decisionMakerName.toLowerCase().includes(searchTerm.toLowerCase());
-        
-      const matchesStatus = statusFilter === "Hepsi" || l.status === statusFilter;
-      
+
+      const matchesStatus = statusFilter === "all" || l.status === statusFilter;
+
       return matchesSearch && matchesStatus;
     });
   }, [leads, currentProjectId, searchTerm, statusFilter]);
@@ -321,10 +324,10 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
     try {
       const userRef = doc(db, "users", scouterId);
       await setDoc(userRef, {
-        status: "Kritik Eylemsizlik Uyarısı",
+        status: "inactivity_warning",
         lastActivityDays: 13
       }, { merge: true });
-      addLog(`Scouter ${scouterName} için eylemsizlik uyarısı e-postası gönderildi.`);
+      addLog("inactivityWarningRecordedForScouterValue", scouterName);
     } catch (err) {
       console.error("Failed to warn scouter in Firestore:", err);
     }
@@ -334,10 +337,10 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
     try {
       const userRef = doc(db, "users", scouterId);
       await setDoc(userRef, {
-        status: "Askıya Alındı",
+        status: "suspended",
         lastActivityDays: 14
       }, { merge: true });
-      addLog(`Scouter ${scouterName} 14-günlük eylemsizlik kuralı sebebiyle askıya alındı.`);
+      addLog("scouterValueSuspendedUnderThe14DayInactivityPolicy", scouterName);
     } catch (err) {
       console.error("Failed to suspend scouter in Firestore:", err);
     }
@@ -347,10 +350,10 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
     try {
       const userRef = doc(db, "users", scouterId);
       await setDoc(userRef, {
-        status: "Aktif",
+        status: "active",
         lastActivityDays: 0
       }, { merge: true });
-      addLog(`Scouter ${scouterName} yeniden aktif konuma getirildi.`);
+      addLog("scouterValueReactivated", scouterName);
     } catch (err) {
       console.error("Failed to activate scouter in Firestore:", err);
     }
@@ -359,13 +362,13 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
   const handleAddLead = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCompany || !newCountry || !newDMName || !newDMTitle || !newDMEmail || !newProductCategory) {
-      setFormFeedback("Lütfen gerekli alanları (Şirket Adı, Ülke, Karar Verici Adı, Unvan, E-Posta, Ürün Kategorisi) doldurun.");
+      setFormFeedback(msg("discovery", "completeTheRequiredFieldsCompanyNameCountryDecisionMaker"));
       return;
     }
 
-    setFormFeedback("Yapay Zeka algoritması ile talep skoru hesaplanıyor...");
+    setFormFeedback(msg("discovery", "assessingLeadQualification"));
 
-    const contactStr = `${newDMEmail} | ${newDMPhone || "Tel Belirtilmedi"}`;
+    const contactStr = `${newDMEmail} | ${newDMPhone || ""}`;
     const leadId = `lead_${Date.now()}`;
 
     const rawLead: ClientLead = {
@@ -373,14 +376,14 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
       companyName: newCompany,
       country: newCountry,
       decisionMakerName: newDMName,
-      decisionMakerTitle: newDMTitle || "Yetkili",
+      decisionMakerTitle: newDMTitle || "",
       contactInfo: contactStr,
-      status: "Devam Ediyor",
+      status: "in_progress",
       assignedScouterId: newScouterId,
       assignedTo: "owner_admin",
       userId: "owner_admin",
       lastUpdateDays: 0,
-      demandNotes: newNotes || "Açıklama girilmedi.",
+      demandNotes: newNotes || "",
       projectId: currentProjectId,
       website: newWebsite,
       linkedinProfile: newLinkedinProfile,
@@ -401,7 +404,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
       const response = await apiFetch("/api/ai/evaluate-lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lead: rawLead })
+        body: JSON.stringify({ lead: rawLead, language: lang })
       });
 
       let evaluatedResult: any = {};
@@ -413,19 +416,19 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
         ...rawLead,
         score: evaluatedResult.ai_lead_skoru || 70,
         grade: (evaluatedResult.ai_lead_skoru >= 85 ? "A-Grade" : evaluatedResult.ai_lead_skoru >= 50 ? "B-Grade" : "C-Grade") as any,
-        aiFeedback: evaluatedResult.scouter_geri_bildirim_notu || "Talep kaydedildi.",
-        aiReasoning: evaluatedResult.analiz_gerekcesi || "Yerel denetim standartlarına göre işlendi.",
+        aiFeedback: evaluatedResult.scouter_geri_bildirim_notu || "",
+        aiReasoning: evaluatedResult.analiz_gerekcesi || "",
         pillars: evaluatedResult.pillars || {
-          sectorFit: "Değerlendirilmedi",
-          emailCheck: "Değerlendirilmedi",
-          decisionMakerAuthority: "Değerlendirilmedi",
-          financialFit: "Değerlendirilmedi",
-          volumeCheck: "Değerlendirilmedi",
-          specClarity: "Değerlendirilmedi",
-          targetPriceCheck: "Değerlendirilmedi"
+          sectorFit: "not_evaluated",
+          emailCheck: "not_evaluated",
+          decisionMakerAuthority: "not_evaluated",
+          financialFit: "not_evaluated",
+          volumeCheck: "not_evaluated",
+          specClarity: "not_evaluated",
+          targetPriceCheck: "not_evaluated"
         },
-        status: (evaluatedResult.dashboard_status === "QUOTE READY" ? "Devam Ediyor" : 
-                 evaluatedResult.dashboard_status === "REJECTED" ? "Olumsuz Sonuçlandı" : "Devam Ediyor") as any
+        status: (evaluatedResult.dashboard_status === "QUOTE READY" ? "in_progress" :
+                 evaluatedResult.dashboard_status === "REJECTED" ? "closed_lost" : "in_progress") as any
       };
 
       await setDoc(doc(db, "leads", leadId), finalLead);
@@ -440,7 +443,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
       const userRef = doc(db, "users", newScouterId);
       await setDoc(userRef, {
         lastActivityDays: 0,
-        status: "Aktif"
+        status: "active"
       }, { merge: true });
     } catch (err) {
       console.error("Failed to update scouter activity in Firestore:", err);
@@ -456,10 +459,10 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
     setNewNotes("");
     setNewWebsite("");
     setNewLinkedinProfile("");
-    setNewCompanyType("Distribütör");
+    setNewCompanyType("distributor");
     setNewProductCategory("");
     setNewTechnicalSpecs("");
-    setNewUrgency("Hemen");
+    setNewUrgency("immediate");
     setNewEstimatedVolume("");
     setNewTargetPrice("");
     setNewPaymentTerms("");
@@ -475,40 +478,40 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
 
   // Critical scouters list for warning panels
   const criticalScouters = useMemo(() => {
-    return scouters.filter(s => s.status === "Kritik Eylemsizlik Uyarısı" || s.lastActivityDays >= 10 && s.status !== "Askıya Alındı");
+    return scouters.filter(s => s.status === "inactivity_warning" || s.lastActivityDays >= 10 && s.status !== "suspended");
   }, [scouters]);
 
   return (
     <div className="space-y-8 animate-fade-in">
-      
+
       {/* 1. HEADER & INTRO SYSTEM */}
       <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-navy to-slate-900 p-6 md:p-8 text-white shadow-xl relative overflow-hidden">
         <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl"></div>
         <div className="absolute left-1/3 bottom-0 h-48 w-48 rounded-full bg-sky-500/10 blur-3xl"></div>
-        
+
         <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-3">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/25 text-teal-400 text-xs font-bold font-mono tracking-wider uppercase">
               <Users className="h-3.5 w-3.5" />
-              B2B İthalatçı Keşfi Aktif
+              {msg("discovery", "b2bBuyerDiscovery")}
             </div>
             <h2 className="text-2xl md:text-3xl font-black tracking-tight font-display">
-              Müşteri Keşfi & Scouter Paneli
+              {msg("discovery", "clientDiscoveryScouterDashboard")}
             </h2>
             <p className="text-sm text-slate-300 max-w-3xl leading-relaxed">
-              Hedef pazarlardaki bağımsız satış profesyonellerimiz <strong>"Scouter"</strong>lar tarafından girilen ithalatçı verileri. Sektör uyumluluğu, karar verici yetkisi, alım hacmi ve ödeme koşulları değerlendirilerek nitelikli talepler filtre edilir.
+              {msg("discovery", "independentSalesProfessionalsInTargetMarkets")} <strong>{msg("discovery", "scouters")}</strong>{msg("discovery", "provideBuyerLeadsQualifiedOpportunitiesAreIdentifiedByAssessing")}
             </p>
           </div>
-          
+
           <div className="flex flex-col gap-2 bg-slate-800/40 p-4 rounded-xl border border-slate-700/50 backdrop-blur-sm self-start md:self-auto min-w-[220px]">
             <div className="text-xs text-slate-400 font-bold uppercase tracking-widest font-mono">
-              Aktif Proje Bağlamı
+              {msg("discovery", "activeProject")}
             </div>
             <div className="text-sm font-black text-white font-mono mt-1">
               {getProjectName(currentProjectId)}
             </div>
             <div className="text-[10px] text-slate-400 mt-2 font-mono border-t border-slate-700/50 pt-2">
-              Proje Kimliği: <span className="text-teal-400 font-bold">{currentProjectId}</span>
+              {msg("discovery", "projectId")} <span className="text-teal-400 font-bold">{currentProjectId}</span>
             </div>
           </div>
         </div>
@@ -516,7 +519,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
 
       {/* 2. PERFORMANCE METRICS & ALERTS (SOP RULES) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* KPI Goal Indicator */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
           <div className="space-y-3">
@@ -525,17 +528,17 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                 <TrendingUp className="h-5 w-5" />
               </span>
               <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full font-mono">
-                SOP UYUMLU
+                {msg("discovery", "sopAligned")}
               </span>
             </div>
-            <h3 className="text-lg font-black text-slate-900">30-Günlük KPI Hedefleri</h3>
+            <h3 className="text-lg font-black text-slate-900">{msg("discovery", "30DayKpiTargets")}</h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Ağın verimli kalması için her Scouter, 30 günlük süreçte en az 3 adet nitelikli ithalatçı adayını sisteme kazandırmak zorundadır. **AI tarafından reddedilen (C-Grade) lead'ler KPI havuzuna dahil edilmez.**
+              {msg("discovery", "eachScouterMustRegisterAtLeast3QualifiedBuyer")}
             </p>
           </div>
           <div className="mt-6 border-t border-slate-100 pt-4 flex items-center justify-between text-xs font-semibold">
-            <span className="text-slate-400">Asgari Nitelikli Aday Hızı:</span>
-            <span className="text-slate-800 font-bold font-mono">Min 3 Aday / 30 Gün</span>
+            <span className="text-slate-400">{msg("discovery", "minimumQualifiedLeadTarget")}</span>
+            <span className="text-slate-800 font-bold font-mono">{msg("discovery", "atLeast3Leads30Days")}</span>
           </div>
         </div>
 
@@ -547,17 +550,17 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                 <ShieldAlert className="h-5 w-5" />
               </span>
               <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-mono">
-                KATILIM KURALI
+                {msg("discovery", "participationPolicy")}
               </span>
             </div>
-            <h3 className="text-lg font-black text-slate-900">14-Gün Eylemsizlik Kuralı</h3>
+            <h3 className="text-lg font-black text-slate-900">{msg("discovery", "14DayInactivityPolicy")}</h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              14 gün boyunca sistemde hiçbir veri girişi, aday kaydı veya yazışma güncellemesi yapmayan temsilciler sistemden otomatik olarak askıya alınır.
+              {msg("discovery", "representativesWithNoDataEntryLeadRegistrationOrCorrespondence")}
             </p>
           </div>
           <div className="mt-6 border-t border-slate-100 pt-4 flex items-center justify-between text-xs font-semibold">
-            <span className="text-slate-400">Askıya Alma Eşiği:</span>
-            <span className="text-amber-600 font-bold font-mono">14 GÜN Hareketsizlik</span>
+            <span className="text-slate-400">{msg("discovery", "suspensionThreshold")}</span>
+            <span className="text-amber-600 font-bold font-mono">{msg("discovery", "14DaysOfInactivity")}</span>
           </div>
         </div>
 
@@ -567,39 +570,39 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black uppercase text-slate-700 tracking-wider font-mono flex items-center gap-1.5">
                 <AlertTriangle className="h-4 w-4 text-amber-500 animate-pulse" />
-                Eylemsizlik Uyarısı
+                {msg("discovery", "inactivityWarning")}
               </h3>
               <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full font-mono">
-                KRİTİK DURUM
+                {msg("discovery", "critical")}
               </span>
             </div>
-            
+
             {criticalScouters.length > 0 ? (
               <div className="space-y-3 mt-2">
                 {criticalScouters.map(s => (
                   <div key={s.id} className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs">
                     <div className="flex justify-between font-bold text-slate-800">
                       <span>{s.name}</span>
-                      <span className="text-rose-600 font-mono">{s.lastActivityDays} gün eylemsiz</span>
+                      <span className="text-rose-600 font-mono">{fmt.number(s.lastActivityDays)} {msg("discovery", "daysInactive")}</span>
                     </div>
                     <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
-                      <div 
-                        className="bg-amber-500 h-full rounded-full transition-all" 
+                      <div
+                        className="bg-amber-500 h-full rounded-full transition-all"
                         style={{ width: `${(s.lastActivityDays / 14) * 100}%` }}
                       ></div>
                     </div>
                     <div className="flex justify-end gap-1.5 mt-2.5">
-                      <button 
+                      <button
                         onClick={() => handleActivateScouter(s.id, s.name)}
                         className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-extrabold text-slate-700 uppercase tracking-wider cursor-pointer"
                       >
-                        Sıfırla
+                        {msg("discovery", "reset")}
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleSuspendScouter(s.id, s.name)}
                         className="px-2 py-1 rounded bg-rose-50 hover:bg-rose-100 text-[10px] font-extrabold text-rose-700 uppercase tracking-wider cursor-pointer"
                       >
-                        Askıya Al
+                        {msg("discovery", "suspend")}
                       </button>
                     </div>
                   </div>
@@ -607,7 +610,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
               </div>
             ) : (
               <div className="text-xs text-slate-500 py-4 text-center">
-                Şu an kritik eşiğe yaklaşan eylemsiz scouter bulunmamaktadır.
+                {msg("discovery", "noInactiveScoutersAreCurrentlyApproachingTheCriticalThreshold")}
               </div>
             )}
           </div>
@@ -618,18 +621,18 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
       <div className="space-y-4">
         <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
           <Users className="h-5 w-5 text-navy" />
-          <h3 className="text-lg font-black text-slate-900">Freelance Satış Temsilcileri (Scouter'lar)</h3>
+          <h3 className="text-lg font-black text-slate-900">{msg("discovery", "freelanceSalesRepresentativesScouters")}</h3>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {scouters.map(s => {
-            const isCritical = s.status === "Kritik Eylemsizlik Uyarısı";
-            const isSuspended = s.status === "Askıya Alındı";
-            
+            const isCritical = s.status === "inactivity_warning";
+            const isSuspended = s.status === "suspended";
+
             // Calculate dynamic active leads count and last update days from Firestore synced leads
             const scouterLeads = leads.filter(l => l.assignedScouterId === s.id);
             const activeLeadsCount = scouterLeads.length;
-            
+
             let lastActivityDays = s.lastActivityDays;
             if (scouterLeads.length > 0) {
               const minDays = Math.min(...scouterLeads.map(l => l.lastUpdateDays ?? 0));
@@ -637,10 +640,10 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
             }
 
             return (
-              <div 
-                key={s.id} 
+              <div
+                key={s.id}
                 className={`bg-white rounded-2xl border p-5 shadow-sm space-y-4 relative overflow-hidden transition-all ${
-                  isCritical ? "border-amber-400 bg-amber-50/10" : 
+                  isCritical ? "border-amber-400 bg-amber-50/10" :
                   isSuspended ? "border-slate-200 bg-slate-50/50 opacity-75" : "border-slate-200"
                 }`}
               >
@@ -651,23 +654,23 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                       {s.region}
                     </span>
                   </div>
-                  
+
                   <span className={`text-[9px] font-black px-2 py-0.5 rounded-full font-mono uppercase tracking-wider border ${
                     isCritical ? "bg-amber-50 text-amber-700 border-amber-200" :
                     isSuspended ? "bg-rose-50 text-rose-700 border-rose-100" : "bg-emerald-50 text-emerald-700 border-emerald-100"
                   }`}>
-                    {s.status}
+                    {t.discovery[s.status] || s.status}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs border-y border-slate-100 py-3 font-semibold">
                   <div>
-                    <div className="text-slate-400 text-[10px] uppercase font-mono">Aktif Adaylar (Nitelikli)</div>
-                    <div className="text-slate-850 font-bold text-sm mt-0.5">{activeLeadsCount} Firma</div>
+                    <div className="text-slate-400 text-[10px] uppercase font-mono">{msg("discovery", "activeQualifiedLeads")}</div>
+                    <div className="text-slate-850 font-bold text-sm mt-0.5">{fmt.number(activeLeadsCount)} {activeLeadsCount === 1 ? t.discovery.companySingle : msg("discovery", "companies")}</div>
                   </div>
                   <div>
-                    <div className="text-slate-400 text-[10px] uppercase font-mono">Son Aktivite</div>
-                    <div className="text-slate-850 font-bold text-sm mt-0.5">{lastActivityDays === 0 ? "Bugün" : `${lastActivityDays} gün önce`}</div>
+                    <div className="text-slate-400 text-[10px] uppercase font-mono">{msg("discovery", "lastActivity")}</div>
+                    <div className="text-slate-850 font-bold text-sm mt-0.5">{lastActivityDays === 0 ? msg("discovery", "today") : (lastActivityDays === 1 ? t.discovery.oneDayAgo : msg("discovery", "valueDaysAgo", lastActivityDays))}</div>
                   </div>
                 </div>
 
@@ -676,35 +679,35 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                   className="w-full py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Users className="h-3.5 w-3.5 text-navy" />
-                  Profili İncele
+                  {msg("discovery", "viewProfile")}
                 </button>
 
                 <div className="flex gap-2 justify-end pt-1">
                   {isSuspended ? (
-                    <button 
+                    <button
                       onClick={() => handleActivateScouter(s.id, s.name)}
                       className="w-full py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <UserCheck className="h-3.5 w-3.5" />
-                      Aktifleştir
+                      {msg("discovery", "activate")}
                     </button>
                   ) : (
                     <>
-                      <button 
+                      <button
                         onClick={() => handleWarnScouter(s.id, s.name)}
                         disabled={isCritical}
                         className={`px-3 py-1.5 rounded-lg border text-xs font-extrabold uppercase tracking-wider flex-1 flex items-center justify-center gap-1 cursor-pointer ${
                           isCritical ? "border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed" : "border-amber-200 text-amber-700 hover:bg-amber-50"
                         }`}
                       >
-                        Uyar
+                        {msg("discovery", "warn")}
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleSuspendScouter(s.id, s.name)}
                         className="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-extrabold uppercase tracking-wider flex-1 flex items-center justify-center gap-1 cursor-pointer"
                       >
                         <UserX className="h-3.5 w-3.5" />
-                        Askıya Al
+                        {msg("discovery", "suspend")}
                       </button>
                     </>
                   )}
@@ -717,25 +720,25 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
 
       {/* 4. LEADS PIPELINE SECTION */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        
+
         {/* Table Header Controls */}
         <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50">
           <div className="space-y-1">
             <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
               <Award className="h-5 w-5 text-teal-600" />
-              Keşfedilen Aday İthalatçılar & Distribütörler
+              {msg("discovery", "buyerDistributorLeads")}
             </h3>
             <p className="text-xs text-slate-500">
-              Scouter ağı tarafından sağlanan aktif talepler. <strong>Satırlara tıklayarak 4 Ana Sütun Değerlendirme Analizi'ni inceleyebilirsiniz.</strong>
+              {msg("discovery", "activeOpportunitiesProvidedByTheScouterNetwork")} <strong>{msg("discovery", "selectARowToReviewTheFourAssessmentPillars")}</strong>
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <input 
+              <input
                 type="text"
-                placeholder="Firma, ülke veya yetkili ara..."
+                placeholder={msg("discovery", "searchCompanyCountryOrDecisionMaker")}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 pr-4 py-2 border bg-white rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-navy w-[220px]"
@@ -747,12 +750,8 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-3 py-2 border bg-white rounded-lg text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
             >
-              <option value="Hepsi">Tüm Aşamalar</option>
-              <option value="İlk Temas">İlk Temas</option>
-              <option value="Teklif Aşaması">Teklif Aşaması</option>
-              <option value="Nitelikli Talep">Nitelikli Talep</option>
-              <option value="Görüşülüyor">Görüşülüyor</option>
-              <option value="Reddedildi">Reddedildi (AI)</option>
+              <option value="all">{msg("discovery", "allStages")}</option>
+              {["in_progress","initial_contact","qualified","quotation","negotiating","closed_won","closed_lost","rejected"].map(key => <option key={key} value={key}>{t.discovery[key]}</option>)}
             </select>
 
             {currentUser?.role === "admin" && (
@@ -762,14 +761,14 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                   className="px-4 py-2 bg-navy text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition-all flex items-center gap-2 cursor-pointer shadow-sm"
                 >
                   <Plus className="h-4 w-4" />
-                  Yeni Aday Ekle
+                  {msg("discovery", "addLead")}
                 </button>
                 <button
                   onClick={() => setShowInviteModal(true)}
                   className="px-4 py-2 bg-teal-600 text-white text-xs font-bold rounded-lg hover:bg-teal-700 transition-all flex items-center gap-2 cursor-pointer shadow-sm"
                 >
                   <UserPlus className="h-4 w-4" />
-                  + Yeni Scouter Davet Et
+                  {msg("discovery", "inviteScouter")}
                 </button>
               </div>
             )}
@@ -780,69 +779,69 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
         {showAddForm && (
           <div className="p-6 border-b border-slate-100 bg-slate-50/50 animate-slide-down relative">
 
-            <h4 className="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider font-mono">Yeni İthalatçı Talebi Kaydet</h4>
+            <h4 className="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider font-mono">{msg("discovery", "registerBuyerOpportunity")}</h4>
             <form onSubmit={handleAddLead} className="space-y-6">
-              
+
               {/* 1. Firma Temel Kimlik ve Güvenilirlik Verileri */}
               <div className="bg-slate-100/50 p-4 rounded-xl border border-slate-200/60 space-y-4">
                 <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono border-b border-slate-200 pb-1.5 flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-navy"></span>
-                  1. Firma Temel Kimlik ve Güvenilirlik Verileri
+                  {msg("discovery", "1CompanyIdentityCredibility")}
                 </h5>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-650 mb-1">Şirket Tam Adı *</label>
-                    <input 
-                      type="text" 
-                      value={newCompany} 
+                    <label className="block text-[11px] font-bold text-slate-650 mb-1">{msg("discovery", "fullLegalCompanyName")}</label>
+                    <input
+                      type="text"
+                      value={newCompany}
                       onChange={(e) => setNewCompany(e.target.value)}
-                      placeholder="Resmi ticari unvan (örn. Nordic Lounge Furniture GmbH)"
+                      placeholder={msg("discovery", "registeredCompanyNameEGNordicLoungeFurnitureGmbh")}
                       className="w-full p-2.5 text-xs border bg-white rounded-lg font-medium"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-655 mb-1">Ülke *</label>
-                    <input 
-                      type="text" 
-                      value={newCountry} 
+                    <label className="block text-[11px] font-bold text-slate-655 mb-1">{msg("discovery", "country")}</label>
+                    <input
+                      type="text"
+                      value={newCountry}
                       onChange={(e) => setNewCountry(e.target.value)}
-                      placeholder="örn. Almanya"
+                      placeholder={msg("discovery", "eGGermany")}
                       className="w-full p-2.5 text-xs border bg-white rounded-lg font-medium"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-655 mb-1">Firma Tipi *</label>
+                    <label className="block text-[11px] font-bold text-slate-655 mb-1">{msg("discovery", "companyType")}</label>
                     <select
                       value={newCompanyType}
                       onChange={(e) => setNewCompanyType(e.target.value as any)}
                       className="w-full p-2.5 text-xs border bg-white rounded-lg font-medium cursor-pointer"
                     >
-                      <option value="Distribütör">Distribütör</option>
-                      <option value="İthalatçı">İthalatçı</option>
-                      <option value="Toptancı">Toptancı</option>
-                      <option value="Perakende Zinciri">Perakende Zinciri</option>
-                      <option value="E-Ticaret Satıcısı">E-Ticaret Satıcısı</option>
+                      <option value="distributor">{msg("discovery", "distributor")}</option>
+                      <option value="importer">{msg("discovery", "importer")}</option>
+                      <option value="wholesaler">{msg("discovery", "wholesaler")}</option>
+                      <option value="retail_chain">{msg("discovery", "retailChain")}</option>
+                      <option value="ecommerce_seller">{msg("discovery", "eCommerceSeller")}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-655 mb-1">Web Sitesi</label>
-                    <input 
-                      type="url" 
-                      value={newWebsite} 
+                    <label className="block text-[11px] font-bold text-slate-655 mb-1">{msg("discovery", "website")}</label>
+                    <input
+                      type="url"
+                      value={newWebsite}
                       onChange={(e) => setNewWebsite(e.target.value)}
-                      placeholder="örn. https://sirket.com"
+                      placeholder={msg("discovery", "eGHttpsCompanyCom")}
                       className="w-full p-2.5 text-xs border bg-white rounded-lg font-medium"
                     />
                   </div>
                   <div className="col-span-1 md:col-span-2">
-                    <label className="block text-[11px] font-bold text-slate-655 mb-1">LinkedIn Profili</label>
-                    <input 
-                      type="url" 
-                      value={newLinkedinProfile} 
+                    <label className="block text-[11px] font-bold text-slate-655 mb-1">{msg("discovery", "linkedinProfile")}</label>
+                    <input
+                      type="url"
+                      value={newLinkedinProfile}
                       onChange={(e) => setNewLinkedinProfile(e.target.value)}
-                      placeholder="örn. https://linkedin.com/company/sirket"
+                      placeholder={msg("discovery", "eGHttpsLinkedinComCompanyExample")}
                       className="w-full p-2.5 text-xs border bg-white rounded-lg font-medium"
                     />
                   </div>
@@ -853,49 +852,49 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
               <div className="bg-slate-100/50 p-4 rounded-xl border border-slate-200/60 space-y-4">
                 <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono border-b border-slate-200 pb-1.5 flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-teal-600"></span>
-                  2. Karar Verici Yetkinlik Verileri
+                  {msg("discovery", "2DecisionMakerAuthority")}
                 </h5>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-655 mb-1">Yetkili Adı ve Soyadı *</label>
-                    <input 
-                      type="text" 
-                      value={newDMName} 
+                    <label className="block text-[11px] font-bold text-slate-655 mb-1">{msg("discovery", "decisionMakerFullName")}</label>
+                    <input
+                      type="text"
+                      value={newDMName}
                       onChange={(e) => setNewDMName(e.target.value)}
-                      placeholder="Karar verici kişinin adı soyadı"
+                      placeholder={msg("discovery", "fullNameOfTheDecisionMaker")}
                       className="w-full p-2.5 text-xs border bg-white rounded-lg font-medium"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-655 mb-1">Unvan (Job Title) *</label>
-                    <input 
-                      type="text" 
-                      value={newDMTitle} 
+                    <label className="block text-[11px] font-bold text-slate-655 mb-1">{msg("discovery", "jobTitle")}</label>
+                    <input
+                      type="text"
+                      value={newDMTitle}
                       onChange={(e) => setNewDMTitle(e.target.value)}
-                      placeholder="örn. Satın Alma Müdürü"
+                      placeholder={msg("discovery", "eGPurchasingManager")}
                       className="w-full p-2.5 text-xs border bg-white rounded-lg font-medium"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-655 mb-1">Kurumsal E-Posta Adresi *</label>
-                    <input 
-                      type="email" 
-                      value={newDMEmail} 
+                    <label className="block text-[11px] font-bold text-slate-655 mb-1">{msg("discovery", "businessEmailAddress")}</label>
+                    <input
+                      type="email"
+                      value={newDMEmail}
                       onChange={(e) => setNewDMEmail(e.target.value)}
-                      placeholder="örn. yetkili@sirket.com"
+                      placeholder={msg("discovery", "eGBuyerCompanyCom")}
                       className="w-full p-2.5 text-xs border bg-white rounded-lg font-medium"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-655 mb-1">Direkt Telefon / WhatsApp</label>
-                    <input 
-                      type="text" 
-                      value={newDMPhone} 
+                    <label className="block text-[11px] font-bold text-slate-655 mb-1">{msg("discovery", "directPhoneWhatsapp")}</label>
+                    <input
+                      type="text"
+                      value={newDMPhone}
                       onChange={(e) => setNewDMPhone(e.target.value)}
-                      placeholder="örn. +49 170 123456"
+                      placeholder={msg("discovery", "eG49170123456")}
                       className="w-full p-2.5 text-xs border bg-white rounded-lg font-medium"
                     />
                   </div>
@@ -906,39 +905,39 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
               <div className="bg-slate-100/50 p-4 rounded-xl border border-slate-200/60 space-y-4">
                 <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono border-b border-slate-200 pb-1.5 flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-amber-500"></span>
-                  3. Ürün Spesifikasyonları ve Sektörel Detaylar
+                  {msg("discovery", "3ProductSpecificationsSectorDetails")}
                 </h5>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-655 mb-1">Ürün Kategorisi *</label>
-                    <input 
-                      type="text" 
-                      value={newProductCategory} 
+                    <label className="block text-[11px] font-bold text-slate-655 mb-1">{msg("discovery", "productCategory")}</label>
+                    <input
+                      type="text"
+                      value={newProductCategory}
                       onChange={(e) => setNewProductCategory(e.target.value)}
-                      placeholder="örn. Armut Koltuk / Meyve Suyu"
+                      placeholder={msg("discovery", "eGBeanbagChairsFruitJuice")}
                       className="w-full p-2.5 text-xs border bg-white rounded-lg font-medium"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-655 mb-1">Talep Aciliyeti *</label>
+                    <label className="block text-[11px] font-bold text-slate-655 mb-1">{msg("discovery", "purchaseTimeframe")}</label>
                     <select
                       value={newUrgency}
                       onChange={(e) => setNewUrgency(e.target.value as any)}
                       className="w-full p-2.5 text-xs border bg-white rounded-lg font-medium cursor-pointer"
                     >
-                      <option value="Hemen">Hemen</option>
-                      <option value="1-3 Ay İçinde">1-3 Ay İçinde</option>
-                      <option value="1 yıl">1 yıl</option>
-                      <option value="1 yıldan uzun">1 yıldan uzun</option>
+                      <option value="immediate">{msg("discovery", "immediately")}</option>
+                      <option value="within_1_3_months">{msg("discovery", "within13Months")}</option>
+                      <option value="within_1_year">{msg("discovery", "within1Year")}</option>
+                      <option value="over_1_year">{msg("discovery", "moreThan1Year")}</option>
                     </select>
                   </div>
                   <div className="col-span-1 md:col-span-3">
-                    <label className="block text-[11px] font-bold text-slate-655 mb-1">Teknik Beklentiler ve Sertifikasyonlar</label>
-                    <textarea 
-                      value={newTechnicalSpecs} 
+                    <label className="block text-[11px] font-bold text-slate-655 mb-1">{msg("discovery", "technicalRequirementsCertifications")}</label>
+                    <textarea
+                      value={newTechnicalSpecs}
                       onChange={(e) => setNewTechnicalSpecs(e.target.value)}
-                      placeholder="örn. REACH standartlarına uyum, EPS dolgu sertifikası, alev almazlık vb."
+                      placeholder={msg("discovery", "eGReachComplianceEpsFillingCertificationFireResistance")}
                       className="w-full p-2.5 text-xs border bg-white rounded-lg font-medium h-20 font-sans"
                     />
                   </div>
@@ -949,51 +948,51 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
               <div className="bg-slate-100/50 p-4 rounded-xl border border-slate-200/60 space-y-4">
                 <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono border-b border-slate-200 pb-1.5 flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-rose-500"></span>
-                  4. Operasyonel ve Finansal Beklentiler
+                  {msg("discovery", "4OperationalFinancialRequirements")}
                 </h5>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-655 mb-1">Tahmini Alım Hacmi</label>
-                    <input 
-                      type="text" 
-                      value={newEstimatedVolume} 
+                    <label className="block text-[11px] font-bold text-slate-655 mb-1">{msg("discovery", "estimatedPurchasingVolume")}</label>
+                    <input
+                      type="text"
+                      value={newEstimatedVolume}
                       onChange={(e) => setNewEstimatedVolume(e.target.value)}
-                      placeholder="örn. Aylık 2 x 40HQ Konteyner"
+                      placeholder={msg("discovery", "eG240hqContainersPerMonth")}
                       className="w-full p-2.5 text-xs border bg-white rounded-lg font-medium"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-655 mb-1">Hedef Fiyat (Target Price)</label>
-                    <input 
-                      type="text" 
-                      value={newTargetPrice} 
+                    <label className="block text-[11px] font-bold text-slate-655 mb-1">{msg("discovery", "targetPrice")}</label>
+                    <input
+                      type="text"
+                      value={newTargetPrice}
                       onChange={(e) => setNewTargetPrice(e.target.value)}
-                      placeholder="örn. $22.50 / FOB İzmir"
+                      placeholder={msg("discovery", "eGUsd2250FobIzmir")}
                       className="w-full p-2.5 text-xs border bg-white rounded-lg font-medium"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-655 mb-1">Ödeme Şartı Beklentisi</label>
-                    <input 
-                      type="text" 
-                      value={newPaymentTerms} 
+                    <label className="block text-[11px] font-bold text-slate-655 mb-1">{msg("discovery", "expectedPaymentTerms")}</label>
+                    <input
+                      type="text"
+                      value={newPaymentTerms}
                       onChange={(e) => setNewPaymentTerms(e.target.value)}
-                      placeholder="örn. %30 Peşin, %70 BL T/T"
+                      placeholder={msg("discovery", "eG30Advance70AgainstBLBy")}
                       className="w-full p-2.5 text-xs border bg-white rounded-lg font-medium"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-655 mb-1">HS Code</label>
-                    <input 
-                      type="text" 
-                      value={newHsCode} 
+                    <label className="block text-[11px] font-bold text-slate-655 mb-1">{msg("discovery", "hsCode")}</label>
+                    <input
+                      type="text"
+                      value={newHsCode}
                       onChange={(e) => setNewHsCode(e.target.value)}
-                      placeholder="örn. 9404.90.90"
+                      placeholder={msg("discovery", "eG94049090")}
                       className="w-full p-2.5 text-xs border bg-white rounded-lg font-medium"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-655 mb-1">Teslimat Şekli</label>
+                    <label className="block text-[11px] font-bold text-slate-655 mb-1">{msg("discovery", "incoterm")}</label>
                     <select
                       value={newDeliveryTerm}
                       onChange={(e) => setNewDeliveryTerm(e.target.value)}
@@ -1005,7 +1004,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                       <option value="DDP">DDP</option>
                       <option value="CFR">CFR</option>
                       <option value="FCA">FCA</option>
-                      <option value="Diğer">Diğer</option>
+                      <option value={msg("discovery", "other")}>{msg("discovery", "other")}</option>
                     </select>
                   </div>
                 </div>
@@ -1014,24 +1013,24 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
               {/* Sorumlu Scouter ve Notlar */}
               <div className="bg-slate-100/50 p-4 rounded-xl border border-slate-200/60 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-655 mb-1">Sorumlu Scouter</label>
+                  <label className="block text-[11px] font-bold text-slate-655 mb-1">{msg("discovery", "assignedScouter")}</label>
                   <select
                     value={newScouterId}
                     onChange={(e) => setNewScouterId(e.target.value)}
                     className="w-full p-2.5 text-xs border bg-white rounded-lg font-medium cursor-pointer"
                   >
-                    {scouters.filter(s => s.status !== "Askıya Alındı").map(s => (
+                    {scouters.filter(s => s.status !== "suspended").map(s => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
                 </div>
                 <div className="col-span-1 md:col-span-2">
-                  <label className="block text-[11px] font-bold text-slate-655 mb-1">Talep Detayları ve Notlar</label>
-                  <input 
-                    type="text" 
-                    value={newNotes} 
+                  <label className="block text-[11px] font-bold text-slate-655 mb-1">{msg("discovery", "opportunityDetailsNotes")}</label>
+                  <input
+                    type="text"
+                    value={newNotes}
                     onChange={(e) => setNewNotes(e.target.value)}
-                    placeholder="Ek Notlar (Örn: Lüks mobilya segmenti odaklı, sertifika talepleri var vb.)"
+                    placeholder={msg("discovery", "additionalNotesEGPremiumFurnitureSegmentRequiredCertifications")}
                     className="w-full p-2.5 text-xs border bg-white rounded-lg font-medium"
                   />
                 </div>
@@ -1047,13 +1046,13 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                     onClick={() => setShowAddForm(false)}
                     className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
                   >
-                    Kapat
+                    {msg("discovery", "close")}
                   </button>
                   <button
                     type="submit"
                     className="px-5 py-2 bg-teal-600 text-white text-xs font-bold rounded-lg hover:bg-teal-700 transition-all cursor-pointer animate-pulse"
                   >
-                    Talebi Analiz Et ve Kaydet
+                    {msg("discovery", "assessAndSaveLead")}
                   </button>
                 </div>
               </div>
@@ -1067,30 +1066,30 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
           {loadingLeads ? (
             <div className="p-12 text-center text-slate-550 flex flex-col items-center justify-center gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-navy" />
-              <span className="text-xs font-mono font-bold uppercase tracking-wider">Aday Veri Tabanı Senkronize Ediliyor...</span>
+              <span className="text-xs font-mono font-bold uppercase tracking-wider">{msg("discovery", "synchronisingLeadRecords")}</span>
             </div>
           ) : filteredLeads.length > 0 ? (
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider font-mono text-[9px]">
                   <th className="py-4 px-6 w-8"></th>
-                  <th className="py-4 px-6">Şirket Adı</th>
-                  <th className="py-4 px-6">Ülke</th>
-                  <th className="py-4 px-6">Karar Verici</th>
-                  <th className="py-4 px-6">Sorumlu Scouter</th>
-                  <th className="py-4 px-6">Yapay Zeka Skoru</th>
-                  <th className="py-4 px-6">Süreç Aşaması</th>
-                  <th className="py-4 px-6 text-right">Son Güncelleme</th>
+                  <th className="py-4 px-6">{msg("discovery", "companyName")}</th>
+                  <th className="py-4 px-6">{msg("discovery", "country2")}</th>
+                  <th className="py-4 px-6">{msg("discovery", "decisionMaker")}</th>
+                  <th className="py-4 px-6">{msg("discovery", "assignedScouter")}</th>
+                  <th className="py-4 px-6">{msg("discovery", "aiScore")}</th>
+                  <th className="py-4 px-6">{msg("discovery", "processStage")}</th>
+                  <th className="py-4 px-6 text-right">{msg("discovery", "lastUpdated")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-150/40 text-xs">
                 {filteredLeads.map(lead => {
                   const scouterName = scouters.find(s => s.id === lead.assignedScouterId)?.name || "Bilinmiyor";
                   const isExpanded = expandedLeadId === lead.id;
-                  
+
                   return (
                     <React.Fragment key={lead.id}>
-                      <tr 
+                      <tr
                         onClick={() => toggleRow(lead.id)}
                         className="hover:bg-slate-50/50 transition-colors cursor-pointer"
                       >
@@ -1121,11 +1120,11 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                                 lead.grade === "B-Grade" ? "bg-amber-50 text-amber-700 border-amber-100" :
                                 "bg-rose-50 text-rose-700 border-rose-100"
                               }`}>
-                                {lead.score} / 100 ({lead.grade})
+                                {fmt.number(lead.score)} / 100 ({lead.grade})
                               </span>
                             </div>
                           ) : (
-                            <span className="text-slate-400 font-mono text-[10px]">ANALİZ EDİLMEDİ</span>
+                            <span className="text-slate-400 font-mono text-[10px]">{msg("discovery", "notAssessed")}</span>
                           )}
                         </td>
                         <td className="py-4 px-6">
@@ -1148,18 +1147,18 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                             </span>
                           ) : (
                             <span className={`text-[10px] font-black px-2.5 py-1 rounded-full font-mono uppercase tracking-wider border ${
-                              lead.status === "Teklif Aşaması" ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
-                              lead.status === "Görüşülüyor" ? "bg-blue-50 text-blue-700 border-blue-100" :
-                              lead.status === "Nitelikli Talep" ? "bg-teal-50 text-teal-700 border-teal-100" :
-                              lead.status === "Reddedildi" ? "bg-rose-50 text-rose-700 border-rose-100 animate-pulse" :
+                              lead.status === "quotation" ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
+                              lead.status === "negotiating" ? "bg-blue-50 text-blue-700 border-blue-100" :
+                              lead.status === "qualified" ? "bg-teal-50 text-teal-700 border-teal-100" :
+                              lead.status === "rejected" ? "bg-rose-50 text-rose-700 border-rose-100 animate-pulse" :
                               "bg-slate-50 text-slate-700 border-slate-100"
                             }`}>
-                              {lead.status}
+                              {t.discovery[lead.status] || lead.status}
                             </span>
                           )}
                         </td>
                         <td className="py-4 px-6 text-right font-mono text-[10px] text-slate-400 font-semibold">
-                          {lead.lastUpdateDays === 0 ? "Bugün" : `${lead.lastUpdateDays} gün önce`}
+                          {lead.lastUpdateDays === 0 ? msg("discovery", "today") : (lead.lastUpdateDays === 1 ? t.discovery.oneDayAgo : msg("discovery", "valueDaysAgo", lead.lastUpdateDays))}
                         </td>
                       </tr>
 
@@ -1168,55 +1167,55 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                         <tr className="bg-slate-50/70">
                           <td colSpan={8} className="py-5 px-8 border-t border-b border-slate-200/50">
                             <div className="space-y-6 animate-fade-in">
-                              
+
                               {/* 4 Sections of Detailed Lead Data */}
                               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                
+
                                 {/* 1. Firma Temel Kimlik ve Güvenilirlik Verileri */}
                                 <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-xs space-y-3">
                                   <div className="text-[10px] font-bold uppercase tracking-wider text-slate-450 font-mono border-b border-slate-100 pb-1 flex items-center gap-1.5">
                                     <span className="h-2 w-2 rounded-full bg-navy"></span>
-                                    1. Firma Kimlik & Güvenilirlik
+                                    {msg("discovery", "1CompanyIdentityCredibility2")}
                                   </div>
                                   <div className="space-y-2 text-xs">
                                     <div>
-                                      <span className="text-slate-400 text-[10px] block font-semibold">Resmi Ünvan:</span>
+                                      <span className="text-slate-400 text-[10px] block font-semibold">{msg("discovery", "legalCompanyName")}</span>
                                       <span className="font-bold text-slate-800">{lead.companyName}</span>
                                     </div>
                                     <div>
-                                      <span className="text-slate-400 text-[10px] block font-semibold">Ülke:</span>
+                                      <span className="text-slate-400 text-[10px] block font-semibold">{msg("discovery", "country3")}</span>
                                       <span className="font-bold text-slate-800">{lead.country}</span>
                                     </div>
                                     <div>
-                                      <span className="text-slate-400 text-[10px] block font-semibold">Firma Tipi:</span>
+                                      <span className="text-slate-400 text-[10px] block font-semibold">{msg("discovery", "companyType2")}</span>
                                       <span className="inline-block bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold mt-0.5">
-                                        {lead.companyType || "Distribütör"}
+                                        {t.discovery[companyTypeKey(lead.companyType) || ""] || lead.companyType || t.discovery.distributor}
                                       </span>
                                     </div>
                                     <div className="flex flex-col gap-1.5 pt-1.5 border-t border-slate-100">
                                       {lead.website ? (
-                                        <a 
-                                          href={lead.website} 
-                                          target="_blank" 
+                                        <a
+                                          href={lead.website}
+                                          target="_blank"
                                           rel="noreferrer"
                                           className="text-teal-650 hover:text-teal-700 font-bold hover:underline flex items-center gap-1 text-[10px]"
                                         >
-                                          🌐 Web Sitesi
+                                          {msg("discovery", "website2")}
                                         </a>
                                       ) : (
-                                        <span className="text-slate-400 italic text-[10px]">🌐 Web adresi yok</span>
+                                        <span className="text-slate-400 italic text-[10px]">{msg("discovery", "noWebsite")}</span>
                                       )}
                                       {lead.linkedinProfile ? (
-                                        <a 
-                                          href={lead.linkedinProfile} 
-                                          target="_blank" 
+                                        <a
+                                          href={lead.linkedinProfile}
+                                          target="_blank"
                                           rel="noreferrer"
                                           className="text-blue-650 hover:text-blue-700 font-bold hover:underline flex items-center gap-1 text-[10px]"
                                         >
-                                          🔗 LinkedIn Profili
+                                          {msg("discovery", "linkedinProfile2")}
                                         </a>
                                       ) : (
-                                        <span className="text-slate-400 italic text-[10px]">🔗 LinkedIn yok</span>
+                                        <span className="text-slate-400 italic text-[10px]">{msg("discovery", "noLinkedinProfile")}</span>
                                       )}
                                     </div>
                                   </div>
@@ -1226,31 +1225,31 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                                 <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-xs space-y-3">
                                   <div className="text-[10px] font-bold uppercase tracking-wider text-slate-450 font-mono border-b border-slate-100 pb-1 flex items-center gap-1.5">
                                     <span className="h-2 w-2 rounded-full bg-teal-600"></span>
-                                    2. Karar Verici Yetkisi
+                                    {msg("discovery", "2DecisionMakerAuthority2")}
                                   </div>
                                   <div className="space-y-2 text-xs">
                                     <div>
-                                      <span className="text-slate-400 text-[10px] block font-semibold">Yetkili Adı Soyadı:</span>
+                                      <span className="text-slate-400 text-[10px] block font-semibold">{msg("discovery", "decisionMakerName")}</span>
                                       <span className="font-bold text-slate-800">{lead.decisionMakerName}</span>
                                     </div>
                                     <div>
-                                      <span className="text-slate-400 text-[10px] block font-semibold">Unvan (Job Title):</span>
+                                      <span className="text-slate-400 text-[10px] block font-semibold">{msg("discovery", "jobTitle2")}</span>
                                       <span className="font-bold text-slate-800">{lead.decisionMakerTitle}</span>
                                     </div>
                                     <div>
-                                      <span className="text-slate-400 text-[10px] block font-semibold">Kurumsal E-Posta:</span>
+                                      <span className="text-slate-400 text-[10px] block font-semibold">{msg("discovery", "businessEmail")}</span>
                                       {lead.decisionMakerEmail ? (
                                         <a href={`mailto:${lead.decisionMakerEmail}`} className="text-teal-650 hover:underline font-bold block truncate">
                                           {lead.decisionMakerEmail}
                                         </a>
                                       ) : (
-                                        <span className="font-semibold text-slate-700 block truncate">{lead.contactInfo.split(" | ")[0] || "Belirtilmedi"}</span>
+                                        <span className="font-semibold text-slate-700 block truncate">{lead.contactInfo.split(" | ")[0] || msg("discovery", "notSpecified2")}</span>
                                       )}
                                     </div>
                                     <div>
-                                      <span className="text-slate-400 text-[10px] block font-semibold">Direkt Tel / WhatsApp:</span>
+                                      <span className="text-slate-400 text-[10px] block font-semibold">{msg("discovery", "directPhoneWhatsapp2")}</span>
                                       <span className="font-bold text-slate-800 font-mono text-[11px]">
-                                        {lead.decisionMakerPhone || lead.contactInfo.split(" | ")[1] || "Belirtilmedi"}
+                                        {lead.decisionMakerPhone || lead.contactInfo.split(" | ")[1] || msg("discovery", "notSpecified2")}
                                       </span>
                                     </div>
                                   </div>
@@ -1260,27 +1259,27 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                                 <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-xs space-y-3">
                                   <div className="text-[10px] font-bold uppercase tracking-wider text-slate-450 font-mono border-b border-slate-100 pb-1 flex items-center gap-1.5">
                                     <span className="h-2 w-2 rounded-full bg-amber-500"></span>
-                                    3. Ürün & Sektörel Detaylar
+                                    {msg("discovery", "3ProductSectorDetails")}
                                   </div>
                                   <div className="space-y-2 text-xs">
                                     <div>
-                                      <span className="text-slate-400 text-[10px] block font-semibold">Ürün Kategorisi:</span>
-                                      <span className="font-bold text-slate-800">{lead.productCategory || "Belirtilmedi"}</span>
+                                      <span className="text-slate-400 text-[10px] block font-semibold">{msg("discovery", "productCategory2")}</span>
+                                      <span className="font-bold text-slate-800">{lead.productCategory || msg("discovery", "notSpecified2")}</span>
                                     </div>
                                     <div>
-                                      <span className="text-slate-400 text-[10px] block font-semibold">Talep Aciliyeti:</span>
+                                      <span className="text-slate-400 text-[10px] block font-semibold">{msg("discovery", "purchaseTimeframe2")}</span>
                                       <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mt-0.5 ${
-                                        lead.urgency === "Hemen" ? "bg-rose-50 text-rose-700 border border-rose-100" :
-                                        lead.urgency === "1-3 Ay İçinde" ? "bg-amber-50 text-amber-700 border border-amber-100" :
+                                        lead.urgency === "immediate" ? "bg-rose-50 text-rose-700 border border-rose-100" :
+                                        lead.urgency === "within_1_3_months" ? "bg-amber-50 text-amber-700 border border-amber-100" :
                                         "bg-slate-100 text-slate-600"
                                       }`}>
-                                        {lead.urgency || "1-3 Ay İçinde"}
+                                        {t.discovery[urgencyKey(lead.urgency) || ""] || lead.urgency || t.discovery.within_1_3_months}
                                       </span>
                                     </div>
                                     <div>
-                                      <span className="text-slate-400 text-[10px] block font-semibold">Teknik Beklentiler & Sertifikalar:</span>
+                                      <span className="text-slate-400 text-[10px] block font-semibold">{msg("discovery", "technicalRequirementsCertifications2")}</span>
                                       <p className="text-[11px] text-slate-600 leading-normal max-h-[60px] overflow-y-auto font-sans mt-0.5">
-                                        {lead.technicalSpecs || "Belirtilmemiş."}
+                                        {lead.technicalSpecs || msg("discovery", "notSpecified")}
                                       </p>
                                     </div>
                                   </div>
@@ -1290,37 +1289,37 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                                 <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-xs space-y-3">
                                   <div className="text-[10px] font-bold uppercase tracking-wider text-slate-450 font-mono border-b border-slate-100 pb-1 flex items-center gap-1.5">
                                     <span className="h-2 w-2 rounded-full bg-rose-500"></span>
-                                    4. Finansal & Operasyonel
+                                    {msg("discovery", "4FinancialOperationalDetails")}
                                   </div>
                                   <div className="space-y-1.5 text-xs">
                                     <div className="grid grid-cols-2 gap-1.5">
                                       <div>
-                                        <span className="text-slate-400 text-[10px] block font-semibold">Alım Hacmi:</span>
+                                        <span className="text-slate-400 text-[10px] block font-semibold">{msg("discovery", "purchasingVolume")}</span>
                                         <span className="font-bold text-slate-800 text-[11px] block truncate" title={lead.estimatedVolume}>
-                                          {lead.estimatedVolume || "Belirtilmedi"}
+                                          {lead.estimatedVolume || msg("discovery", "notSpecified2")}
                                         </span>
                                       </div>
                                       <div>
-                                        <span className="text-slate-400 text-[10px] block font-semibold">Hedef Fiyat:</span>
+                                        <span className="text-slate-400 text-[10px] block font-semibold">{msg("discovery", "targetPrice2")}</span>
                                         <span className="font-bold text-slate-850 text-[11px] block truncate" title={lead.targetPrice}>
-                                          {lead.targetPrice || "Belirtilmedi"}
+                                          {lead.targetPrice || msg("discovery", "notSpecified2")}
                                         </span>
                                       </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-1.5 border-t border-slate-100 pt-1.5">
                                       <div>
-                                        <span className="text-slate-400 text-[10px] block font-semibold">Teslimat Şekli:</span>
+                                        <span className="text-slate-400 text-[10px] block font-semibold">{msg("discovery", "incoterm2")}</span>
                                         <span className="font-bold text-teal-700 text-[11px] block">{lead.deliveryTerm || "FOB"}</span>
                                       </div>
                                       <div>
-                                        <span className="text-slate-400 text-[10px] block font-semibold">HS Code:</span>
-                                        <span className="font-bold text-slate-700 text-[11px] block font-mono">{lead.hsCode || "Belirtilmedi"}</span>
+                                        <span className="text-slate-400 text-[10px] block font-semibold">{msg("discovery", "hsCode2")}</span>
+                                        <span className="font-bold text-slate-700 text-[11px] block font-mono">{lead.hsCode || msg("discovery", "notSpecified2")}</span>
                                       </div>
                                     </div>
                                     <div className="border-t border-slate-100 pt-1.5">
-                                      <span className="text-slate-400 text-[10px] block font-semibold">Ödeme Beklentisi:</span>
+                                      <span className="text-slate-400 text-[10px] block font-semibold">{msg("discovery", "expectedPaymentTerms2")}</span>
                                       <span className="font-bold text-slate-800 block text-[11px] truncate" title={lead.paymentTerms}>
-                                        {lead.paymentTerms || "Belirtilmedi"}
+                                        {lead.paymentTerms || msg("discovery", "notSpecified2")}
                                       </span>
                                     </div>
                                   </div>
@@ -1329,11 +1328,11 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                               </div>
 
                               <div className="space-y-2 w-full">
-                                <h5 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono">Scouter Ek Notları & İletişim</h5>
+                                <h5 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono">{msg("discovery", "scouterNotesContactDetails")}</h5>
                                 <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-xs text-xs text-slate-655 leading-relaxed font-sans min-h-[120px] flex flex-col justify-between">
                                   <p className="italic">"{lead.demandNotes}"</p>
                                   <div className="text-[10px] text-slate-400 font-mono mt-3 border-t border-slate-100 pt-2">
-                                    Orijinal Kontak Verisi: {lead.contactInfo}
+                                    {msg("discovery", "originalContactDetails")} {lead.contactInfo}
                                   </div>
                                 </div>
                               </div>
@@ -1349,7 +1348,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
           ) : (
             <div className="p-12 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
               <Users className="h-8 w-8 text-slate-300" />
-              <span>Seçilen proje veya filtre ile eşleşen aday kaydı bulunmamaktadır.</span>
+              <span>{msg("discovery", "noLeadsMatchTheSelectedProjectOrFilter")}</span>
             </div>
           )}
         </div>
@@ -1360,18 +1359,18 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider font-mono flex items-center gap-1.5">
             <Clock className="h-4 w-4 text-navy" />
-            Saha Operasyon Günlüğü
+            {msg("discovery", "fieldOperationsActivityLog")}
           </h4>
           <span className="text-[10px] font-bold text-slate-400 font-mono tracking-widest uppercase">
-            Canlı İzleme Aktif
+            {msg("discovery", "liveMonitoring")}
           </span>
         </div>
-        
+
         <div className="bg-slate-900 rounded-xl p-4 font-mono text-[11px] text-slate-300 space-y-2 border border-slate-850">
           {actionLogs.map((log, i) => (
             <div key={i} className="flex gap-2">
               <span className="text-teal-400 font-bold">&gt;&gt;</span>
-              <span>{log}</span>
+              <span>[{fmt.dateTime(log.at)}] {msg("discovery", log.key, ...log.values)}</span>
             </div>
           ))}
         </div>
@@ -1381,12 +1380,12 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
       {selectedScouterForDetail && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
           <div className="relative w-full max-w-xl bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl text-white space-y-6">
-            
+
             {/* Modal Header */}
             <div className="flex justify-between items-start border-b border-slate-800 pb-4">
               <div className="space-y-1">
                 <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-teal-500/10 border border-teal-500/25 text-teal-400 text-[10px] font-bold font-mono tracking-wider uppercase">
-                  Saha Satış Temsilcisi Profili
+                  {msg("discovery", "fieldSalesRepresentativeProfile")}
                 </div>
                 <h3 className="text-lg font-black text-white font-display">
                   {selectedScouterForDetail.name}
@@ -1396,64 +1395,64 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                 onClick={() => setSelectedScouterForDetail(null)}
                 className="text-slate-400 hover:text-white transition cursor-pointer text-sm font-bold bg-slate-850 px-2.5 py-1 rounded-lg border border-slate-800"
               >
-                ✕ Kapat
+                {msg("discovery", "close2")}
               </button>
             </div>
 
             {/* Modal Content - Read-only Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              
+
               {/* Firma / Şahıs Adı */}
               <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Firma veya Şahıs Adı</span>
-                <p className="font-bold text-white text-sm">{selectedScouterForDetail.companyName || "Belirtilmedi"}</p>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">{msg("discovery", "companyOrIndividualName")}</span>
+                <p className="font-bold text-white text-sm">{selectedScouterForDetail.companyName || msg("discovery", "notSpecified2")}</p>
               </div>
 
               {/* İletişim Kurulacak Yetkili */}
               <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">İletişim Kurulacak Yetkili</span>
-                <p className="font-bold text-white text-sm">{selectedScouterForDetail.contactPerson || "Belirtilmedi"}</p>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">{msg("discovery", "contactPerson")}</span>
+                <p className="font-bold text-white text-sm">{selectedScouterForDetail.contactPerson || msg("discovery", "notSpecified2")}</p>
               </div>
 
               {/* Unvan */}
               <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Unvan (Title)</span>
-                <p className="font-bold text-white text-sm">{selectedScouterForDetail.title || "Belirtilmedi"}</p>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">{msg("discovery", "jobTitle3")}</span>
+                <p className="font-bold text-white text-sm">{selectedScouterForDetail.title || msg("discovery", "notSpecified2")}</p>
               </div>
 
               {/* Bölge */}
               <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Bölge</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">{msg("discovery", "region")}</span>
                 <p className="font-bold text-white text-sm">{selectedScouterForDetail.region || "Küresel (Test Ağı)"}</p>
               </div>
 
               {/* Ana E-posta */}
               <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl space-y-1 col-span-1 md:col-span-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Ana E-posta</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">{msg("discovery", "primaryEmail")}</span>
                 <p className="font-bold text-teal-400 text-sm font-mono">{selectedScouterForDetail.email}</p>
               </div>
 
               {/* İkincil E-posta */}
               <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">İkincil E-posta</span>
-                <p className="font-bold text-white text-sm font-mono">{selectedScouterForDetail.secondaryEmail || "Belirtilmedi"}</p>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">{msg("discovery", "secondaryEmail")}</span>
+                <p className="font-bold text-white text-sm font-mono">{selectedScouterForDetail.secondaryEmail || msg("discovery", "notSpecified2")}</p>
               </div>
 
               {/* İş Telefonu */}
               <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">İş Telefonu</span>
-                <p className="font-bold text-white text-sm font-mono">{selectedScouterForDetail.workPhone || "Belirtilmedi"}</p>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">{msg("discovery", "workPhone")}</span>
+                <p className="font-bold text-white text-sm font-mono">{selectedScouterForDetail.workPhone || msg("discovery", "notSpecified2")}</p>
               </div>
 
               {/* Cep Telefonu */}
               <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Cep Telefonu</span>
-                <p className="font-bold text-white text-sm font-mono">{selectedScouterForDetail.cellPhone || "Belirtilmedi"}</p>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">{msg("discovery", "mobilePhone")}</span>
+                <p className="font-bold text-white text-sm font-mono">{selectedScouterForDetail.cellPhone || msg("discovery", "notSpecified2")}</p>
               </div>
 
               {/* Web Sitesi */}
               <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Web Sitesi</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">{msg("discovery", "website")}</span>
                 {selectedScouterForDetail.website ? (
                   <a
                     href={selectedScouterForDetail.website}
@@ -1464,34 +1463,34 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                     {selectedScouterForDetail.website}
                   </a>
                 ) : (
-                  <p className="font-bold text-white text-sm">Belirtilmedi</p>
+                  <p className="font-bold text-white text-sm">{msg("discovery", "notSpecified2")}</p>
                 )}
               </div>
 
               {/* Durum / Kayıt Durumu */}
               <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl space-y-1 col-span-1 md:col-span-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Kayıt Durumu</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">{msg("discovery", "registrationStatus")}</span>
                 <div className="flex items-center gap-2 mt-1">
                   <span className={`text-[10px] font-black px-2 py-0.5 rounded-full font-mono uppercase tracking-wider border ${
-                    selectedScouterForDetail.onboardingCompleted 
-                      ? "bg-emerald-950/40 text-emerald-400 border-emerald-900" 
+                    selectedScouterForDetail.onboardingCompleted
+                      ? "bg-emerald-950/40 text-emerald-400 border-emerald-900"
                       : "bg-amber-950/40 text-amber-400 border-amber-900"
                   }`}>
-                    {selectedScouterForDetail.onboardingCompleted ? "Profil Tamamlandı (Aktif)" : "İlk Kayıt Bekleniyor"}
+                    {selectedScouterForDetail.onboardingCompleted ? msg("discovery", "profileCompleteActive") : msg("discovery", "initialRegistrationPending")}
                   </span>
                   <span className={`text-[10px] font-black px-2 py-0.5 rounded-full font-mono uppercase tracking-wider border ${
-                    selectedScouterForDetail.status === "Aktif" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
-                    selectedScouterForDetail.status === "Askıya Alındı" ? "bg-rose-500/10 text-rose-400 border-rose-500/20" :
+                    selectedScouterForDetail.status === "active" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                    selectedScouterForDetail.status === "suspended" ? "bg-rose-500/10 text-rose-400 border-rose-500/20" :
                     "bg-amber-500/10 text-amber-400 border-amber-500/20"
                   }`}>
-                    Sistem Durumu: {selectedScouterForDetail.status}
+                    {msg("discovery", "accountStatus")} {t.discovery[selectedScouterForDetail.status] || selectedScouterForDetail.status}
                   </span>
                 </div>
               </div>
 
               {/* Proje Atama Menüsü */}
               <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl space-y-2 col-span-1 md:col-span-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono block">Atanmış Projeler</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono block">{msg("discovery", "assignedProjects")}</span>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {selectedScouterForDetail.assignedProjects && selectedScouterForDetail.assignedProjects.length > 0 ? (
                     selectedScouterForDetail.assignedProjects.map(pId => (
@@ -1512,9 +1511,9 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                                   });
                                 }
                               }
-                              
+
                               setSelectedScouterForDetail(prev => prev ? { ...prev, assignedProjects: updated } : null);
-                              addLog(`Scouter ${selectedScouterForDetail.name} için proje '${pId}' ataması kaldırıldı.`);
+                              addLog("projectValueUnassignedFromScouterValue", selectedScouterForDetail.name, pId);
                             } catch (err) {
                               console.error("Failed to remove project assignment:", err);
                             }
@@ -1526,18 +1525,18 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                       </span>
                     ))
                   ) : (
-                    <span className="text-slate-500 text-xs italic">Henüz atanmış bir proje yok.</span>
+                    <span className="text-slate-500 text-xs italic">{msg("discovery", "noProjectsAssignedYet")}</span>
                   )}
                 </div>
 
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono block">Projeye Ata</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono block">{msg("discovery", "assignToProject")}</span>
                 <div className="flex gap-2">
                   <select
                     value={selectedProjectToAssign}
                     onChange={(e) => setSelectedProjectToAssign(e.target.value)}
                     className="flex-1 bg-slate-900 border border-slate-850 text-xs text-slate-200 py-2 px-3 rounded-xl focus:outline-none focus:border-teal-500 cursor-pointer font-bold font-mono"
                   >
-                    <option value="">Proje Seçin</option>
+                    <option value="">{msg("discovery", "selectProject")}</option>
                     {projects
                       .filter(p => !selectedScouterForDetail.assignedProjects?.includes(p.id))
                       .map(p => (
@@ -1560,9 +1559,9 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                             });
                           }
                         }
-                        
+
                         setSelectedScouterForDetail(prev => prev ? { ...prev, assignedProjects: updated } : null);
-                        addLog(`Scouter ${selectedScouterForDetail.name} için '${selectedProjectToAssign}' projesi atandı.`);
+                        addLog("projectValueAssignedToScouterValue", selectedScouterForDetail.name, selectedProjectToAssign);
                         setSelectedProjectToAssign("");
                       } catch (err) {
                         console.error("Failed to assign project:", err);
@@ -1570,7 +1569,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                     }}
                     className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-slate-955 text-xs font-bold rounded-xl transition cursor-pointer"
                   >
-                    Ata
+                    {msg("discovery", "assign")}
                   </button>
                 </div>
               </div>
@@ -1583,7 +1582,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                 onClick={() => setSelectedScouterForDetail(null)}
                 className="px-5 py-2 bg-slate-850 hover:bg-slate-800 text-xs font-bold rounded-xl transition border border-slate-800 cursor-pointer text-white"
               >
-                Kapat
+                {msg("discovery", "close")}
               </button>
             </div>
 
@@ -1595,15 +1594,15 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
       {showInviteModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
           <div className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl text-white space-y-6">
-            
+
             {/* Modal Header */}
             <div className="flex justify-between items-start border-b border-slate-800 pb-4">
               <div className="space-y-1">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-teal-500/10 border border-teal-500/25 text-teal-400 text-[10px] font-bold font-mono tracking-wider uppercase">
-                  Davet Sistemi
+                  {msg("discovery", "invitationManagement")}
                 </div>
                 <h3 className="text-lg font-black text-white font-display">
-                  Yeni Scouter Davet Et
+                  {msg("discovery", "inviteScouter2")}
                 </h3>
               </div>
               <button
@@ -1613,7 +1612,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                 }}
                 className="text-slate-400 hover:text-white transition cursor-pointer text-sm font-bold bg-slate-850 px-2.5 py-1 rounded-lg border border-slate-800"
               >
-                ✕ Kapat
+                {msg("discovery", "close2")}
               </button>
             </div>
 
@@ -1625,16 +1624,16 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
 
             {/* Modal Form */}
             <form onSubmit={handleInviteSubmit} className="space-y-4">
-              
+
               {/* Ad Soyad */}
               <div className="space-y-1.5 font-sans">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  Ad Soyad *
+                  {msg("discovery", "fullName")}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Örn: Test Satıcı"
+                  placeholder={msg("discovery", "eGAlexMorgan")}
                   value={inviteName}
                   onChange={(e) => setInviteName(e.target.value)}
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-teal-500 transition"
@@ -1644,12 +1643,12 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
               {/* E-posta */}
               <div className="space-y-1.5 font-sans">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  E-posta *
+                  {msg("discovery", "email")}
                 </label>
                 <input
                   type="email"
                   required
-                  placeholder="Örn: satici@firma.com"
+                  placeholder={msg("discovery", "eGRepresentativeCompanyCom")}
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-teal-500 transition font-mono"
@@ -1659,14 +1658,14 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
               {/* Proje Seçimi */}
               <div className="space-y-1.5 font-sans">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  Projeye Ata
+                  {msg("discovery", "assignToProject")}
                 </label>
                 <select
                   value={inviteProjectId}
                   onChange={(e) => setInviteProjectId(e.target.value)}
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-teal-500 transition font-mono font-bold cursor-pointer"
                 >
-                  <option value="">Proje Seçilmesin (Sonra Atanacak)</option>
+                  <option value="">{msg("discovery", "noProjectAssignLater")}</option>
                   {projects.map(p => (
                     <option key={p.id} value={p.id}>{p.id} ({p.name})</option>
                   ))}
@@ -1682,13 +1681,13 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                   }}
                   className="px-4 py-2 border border-slate-800 hover:bg-slate-850 text-xs font-bold text-slate-400 hover:text-white rounded-xl transition cursor-pointer"
                 >
-                  Vazgeç
+                  {msg("discovery", "cancel")}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-slate-955 text-xs font-bold rounded-xl transition cursor-pointer"
                 >
-                  Daveti Gönder
+                  {msg("discovery", "sendInvitation")}
                 </button>
               </div>
 

@@ -1,3 +1,4 @@
+import { leadStatusKey, companyTypeKey, urgencyKey } from "../domain/statusKeys";
 import { useI18n } from "../i18n";
 import React, { useState, useEffect, useMemo } from "react";
 import SourcingWorkflow from "./SourcingWorkflow";
@@ -30,7 +31,7 @@ interface ClientLead {
   decisionMakerName?: string;
   decisionMakerTitle?: string;
   contactInfo?: string;
-  status: "In Progress" | "Unsuccessful" | "Successful" | "Initial Contact" | "Proposal Stage" | "Qualified Request" | "In Discussion" | "Rejected";
+  status: "in_progress" | "closed_lost" | "closed_won" | "initial_contact" | "quotation" | "qualified" | "negotiating" | "rejected";
   assignedScouterId?: string;
   assignedTo?: string;
   userId?: string;
@@ -86,7 +87,8 @@ export const freelanceSOPData = [
 ];
 
 export default function FreelancerDashboard({ currentUser, onLogout, auditMode = false, auditEmail }: FreelancerDashboardProps) {
-  const { percent: formatPercent } = useI18n().fmt;
+  const { t, fmt } = useI18n();
+  const formatPercent = fmt.percent;
   const [leads, setLeads] = useState<ClientLead[]>([]);
   const [loadingLeads, setLoadingLeads] = useState(true);
   const [activeTab, setActiveTab] = useState<"leads" | "insights">("leads");
@@ -193,7 +195,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
 
   // Search & Filters
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("Hepsi");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null);
 
   // SOP Steps states
@@ -231,7 +233,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetchedLeads: ClientLead[] = [];
       snapshot.forEach(doc => {
-        fetchedLeads.push(doc.data() as ClientLead);
+        fetchedLeads.push({ ...doc.data(), id: doc.id, status: leadStatusKey(doc.data().status) || doc.data().status } as ClientLead);
       });
       // Sort by creation or ID
       fetchedLeads.sort((a, b) => b.createdAt ? b.createdAt.localeCompare(a.createdAt) : b.id.localeCompare(a.id));
@@ -264,7 +266,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
         projectId: activeProjId,
         companyName: newLeadCompanyName.trim(),
         createdAt: new Date().toISOString(),
-        status: "In Progress",
+        status: "in_progress",
         // Deep copy empty 15 steps
         sop_steps: freelanceSOPData.map(s => ({
           step: s.step,
@@ -331,7 +333,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
 
       await setDoc(leadRef, {
         sop_steps: updatedSopSteps,
-        processStage: stageText
+        processStage: stepKey
       }, { merge: true });
 
     } catch (err) {
@@ -345,7 +347,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
   const handleUpdateStatus = async (leadId: string, newStatus: ClientLead["status"]) => {
     try {
       const docRef = doc(db, "leads", leadId);
-      await setDoc(docRef, { status: newStatus, lastUpdateDays: 0 }, { merge: true });
+      await setDoc(docRef, { status: leadStatusKey(newStatus) || newStatus, lastUpdateDays: 0 }, { merge: true });
     } catch (err) {
       console.error("Lead status update failed:", err);
     }
@@ -359,11 +361,9 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
         (l.country || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         (l.decisionMakerName || "").toLowerCase().includes(searchTerm.toLowerCase());
       
-      const mappedStatus = ["In Progress", "Successful", "Unsuccessful"].includes(l.status)
-        ? l.status
-        : "Unsuccessful";
+      const mappedStatus = leadStatusKey(l.status) || l.status;
 
-      const matchesStatus = statusFilter === "Hepsi" || mappedStatus === statusFilter;
+      const matchesStatus = statusFilter === "all" || mappedStatus === statusFilter;
       return matchesSearch && matchesStatus;
     });
 
@@ -382,7 +382,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
         assignedScouterId: activeUser?.id ?? "",
         lastUpdateDays: 0,
         demandNotes: "This is a preconfigured active project context for the corporate workflow.",
-        status: "In Progress",
+        status: "in_progress",
         userId: activeUser?.id ?? "",
         assignedTo: activeUser?.id ?? "",
         score: 100,
@@ -400,7 +400,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
       const matchesSearch = 
         fallbackLead.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         fallbackLead.projectId.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === "Hepsi" || statusFilter === "In Progress";
+      const matchesStatus = statusFilter === "all" || statusFilter === "in_progress";
       if (matchesSearch && matchesStatus) {
         actualFiltered.push(fallbackLead);
       }
@@ -901,10 +901,10 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-2 border border-slate-800 bg-slate-950 rounded-lg text-xs font-semibold text-slate-400 focus:outline-none cursor-pointer w-full md:w-auto"
           >
-            <option value="Hepsi">All Statuses</option>
-            <option value="In Progress">In Progress</option>
-            <option value="Successful">Successful</option>
-            <option value="Unsuccessful">Unsuccessful</option>
+            <option value="all">All Statuses</option>
+            <option value="in_progress">In Progress</option>
+            <option value="closed_won">Successful</option>
+            <option value="closed_lost">Unsuccessful</option>
           </select>
         </div>
 
@@ -945,24 +945,20 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                           </td>
                           <td className="p-4" onClick={(e) => e.stopPropagation()}>
                             {(() => {
-                              const currentStatus = ["In Progress", "Successful", "Unsuccessful"].includes(lead.status) 
-                                ? lead.status 
-                                : "Unsuccessful";
+                              const currentStatus = leadStatusKey(lead.status) || lead.status;
                               return (
                                 <select
                                   disabled={auditMode || lead.id.startsWith("fallback_")}
                                   value={currentStatus}
                                   onChange={(e) => handleUpdateStatus(lead.id, e.target.value as any)}
                                   className={`text-[10px] font-black px-2.5 py-1.5 rounded-full font-mono uppercase tracking-wider border cursor-pointer focus:outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
-                                    currentStatus === "Successful" ? "bg-emerald-950/20 text-emerald-400 border-emerald-500/30" :
-                                    currentStatus === "In Progress" ? "bg-blue-950/20 text-blue-400 border-blue-500/30" :
+                                    currentStatus === "closed_won" ? "bg-emerald-950/20 text-emerald-400 border-emerald-500/30" :
+                                    currentStatus === "in_progress" ? "bg-blue-950/20 text-blue-400 border-blue-500/30" :
                                     "bg-red-950/20 text-red-400 border-red-500/30"
                                   }`}
                                 >
-                                  <option value="In Progress" className="bg-slate-900 text-slate-200">In Progress</option>
-                                  <option value="Successful" className="bg-slate-900 text-slate-200">Successful</option>
-                                  <option value="Unsuccessful" className="bg-slate-900 text-slate-200">Unsuccessful</option>
-                                </select>
+                                  {["in_progress","initial_contact","qualified","quotation","negotiating","closed_won","closed_lost","rejected"].map(key => <option key={key} value={key}>{t.discovery[key]}</option>)}
+                                  </select>
                               );
                             })()}
                           </td>
@@ -1170,15 +1166,15 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                                                         onChange={(e) => handleUpdateSopStatus(stepId, e.target.value, lead.id)}
                                                         className={`text-[10px] font-black px-2.5 py-1.5 rounded-full font-mono uppercase tracking-wider border cursor-pointer focus:outline-none transition-all ${
                                                           status === "Completed" ? "bg-emerald-950/20 text-emerald-400 border-emerald-500/30" :
-                                                          status === "In Progress" ? "bg-amber-950/20 text-amber-400 border-amber-500/30" :
-                                                          status === "Rejected" ? "bg-red-950/20 text-red-400 border-red-500/30" :
+                                                          status === "in_progress" ? "bg-amber-950/20 text-amber-400 border-amber-500/30" :
+                                                          status === "rejected" ? "bg-red-950/20 text-red-400 border-red-500/30" :
                                                           "bg-slate-950 text-slate-500 border-slate-850"
                                                         }`}
                                                       >
                                                         <option value="Pending" className="bg-slate-955 text-slate-350">Not Started</option>
-                                                        <option value="In Progress" className="bg-slate-955 text-slate-350">In Progress</option>
+                                                        <option value="in_progress" className="bg-slate-955 text-slate-350">In Progress</option>
                                                         <option value="Completed" className="bg-slate-955 text-slate-355">Completed</option>
-                                                        <option value="Rejected" className="bg-slate-955 text-slate-355">Not Completed</option>
+                                                        <option value="rejected" className="bg-slate-955 text-slate-355">Not Completed</option>
                                                       </select>
                                                     </td>
                                                     <td className="p-4">
