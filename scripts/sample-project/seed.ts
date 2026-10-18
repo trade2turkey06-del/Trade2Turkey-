@@ -9,4 +9,4 @@ if((await root.listCollections()).length)throw new Error('Project subcollections
 const batch=db.batch();
 for(const record of records)batch.create(db.doc(record.path),record.data);
 await batch.commit();
-console.log(JSON.stringify({environment:live?'LIVE':'EMULATOR',project:PROJECT,documents:records.length,approved:15,pendingApproval:1,inProgress:1,notStarted:4,visibility:'All administrators; no user assignments',sampleOnly:true},null,2));
+console.log(JSON.stringify({environment:live?'LIVE':'EMULATOR',project:PROJECT,documents:records.length,approved:16,pendingApproval:1,inProgress:1,notStarted:3,visibility:'All administrators; no user assignments',sampleOnly:true},null,2));

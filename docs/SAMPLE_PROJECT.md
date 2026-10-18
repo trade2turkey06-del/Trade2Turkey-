@@ -19,7 +19,7 @@ Requires Node dependencies and Java 21+. Use the configured Firestore/Auth emula
 npx -y firebase-tools@latest emulators:exec --only firestore,auth --config firebase.test.json --project demo-t2t-security 'npx tsx scripts/sample-project/verify.ts'
 ```
 
-The verification creates the sample, checks domain calculations and actual client security-rule access, rejects a duplicate seed, rejects remote emulator addresses and unapproved live mode, deletes the sample plus later UI-created linked records, checks unrelated data survives, then reseeds it. `emulators:exec` discards that session when it exits. For ongoing UI inspection, start the emulators instead, set the following variables in another terminal, and seed:
+The verification creates the sample, checks domain calculations and actual client security-rule access, rejects a duplicate seed, rejects remote emulator addresses and unapproved live mode, deletes the sample plus later UI-created linked records, checks unrelated data survives, then reproduces all 21 step payloads through authenticated client writes with security rules enabled before reseeding it. `emulators:exec` discards that session when it exits. For ongoing UI inspection, start the emulators instead, set the following variables in another terminal, and seed:
 
 ```sh
 npx -y firebase-tools@latest emulators:start --only firestore,auth --config firebase.test.json --project demo-t2t-security
@@ -43,15 +43,17 @@ npx tsx scripts/sample-project/cleanup.ts
 ## Presentation snapshot
 
 - Three fully populated fictional manufacturer vaults; English content and sample PDF names.
-- A.A.1–A.A.7 and A.B.1–A.B.8 approved: 15 of 21 sourcing steps.
-- A.B.9 pending approval, with 12 EUR cost lines imported using the application's own `costLinesFromSpec` function.
-- A.B.10 in progress; four later steps not started. Logistics has no records and displays its normal initial state.
+- A.A.1–A.A.7 and A.B.1–A.B.9 approved: 16 of 21 sourcing steps.
+- A.B.9 approved, with 12 EUR cost lines imported using the application's own `costLinesFromSpec` function.
+- A.B.10 pending approval; A.B.11 in progress; A.B.12–A.B.14 not started. Logistics has no records and displays its normal initial state.
 - RFQ matrix with three offers and complete scores; Northfield Sample Bakeworks Ltd. ranks first and is selected in A.B.7.
 - Approved v1.0, 100% formulation, two fictional signatures, golden sample code, nutrition, microbiology, packaging and storage.
 - Protein energy contribution 30.4%; salt 1.96 g/100 g → High under the application's default illustrative thresholds. Claims use the existing UI calculator; shared claim-threshold records are never modified. If live thresholds differ, review the resulting live claim panel.
-- 49 explicitly simulated workflow events, including starts, submissions and decisions.
+- 52 explicitly simulated workflow events, including starts, submissions and decisions.
 
-**Workflow exception:** the requested A.B.10 in-progress state while A.B.9 awaits approval cannot be produced through the normal application flow. The administrative seed creates a presentation snapshot and labels this exception in the A.B.10 notes. The UI continues to show the prerequisite warning. To demonstrate a valid transition, approve A.B.9 first. No workflow dependency or rule has been weakened.
+The chosen states obey the unchanged dependency graph: A.B.10 depends on approved A.B.9; A.B.11 can run in parallel because its only prerequisite is approved A.B.7. A.B.12 waits for both A.B.10 and A.B.11 to be approved; A.B.13 and A.B.14 remain locked behind it. The generated data is checked with the application's `canAdvance` and `validateCompletion` before every seed, including live mode. Historical step start/submission/approval times follow prerequisite approval order.
+
+The emulator verification first checks every step against those domain functions. After lifecycle cleanup, it recreates the project and manufacturers with authenticated client SDKs, creates v1.0 as a draft and approves it, then creates every step as not started and performs its allowed start, submission and approval transitions. All final step fields are compared to the generated seed payload (excluding audit timestamps and event IDs). Only isolated emulator participant profiles are installed as test fixtures; task writes are never performed with disabled rules. Dependent steps are also rejected before prerequisites are approved, and A.B.12–A.B.14 remain rejected in the final snapshot.
 
 ## Live procedure — requires a separate approval
 
@@ -84,9 +86,10 @@ The read-only backup is a document export with a verified checksum, not a point-
 ## Verification record (18 October 2026)
 
 - `npm run check`: TypeScript, 41 existing tests and production build passed.
-- Local Firestore/Auth lifecycle verification passed: 75 sample documents; 15 approved, 1 pending approval, 1 in progress, 4 not started; 100% formulation; protein energy 30.4%; salt High; Northfield ranks first.
+- Local Firestore/Auth lifecycle verification passed: 78 sample documents; 16 approved, 1 pending approval, 1 in progress, 3 not started; 100% formulation; protein energy 30.4%; salt High; Northfield ranks first.
+- Rules-enabled workflow replay passed: all 21 final step payloads matched, with 72 accepted task transitions and 26 invalid operations rejected. Domain completion/prerequisites and historical prerequisite approval order passed.
 - Both tested administrators could read; every generated document was denied to unassigned clients, freelancers and anonymous sessions.
 - A repeated seed stopped without modifying the project. Non-local emulator hosts and unapproved live mode were rejected.
-- Cleanup removed 77 records including two subsequently created linked records. The unrelated project and all four verification user profiles survived. Reseeding after cleanup succeeded.
+- Cleanup removed 80 records including two subsequently created linked records. The unrelated project and all five verification user profiles survived. Reseeding after cleanup succeeded.
 - Read-only live backup taken at 13:45 Istanbul time: 184 documents, 7 account identifiers and deployed rules; SHA-256 verified. Export is retained under the ignored `backups/` directory. Refresh before live mutation if older than one hour.
-- No production data writes, rules deployment or Git push performed.
+- No production data writes or rules deployment performed. Git publication is separately authorized by the user; it does not authorize sample database writes.

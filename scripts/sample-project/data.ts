@@ -1,6 +1,6 @@
 import { createSpec, costLinesFromSpec, NUTRIENTS } from '../../src/domain/productSpec';
 import { createMatrix, allCriteria } from '../../src/domain/rfqMatrix';
-import { dependencies } from '../../src/domain/workflow';
+import { canAdvance, dependencies, validateCompletion, type TaskRecord } from '../../src/domain/workflow';
 
 export const PROJECT = 'DEMO-HIGH-PROTEIN-TORTILLA';
 export const MARKER = 't2t-sample-tortilla-v1';
@@ -25,7 +25,7 @@ export function sampleRecords(ownerUid: string) {
     exportMarkets:[{name:'Germany',flag:'🇩🇪'},{name:'Netherlands',flag:'🇳🇱'},{name:'United Kingdom',flag:'🇬🇧'},{name:'United Arab Emirates',flag:'🇦🇪'},{name:'Saudi Arabia',flag:'🇸🇦'}],productClaims:['High protein','Source of fibre','Vegan','Halal'],
   }}));
   const spec = createSpec({projectId:PROJECT,manufacturerId:manufacturers[0].id,manufacturerName:manufacturers[0].name,productName:'High-Protein Tortilla (Sample)',preparedBy:'Alex Morgan (fictional)',createdBy:ownerUid});
-  Object.assign(spec,{id:'sample-northfield-v1',lineageId:'sample-northfield-tortilla',status:'approved',createdAt:at(18),updatedAt:at(25),approvedAt:at(25),approvedBy:ownerUid});
+  Object.assign(spec,{id:'sample-northfield-v1',lineageId:'sample-northfield-tortilla',status:'approved',createdAt:at(18),updatedAt:at(24,11),approvedAt:at(24,11),approvedBy:ownerUid});
   spec.general = {...spec.general,variant:'Original; 8 x 50 g / 400 g pack',markets:'Germany, Netherlands, United Kingdom, United Arab Emirates, Saudi Arabia',date:'2026-09-18'};
   spec.formulation = [['Wheat flour',38,0.65],['Water',24,0.01],['Pea protein isolate',20,3.2],['Wheat gluten',8,1.8],['Rapeseed oil',5,1.3],['Vegetable fibre',2,2.1],['Salt',2,0.18],['Baking powder',1,1.5]].map(([name,ratio],i) => ({id:`sample-ingredient-${i}`,name:String(name),ratio:Number(ratio),function:['Base flour','Hydration','Protein enrichment','Elasticity','Softness','Fibre enrichment','Seasoning','Leavening'][i],supplier:'Fictional ingredient supplier',allergen:i===0||i===3,allergenName:i===0||i===3?'Wheat (gluten)':'',halal:true,vegan:true,ratioSource:'manufacturer',note:'Simulated manufacturer formulation; not a production instruction'}));
   const values = [1108,263,5.87,1.1,32,2.4,3.87,20,1.96];
@@ -38,7 +38,7 @@ export function sampleRecords(ownerUid: string) {
   spec.storage={frozen:'-18 C',ambient:'Below 25 C; dry storage',shelfLife:'9 months ambient / 18 months frozen',labelLanguage:'English, German, Dutch, Arabic',mandatoryInfo:'Sample only: ingredients, allergens, nutrition, net weight, lot code, best-before and storage instructions'};
   spec.openItems=[{id:'sample-resolved',question:'Confirm export carton compression performance',owner:'Alex Morgan (fictional)',status:'resolved'}];
   spec.goldenSample={code:'SAMPLE-NF-HPT-2026-001',location:'trade2turkey',date:'2026-09-24'};
-  spec.approval={trade2turkey:{name:'Alex Morgan (fictional)',date:'2026-09-25'},manufacturer:{name:'Jamie Reed (fictional)',date:'2026-09-25'},signedDocName:'sample_northfield_spec_v1_signed.pdf',signedDocUrl:''};
+  spec.approval={trade2turkey:{name:'Alex Morgan (fictional)',date:'2026-09-24'},manufacturer:{name:'Jamie Reed (fictional)',date:'2026-09-24'},signedDocName:'sample_northfield_spec_v1_signed.pdf',signedDocUrl:''};
   add(`projects/${PROJECT}/productSpecs/${spec.id}`,spec);
   const responses: Record<string,string[]> = {
     'Quality Control System':['HACCP; batch traceability; metal detection','HACCP; batch traceability','HACCP; periodic batch checks'],
@@ -79,26 +79,38 @@ export function sampleRecords(ownerUid: string) {
     }[c.label]?.[i] ?? responses[c.label]?.[i] ?? ['Sample evidence reviewed; meets brief','Sample evidence reviewed; minor clarification','Sample evidence reviewed; improvement requested'][i]);
   });
   matrix.items[0].notes=Object.fromEntries(manufacturers.map(m=>[m.id,'Fictional offer for presentation; not a binding quotation.']));
-  const costs=costLinesFromSpec(spec); costs.source.importedAt='2026-09-26T10:00:00.000Z';
-  costs.lines.forEach((line,i)=>Object.assign(line,{id:`sample-cost-${i}`,unitPrice:[0.65,0.01,3.2,1.8,1.3,2.1,0.18,1.5,0.09,0.48,12,0.015][i],currency:'EUR',fxRate:1,wastePct:line.source==='formulation'?2:0,priceSource:'Fictional EXW cost estimate',priceDate:'2026-09-26'}));
-  const notes=['Buyer brief and target markets agreed.','Product requirements and 400 g pack format confirmed.','Three fictional manufacturers screened.','RFQ package issued to all three manufacturers.','Shortlist reviewed for capacity and export readiness.','Indicative value chain reviewed in EUR.','Feasibility review completed; sourcing approved.','Supplier outreach and sample plan confirmed.','Introduction meetings completed with three suppliers.','Confidentiality and technical scope reviewed.','Initial samples received and evaluated.','Technical questions closed with suppliers.','RFQ matrix scored; Northfield leads the comparison.','Northfield selected as the high-potential manufacturer.','Specification v1.0 approved by both fictional parties.','Recipe cost lines imported from approved v1.0; awaiting review.','Preliminary commercial discussion in progress.'];
+  const costs=costLinesFromSpec(spec); costs.source.importedAt='2026-09-25T12:00:00.000Z';
+  costs.lines.forEach((line,i)=>Object.assign(line,{id:`sample-cost-${i}`,unitPrice:[0.65,0.01,3.2,1.8,1.3,2.1,0.18,1.5,0.09,0.48,12,0.015][i],currency:'EUR',fxRate:1,wastePct:line.source==='formulation'?2:0,priceSource:'Fictional EXW cost estimate',priceDate:'2026-09-25'}));
+  const notes=['Buyer brief and target markets agreed.','Product requirements and 400 g pack format confirmed.','Three fictional manufacturers screened.','RFQ package issued to all three manufacturers.','Shortlist reviewed for capacity and export readiness.','Indicative value chain reviewed in EUR.','Feasibility review completed; sourcing approved.','Supplier outreach and sample plan confirmed.','Introduction meetings completed with three suppliers.','Confidentiality and technical scope reviewed.','Initial samples received and evaluated.','Technical questions closed with suppliers.','RFQ matrix scored; Northfield leads the comparison.','Northfield selected as the high-potential manufacturer.','Specification v1.0 approved by both fictional parties.','Recipe cost lines imported from approved v1.0; EUR cost review approved.','Final specification and costing submitted; awaiting approval.','Factory audit and site visit preparation in progress.'];
   const steps=Object.keys(dependencies).filter(id=>id.startsWith('A.'));
   steps.forEach((id,i)=>{
-    const approved=i<15, pending=i===15, progress=i===16, started=approved||pending||progress;
-    const step:any={id:`sourcing-${id}`,projectId:PROJECT,workflow:'sourcing',section:'A',subsection:id.slice(0,3),stepId:id,workflowStatus:approved||pending?'completed':progress?'in_progress':'not_started',approval:approved?'approved':pending?'pending':'none',status:approved||pending?'Completed':progress?'In Progress':'Pending',assigneeUid:started?'sample-alex-morgan':'',assigneeName:started?'Alex Morgan (fictional)':'',approverUid:started?ownerUid:'',dueDate:started?`2026-09-${String(i+11).padStart(2,'0')}`:'',notes:started?`Sample project. Responsible: Alex Morgan (fictional). Reviewer: Jamie Reed (fictional). ${notes[i]}`:'',evidenceName:approved||pending?`sample_${id.replaceAll('.','_')}_review.pdf`:'',evidenceUrl:approved||pending?'https://example.invalid/sample-evidence':'',completedBy:approved||pending?'sample-alex-morgan':'',...(approved?{decidedBy:ownerUid}:{}),updatedAt:at(i+11),lastEventId:started?`sample-${id}-final`:''};
+    const approved=i<16, pending=id==='A.B.10', progress=id==='A.B.11', started=approved||pending||progress;
+    const step:any={id:`sourcing-${id}`,projectId:PROJECT,workflow:'sourcing',section:'A',subsection:id.slice(0,3),stepId:id,workflowStatus:approved||pending?'completed':progress?'in_progress':'not_started',approval:approved?'approved':pending?'pending':'none',status:approved||pending?'Completed':progress?'In Progress':'Pending',assigneeUid:started?'sample-alex-morgan':'',assigneeName:started?'Alex Morgan (fictional)':'',approverUid:started?ownerUid:'',dueDate:started?`2026-09-${String(i+10).padStart(2,'0')}`:'',notes:started?`Sample project. Responsible: Alex Morgan (fictional). Reviewer: Jamie Reed (fictional). ${notes[i]}`:'',evidenceName:approved||pending?`sample_${id.replaceAll('.','_')}_review.pdf`:'',evidenceUrl:approved||pending?'https://example.invalid/sample-evidence':'',completedBy:approved||pending?'sample-alex-morgan':'',...(approved?{decidedBy:ownerUid}:{}),updatedAt:at(i+10,approved?15:pending?12:10),lastEventId:started?`sample-${id}-final`:''};
     if(id==='A.A.3')step.supplierLongList=manufacturers.map(m=>({...m,location:'Fictional production site',website:'',contact:'Sample contact',notes:'Fictional manufacturer'}));
     if(id==='A.A.5')step.supplierShortList=manufacturers.map(m=>({...m,location:'Fictional production site',website:'',contact:'Sample contact',notes:'Fictional manufacturer'}));
     if(id==='A.B.6')step.rfqComparisonMatrix=matrix;
     if(id==='A.B.7')Object.assign(step,{highPotentialManufacturerId:manufacturers[0].id,highPotentialManufacturerName:manufacturers[0].name});
     if(id==='A.B.8')Object.assign(step,{approvedSpecId:spec.id,specManufacturerId:manufacturers[0].id,specManufacturerName:manufacturers[0].name});
     if(id==='A.B.9')Object.assign(step,{recipeCostLines:costs.lines,recipeCostSource:costs.source});
-    if(id==='A.B.10')step.notes+=' Presentation snapshot exception: A.B.9 is still pending; normal workflow cannot advance until it is approved.';
     add(`sopSteps/${PROJECT}_sourcing-${id}`,step);
     if(started){
-      add(`projects/${PROJECT}/events/sample-${id}-start`,{projectId:PROJECT,action:'workflow_save',entityId:id,statusKey:'in_progress',detail:`Sample history: Alex Morgan (fictional) started ${id}.`,actorUid:'sample-alex-morgan',at:at(i+9,9)});
-      if(approved)add(`projects/${PROJECT}/events/sample-${id}-submit`,{projectId:PROJECT,action:'workflow_save',entityId:id,statusKey:'completed',detail:`Sample history: evidence submitted for ${id}.`,actorUid:'sample-alex-morgan',at:at(i+9,15)});
-      add(`projects/${PROJECT}/events/sample-${id}-final`,{projectId:PROJECT,action:approved?'workflow_approve':'workflow_save',entityId:id,statusKey:approved?'approved':pending?'completed':'in_progress',detail:`Sample history: ${notes[i]} Reviewed by Jamie Reed (fictional).`,actorUid:ownerUid,at:at(i+11)});
+      add(`projects/${PROJECT}/events/sample-${id}-start`,{projectId:PROJECT,action:'workflow_save',entityId:id,statusKey:'in_progress',detail:`Sample history: Alex Morgan (fictional) started ${id}.`,actorUid:'sample-alex-morgan',at:at(i+10,9)});
+      if(approved)add(`projects/${PROJECT}/events/sample-${id}-submit`,{projectId:PROJECT,action:'workflow_save',entityId:id,statusKey:'completed',detail:`Sample history: evidence submitted for ${id}.`,actorUid:'sample-alex-morgan',at:at(i+10,12)});
+      add(`projects/${PROJECT}/events/sample-${id}-final`,{projectId:PROJECT,action:approved?'workflow_approve':'workflow_save',entityId:id,statusKey:approved?'approved':pending?'completed':'in_progress',detail:`Sample history: ${notes[i]} ${approved?'Reviewed by Jamie Reed (fictional).':'Prepared by Alex Morgan (fictional).'}`,actorUid:approved?ownerUid:'sample-alex-morgan',at:at(i+10,approved?15:pending?12:10)});
     }
   });
+  validateSampleWorkflow(records);
   return {records,spec,matrix,costs};
+}
+
+// Validate the generated snapshot before any seed writes, including live imports.
+export function validateSampleWorkflow(records: {path: string; data: Record<string, any>}[]) {
+  const tasks: Record<string, TaskRecord> = Object.fromEntries(records.filter(r => r.path.startsWith('sopSteps/')).map(r => [r.data.stepId,r.data as TaskRecord]));
+  for(const [id, task] of Object.entries(tasks)) {
+    if(['in_progress','completed'].includes(task.workflowStatus)) {
+      const blocked = canAdvance(id, tasks);
+      if(blocked.length)throw new Error(`${id}: prerequisites must be approved: ${blocked.join(', ')}`);
+    }
+    if(task.workflowStatus==='completed')validateCompletion(task);
+  }
 }
