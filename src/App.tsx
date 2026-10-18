@@ -26,7 +26,7 @@ import BackupPanel from "./components/BackupPanel";
 import UserManagement from "./components/UserManagement";
 import { trustedAdministrator } from "./domain/access";
 import { onSnapshot, collection, query, where, doc, setDoc, deleteDoc, writeBatch, getDocs, documentId, runTransaction, updateDoc } from "firebase/firestore";
-import { getMessages, useI18n } from "./i18n";
+import { dataLang, getMessages, useI18n } from "./i18n";
 
 import { 
   INITIAL_TARGET_SPECS, INITIAL_RFQS, 
@@ -415,7 +415,7 @@ export default function App() {
       <main id="workspace-content" tabIndex={-1} className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
         <div className="page-intro">
-          <div><p className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.18em] text-teal-700"><span className="h-1.5 w-1.5 rounded-full bg-teal-600" /> {projects.find(project => project.id === activeProjectId)?.name || t.shell.defaultWorkspaceName}</p>
+          <div><p className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.18em] text-teal-700"><span className="h-1.5 w-1.5 rounded-full bg-teal-600" /> <span lang={dataLang(projects.find(project => project.id === activeProjectId)?.name)}>{projects.find(project => project.id === activeProjectId)?.name || t.shell.defaultWorkspaceName}</span></p>
             <h2 className="font-display text-3xl font-semibold tracking-tight text-navy sm:text-4xl">{t.shell.intro.titles[currentTab] || t.shell.intro.defaultTitle}</h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">{t.shell.intro.texts[currentTab]}</p>
           </div>

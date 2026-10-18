@@ -9,6 +9,9 @@ import { CodedError } from "./errors";
 export type Lang = "tr" | "en";
 export type { Messages };
 export const LANGS: Lang[] = ["tr", "en"];
+// Kullanıcı verisi seçili dilde değil, girildiği dilde büyük harfe çevrilmeli ("i" → "İ"). Türkçeye özgü harf içeren
+// metin "tr" olarak işaretlenir; diğer veriler (ör. İngilizce girilmiş) sayfa diliyle kalır, aksi hâlde "TORTİLLA" olurdu.
+export const dataLang = (text?: string | null) => /[çğıöşüÇĞİÖŞÜ]/.test(text ?? "") ? "tr" : undefined;
 export const isLang = (value: unknown): value is Lang => value === "tr" || value === "en";
 export const localeOf = (lang: Lang) => lang === "en" ? "en-GB" : "tr-TR";
 
@@ -73,7 +76,7 @@ export function I18nProvider({ children, initialLang }: { children: ReactNode; i
   // Oturum açmadan (giriş ekranında) yapılan açık seçim; oturum açılınca kullanıcıya aktarılır.
   const chosenBeforeLogin = useRef(false);
   currentLang = lang;
-  useEffect(() => { document.documentElement.lang = lang; }, [lang]);
+  useEffect(() => { document.documentElement.lang = lang; document.title = catalogs[lang].shell.documentTitle; }, [lang]);
   const save = (next: Lang, binding: UserBinding | null) => {
     writeStored(next, binding?.uid);
     void binding?.persist?.(next).catch(() => { /* profil yazılamazsa yerel tercih yeterli */ });

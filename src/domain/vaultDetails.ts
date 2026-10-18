@@ -9,7 +9,7 @@ export interface ProjectVaultDetails {
   nutritionalValues: { energy: string; fat: string; fatSaturated: string; carbohydrates: string; sugar: string; protein: string; fiber: string; salt: string };
   variations: string[];
   marketingSamples: string;
-  exportMarkets: { name: string; flag: string }[];
+  exportMarkets: { name: string; flag: string; code?: string }[];
   productClaims?: string[];
 }
 
@@ -43,7 +43,7 @@ export function normalizeVaultDetails(raw: unknown): ProjectVaultDetails {
     nutritionalValues: section(source.nutritionalValues, SHAPE.nutritionalValues),
     variations: texts(source.variations),
     marketingSamples: text(source.marketingSamples),
-    exportMarkets: Array.isArray(source.exportMarkets) ? source.exportMarkets.map(record).map(item => ({ name: text(item.name), flag: text(item.flag) })).filter(item => item.name.trim() !== "") : [],
+    exportMarkets: Array.isArray(source.exportMarkets) ? source.exportMarkets.map(record).map(item => ({ name: text(item.name), flag: text(item.flag), ...(text(item.code) ? { code: text(item.code) } : {}) })).filter(item => item.name.trim() !== "") : [],
     productClaims: texts(source.productClaims),
   };
 }

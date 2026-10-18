@@ -61,3 +61,27 @@ test("i18n: domain hata kodları ve olay kayıtları seçili dilde gösterilir",
   assert.equal(eventText(en, { detailKey: "shortlisted", detailParams: { name: "Acme" }, detail: "Acme" }), "Acme added to the shortlist (A.A.3)");
   assert.equal(eventText(en, { detail: "Tamamlandı" }), "Tamamlandı", "eski olaylardaki metin olduğu gibi gösterilir");
 });
+test("ülkeler: kasadaki adlar ISO koduna tam eşleşir, iki dilde gösterilir; bilinmeyen ad olduğu gibi kalır", async () => {
+  const { COUNTRY_CODES, countryCode, countryFlag, marketFromName, marketLabel } = await import("../src/domain/countries");
+  // Canlıdaki "Bakker" kaydının 16 pazarı (Türkçe adla saklı): hepsi tanınmalı.
+  const live = ["Almanya", "KKTC", "Hollanda", "Gürcistan", "Fransa", "Azerbaycan", "Irak", "Bulgaristan", "Kuveyt", "İtalya", "İspanya", "Ukrayna", "Suudi Arabistan", "BAE", "Katar", "Bahreyn"];
+  assert.deepEqual(live.filter(name => !countryCode(name)), []);
+  assert.equal(countryCode("Ukrayna"), "UA", "eski eşleştirme 'uk' parçası yüzünden Ukrayna'ya İngiltere bayrağı veriyordu");
+  assert.equal(countryCode("UK"), "GB"); assert.equal(countryCode("Italy"), "IT"); assert.equal(countryCode("U.A.E."), "AE"); assert.equal(countryCode("  germany "), "DE");
+  assert.equal(countryCode("Türkmenistan"), "TM"); assert.equal(countryCode("Mars"), null);
+  assert.equal(countryFlag("DE"), "🇩🇪"); assert.equal(countryFlag("NCY"), "🇨🇾"); assert.equal(countryFlag(null), "🏳️");
+  assert.deepEqual(marketFromName("BAE"), { name: "BAE", flag: "🇦🇪", code: "AE" });
+  assert.deepEqual(marketFromName("Mars"), { name: "Mars", flag: "🏳️" });
+  assert.equal(marketLabel({ name: "KKTC", flag: "🇨🇾" }, en.countries).label, "Northern Cyprus");
+  assert.equal(marketLabel({ name: "BAE", flag: "🇦🇪" }, en.countries).label, "United Arab Emirates");
+  assert.equal(marketLabel({ name: "Almanya", flag: "🇩🇪" }, tr.countries).label, "Almanya");
+  assert.deepEqual(marketLabel({ name: "Bilinmeyen Pazar", flag: "🏳️" }, en.countries), { code: null, label: "Bilinmeyen Pazar", flag: "🏳️", isData: true });
+  assert.deepEqual(Object.keys(tr.countries).sort(), [...COUNTRY_CODES].sort());
+});
+test("kullanıcı verisi dili ve sayfa başlığı", async () => {
+  const { dataLang } = await import("../src/i18n");
+  assert.equal(dataLang("Unlu Mamüller Projesi"), "tr"); assert.equal(dataLang("Vegan Sertifikası"), "tr");
+  assert.equal(dataLang("Sample Tortilla"), undefined, "İngilizce veri sayfa diliyle büyütülür"); assert.equal(dataLang(undefined), undefined);
+  assert.equal(tr.shell.documentTitle, "Trade2Turkey Dijital Tedarik ve Lojistik Portalı");
+  assert.equal(en.shell.documentTitle, "Trade2Turkey | Digital Sourcing & Logistics Portal");
+});

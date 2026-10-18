@@ -6,5 +6,6 @@ import { drive, editors, rfqMatrix } from "./editors";
 import { vault } from "./vault";
 import { productSpec } from "./productSpec";
 import { errors } from "./errors";
+import { countries } from "./countries";
 
-export const en: Messages = { common, language, shell, login, status, steps, sourcing, editors, rfqMatrix, drive, vault, productSpec, errors };
+export const en: Messages = { common, language, shell, login, status, steps, sourcing, editors, rfqMatrix, drive, vault, productSpec, errors, countries };

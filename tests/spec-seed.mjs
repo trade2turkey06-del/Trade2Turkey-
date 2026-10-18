@@ -25,7 +25,7 @@ const vault = {
   nutritionalValues: { energy: "1108 kJ / 263 kcal", fat: "5,87g", fatSaturated: "3,19g", carbohydrates: "32.00g", sugar: "6,18g", protein: "20.00g", fiber: "3,87g", salt: "1,96g" },
   variations: ["Sade Tortilla (örnek)", "Tam Buğday Tortilla (örnek)"],
   marketingSamples: "Örnek numune notu.",
-  exportMarkets: [{ name: "Almanya", flag: "🇩🇪" }, { name: "Hollanda", flag: "🇳🇱" }],
+  exportMarkets: [{ name: "Almanya", flag: "🇩🇪" }, { name: "Hollanda", flag: "🇳🇱" }, { name: "KKTC", flag: "🇨🇾" }, { name: "BAE", flag: "🇦🇪" }, { name: "Ukrayna", flag: "🇺🇦" }],
   productClaims: ["Katkısız", "Yüksek Protein", "Vegan"],
 };
 const approvedStep = (id, extra = {}) => ({

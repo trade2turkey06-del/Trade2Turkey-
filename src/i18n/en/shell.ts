@@ -22,6 +22,7 @@ export const language: Messages["language"] = {
 };
 
 export const shell: Messages["shell"] = {
+  documentTitle: "Trade2Turkey | Digital Sourcing & Logistics Portal",
   skipToContent: "Skip to content",
   sidebarLabel: "Workspace menu",
   closeMenu: "Close menu",

@@ -12,7 +12,8 @@ import { db, auth } from "../lib/firebase";
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
 import { DriveFile, PROJECT_NAMES } from "../data/driveData";
 import { emptyVaultDetails, normalizeVaultDetails, shown as shownValue, type ProjectVaultDetails } from "../domain/vaultDetails";
-import { useI18n } from "../i18n";
+import { dataLang, useI18n } from "../i18n";
+import { marketFromName, marketLabel } from "../domain/countries";
 
 interface ProjectDocumentVaultProps {
   currentProjectId: string;
@@ -113,7 +114,9 @@ const DEFAULT_PACKAGING_CONFIG: PackagingConfig = {
 
 
 export default function ProjectDocumentVault({ currentProjectId, readOnly = false }: ProjectDocumentVaultProps) {
-  const v = useI18n().t.vault, f = v.fields;
+  const { t } = useI18n();
+  const v = t.vault, f = v.fields;
+  const market = (item: ProjectVaultDetails["exportMarkets"][number]) => marketLabel(item, t.countries);
   const shown = (value?: string) => shownValue(value, v.notSpecified);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -401,29 +404,6 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
     }
   };
 
-  const getFlag = (countryName: string) => {
-    const lower = countryName.toLowerCase();
-    if (lower.includes("almanya") || lower.includes("germany")) return "🇩🇪";
-    if (lower.includes("hollanda") || lower.includes("netherland")) return "🇳🇱";
-    if (lower.includes("türkiye") || lower.includes("turkey") || lower.includes("türk")) return "🇹🇷";
-    if (lower.includes("fransa") || lower.includes("france")) return "🇫🇷";
-    if (lower.includes("ingiltere") || lower.includes("uk") || lower.includes("united kingdom")) return "🇬🇧";
-    if (lower.includes("abd") || lower.includes("usa") || lower.includes("amerika")) return "🇺🇸";
-    if (lower.includes("kktc") || lower.includes("kıbrıs")) return "🇨🇾";
-    if (lower.includes("gürcistan") || lower.includes("georgia")) return "🇬🇪";
-    if (lower.includes("azerbaycan") || lower.includes("azerbaijan")) return "🇦🇿";
-    if (lower.includes("irak") || lower.includes("iraq")) return "🇮🇶";
-    if (lower.includes("bulgaristan") || lower.includes("bulgaria")) return "🇧🇬";
-    if (lower.includes("kuveyt") || lower.includes("kuwait")) return "🇰🇼";
-    if (lower.includes("italya") || lower.includes("italy")) return "🇮🇹";
-    if (lower.includes("ispanya") || lower.includes("spain")) return "🇪🇸";
-    if (lower.includes("ukrayna") || lower.includes("ukraine")) return "🇺🇦";
-    if (lower.includes("suudi") || lower.includes("saudi")) return "🇸🇦";
-    if (lower.includes("bae") || lower.includes("uae")) return "🇦🇪";
-    if (lower.includes("katar") || lower.includes("qatar")) return "🇶🇦";
-    if (lower.includes("bahreyn") || lower.includes("bahrain")) return "🇧🇭";
-    return "🏳️";
-  };
 
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(true);
@@ -592,7 +572,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
               Trade2Turkey Cloud Storage
             </h3>
           </div>
-          <h2 className="text-xl font-black text-white font-display uppercase tracking-wide">
+          <h2 lang={dataLang(getProjectName(currentProjectId))} className="text-xl font-black text-white font-display uppercase tracking-wide">
             {v.title(getProjectName(currentProjectId))}
           </h2>
           <p className="text-[11px] text-slate-300 font-mono leading-relaxed max-w-xl">
@@ -1001,7 +981,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   />
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     {editedDetails.certifications.certificates.map((cert, index) => (
-                      <span key={index} className="px-2 py-0.5 text-[9px] font-bold font-mono bg-teal-500/10 border border-teal-500/25 text-teal-400 rounded-md uppercase">
+                      <span key={index} lang={dataLang(cert)} className="px-2 py-0.5 text-[9px] font-bold font-mono bg-teal-500/10 border border-teal-500/25 text-teal-400 rounded-md uppercase">
                         {cert}
                       </span>
                     ))}
@@ -1019,7 +999,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   <div className="flex flex-wrap gap-2 mt-2">
                     {details.certifications.certificates && details.certifications.certificates.length > 0 ? (
                       details.certifications.certificates.map((cert, index) => (
-                        <span key={index} className="px-2.5 py-1 text-[10px] font-black font-mono uppercase bg-blue-900/40 border border-blue-850/50 text-cyan-400 rounded-lg">
+                        <span key={index} lang={dataLang(cert)} className="px-2.5 py-1 text-[10px] font-black font-mono uppercase bg-blue-900/40 border border-blue-850/50 text-cyan-400 rounded-lg">
                           {cert}
                         </span>
                       ))
@@ -1273,7 +1253,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   <div className="flex flex-wrap gap-1.5 p-2 bg-slate-800 border border-slate-700 rounded-xl min-h-[40px]">
                     {(editedDetails.productClaims || []).map((claim, index) => (
                       <span key={index} className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold font-mono bg-teal-500/10 border border-teal-500/25 text-teal-400 rounded-md uppercase">
-                        <span>{claim}</span>
+                        <span lang={dataLang(claim)}>{claim}</span>
                         <button
                           type="button"
                           onClick={() => {
@@ -1351,7 +1331,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                       <div className="flex flex-wrap gap-1.5 p-2 bg-slate-800 border border-slate-700 rounded-xl min-h-[40px]">
                         {editedClaims.map((claim, index) => (
                           <span key={index} className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-black font-mono uppercase bg-blue-900/40 border border-blue-850/50 text-cyan-400 rounded-lg">
-                            <span>{claim}</span>
+                            <span lang={dataLang(claim)}>{claim}</span>
                             <button
                               type="button"
                               onClick={() => handleRemoveClaimTag(claim)}
@@ -1393,7 +1373,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                     <div className="flex flex-wrap gap-2 mt-2">
                       {details.productClaims && details.productClaims.length > 0 ? (
                         details.productClaims.map((claim, index) => (
-                          <span key={index} className="px-2.5 py-1 text-[10px] font-black font-mono uppercase bg-blue-900/40 border border-blue-850/50 text-cyan-400 rounded-lg">
+                          <span key={index} lang={dataLang(claim)} className="px-2.5 py-1 text-[10px] font-black font-mono uppercase bg-blue-900/40 border border-blue-850/50 text-cyan-400 rounded-lg">
                             {claim}
                           </span>
                         ))
@@ -1578,8 +1558,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   value={editedDetails.exportMarkets.map(m => m.name).join(", ")}
                   onChange={(e) => {
                     const list = e.target.value.split(",").map(x => {
-                      const trimmed = x.trim();
-                      return { name: trimmed, flag: getFlag(trimmed) };
+                      return marketFromName(x.trim());
                     }).filter(m => m.name);
                     setEditedDetails({
                       ...editedDetails,
@@ -1590,26 +1569,27 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-teal-500"
                 />
                 <div className="flex flex-wrap gap-1.5 mt-2">
-                  {editedDetails.exportMarkets.map((market, index) => (
+                  {editedDetails.exportMarkets.map((item, index) => { const shownMarket = market(item); return (
                     <span key={index} className="px-2 py-0.5 text-[10px] font-bold bg-teal-500/10 border border-teal-500/25 text-teal-400 rounded-lg flex items-center gap-1">
-                      <span>{market.flag}</span>
-                      <span>{market.name}</span>
+                      <span>{shownMarket.flag}</span>
+                      <span lang={shownMarket.isData ? dataLang(shownMarket.label) : undefined}>{shownMarket.label}</span>
                     </span>
-                  ))}
+                  ); })}
                 </div>
               </div>
             ) : (
               <div className="flex flex-wrap gap-2.5 mt-5">
                 {details.exportMarkets && details.exportMarkets.length > 0 ? (
-                  details.exportMarkets.map((market, index) => (
+                  details.exportMarkets.map((item, index) => { const shownMarket = market(item); return (
                     <span 
                       key={index} 
+                      title={shownMarket.isData ? undefined : item.name}
                       className="px-3 py-1.5 text-xs font-bold bg-blue-900/40 border border-blue-800/40 text-blue-100 rounded-xl flex items-center gap-1.5 hover:bg-blue-900/60 hover:border-blue-700/60 transition"
                     >
-                      <span className="text-sm select-none">{market.flag}</span>
-                      <span>{market.name}</span>
+                      <span className="text-sm select-none">{shownMarket.flag}</span>
+                      <span lang={shownMarket.isData ? dataLang(shownMarket.label) : undefined}>{shownMarket.label}</span>
                     </span>
-                  ))
+                  ); })
                 ) : (
                   <span className="text-slate-500 italic text-xs">{f.noMarkets}</span>
                 )}

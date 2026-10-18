@@ -21,6 +21,7 @@ export const language = {
 };
 
 export const shell = {
+  documentTitle: "Trade2Turkey Dijital Tedarik ve Lojistik Portalı",
   skipToContent: "İçeriğe geç",
   sidebarLabel: "Çalışma alanı menüsü",
   closeMenu: "Menüyü kapat",
