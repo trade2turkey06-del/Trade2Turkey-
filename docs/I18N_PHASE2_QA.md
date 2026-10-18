@@ -15,3 +15,5 @@ Read-only live enum scan is retained in `I18N_PHASE2_STATUS_SCAN.json`. Missing 
 | Reports | English report summary and print/PDF, text download and email-draft controls inspected | Project name only (user data) | TypeScript, 45 unit tests, 25 rules tests and build passed |
 
 Report display, text download and email draft share the same localised summary. Browser download-event capture timed out; no downloaded-file verification is claimed. Print/PDF uses the same rendered report; the operating-system print dialog is not translated by the application.
+
+| Sectors | Sector navigation, company card and Add company form inspected in English | Stored sector `Havlu`; company location, products, profile text and contact `Şenay Karakozak` remain unchanged | TypeScript, 45 unit tests, 25 rules tests and build passed |
