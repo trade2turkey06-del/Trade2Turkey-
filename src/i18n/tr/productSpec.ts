@@ -1,6 +1,5 @@
-// Ürün Reçetesi (Product Specification) arayüz metinleri tek yerde. İngilizce için aynı yapıda bir `en` nesnesi
-// eklenip `specText` seçimi dile bağlanabilir; bileşenler yalnızca `specText` üzerinden okur.
-const tr = {
+// Ürün Reçetesi (Product Specification) ekranı ve PDF çıktısı.
+export const productSpec = {
   title: "Ürün Reçetesi (Product Specification)",
   subtitle: "Ürünün imzalı tanımı: üretim, kalite kontrol ve maliyetlendirme (A.B.9) bu belgeye dayanır.",
   close: "Kapat",
@@ -23,6 +22,10 @@ const tr = {
   conflict: "Bu reçete başka bir oturumda değişti. Güncel kaydı kontrol edip yeniden deneyin.",
   tooLarge: "Reçete çok büyük. Lütfen uzun notları kısaltın.",
   signIn: "Oturum açın.",
+  actions: "İşlem",
+  unsavedLeave: "Kaydedilmemiş değişiklikler kaybolacak. Devam edilsin mi?",
+  unsavedClose: "Kaydedilmemiş değişiklikler kaybolacak. Kapatılsın mı?",
+  saveFailed: "Kaydedilemedi.",
 
   list: {
     heading: "Reçeteler",
@@ -127,6 +130,8 @@ const tr = {
     newMarketPrompt: "Yeni pazar kodu (ör. DE, SA):",
     marketExists: "Bu pazar zaten var.",
     marketName: "Pazar adı",
+    // Kaydedilmemiş örnek pazarların adları; kaydedilen ad veridir ve olduğu gibi gösterilir.
+    defaultMarkets: { EU: "Avrupa Birliği", UK: "Birleşik Krallık" } as Record<string, string>,
     levelLow: "Düşük ≤",
     levelHigh: "Yüksek >",
     rules: "İddia kuralları",
@@ -136,6 +141,8 @@ const tr = {
     ruleOperator: "Koşul",
     ruleValue: "Eşik",
     addRule: "Kural ekle",
+    settingsSaveFailed: "Kaydedilemedi. Yönetici yetkisi gerekli.",
+    marketCodeInvalid: "Pazar kodu 2–20 harf/rakam olmalı.",
     metrics: {
       proteinEnergyPct: "Protein enerji oranı (%)", protein: "Protein (g)", fat: "Yağ (g)", saturatedFat: "Doymuş yağ (g)", sugar: "Şeker (g)",
       salt: "Tuz (g)", fiber: "Lif (g)", energyKcal: "Enerji (kcal)", vegan: "Formülasyon: vegan", halal: "Formülasyon: helal", manual: "Elle kontrol",
@@ -149,6 +156,7 @@ const tr = {
     unit: "Birim",
     tolerance: "Tolerans",
     unitWeightHint: "Birim gramaj (g) A.B.9 maliyet satırlarında miktar hesabı için kullanılır.",
+    defaults: { unitWeight: "Birim gramaj", diameter: "Çap", thickness: "Kalınlık", color: "Renk", moisture: "Nem" } as Record<string, string>,
   },
 
   micro: { heading: "6. Mikrobiyoloji ve kalite limitleri", parameter: "Parametre", limit: "Limit", unit: "Birim", method: "Test yöntemi" },
@@ -175,6 +183,9 @@ const tr = {
     fromVaultHelp: "Projenin \"Ürün ve Paketleme Konfigürasyonu\"ndan doldurur (tek yönlü; kasa değişmez).",
     noVault: "Projede paketleme konfigürasyonu yok.",
     diffHeading: "Kasadaki paketleme konfigürasyonundan farklı olanlar",
+    unitWeight: "Birim gramaj (g)",
+    defaultMaterials: { carton: "Koli", pallet: "Palet" },
+    diffItem: (label: string, vault: string, spec: string) => `${label}: kasa ${vault}, reçete ${spec}`,
   },
 
   storage: {
@@ -249,6 +260,8 @@ const tr = {
     ab9MissingWeight: "Birim gramaj girilmediği için formülasyon miktarları hesaplanamadı.",
     ab9Columns: { source: "Kaynak", material: "Malzeme", quantity: "Birim başına miktar", unit: "Birim", unitPrice: "Birim fiyat", currency: "Para birimi", fxRate: "Kur", waste: "Fire %", priceSource: "Fiyat kaynağı", priceDate: "Fiyat tarihi" },
     ab9Sources: { formulation: "Formülasyon", packaging: "Ambalaj" } as Record<string, string>,
+    ab9Units: { kg: "kg", pcs: "adet" } as Record<string, string>,
+    ab9ReplaceConfirm: "Mevcut satırlar onaylı reçetedeki satırlarla değiştirilsin mi?",
   },
 
   print: {
@@ -258,5 +271,3 @@ const tr = {
   },
 };
 
-export type SpecText = typeof tr;
-export const specText: SpecText = tr;

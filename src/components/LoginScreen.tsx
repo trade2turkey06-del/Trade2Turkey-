@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { UserTenant } from "../data/usersData";
 import { Lock, Mail, ChevronRight, Eye, EyeOff, Loader2, ShieldCheck, Globe2, PackageCheck } from "lucide-react";
 import BrandLogo from "./BrandLogo";
+import LanguageSwitcher from "./LanguageSwitcher";
+import { useI18n } from "../i18n";
 import { auth, db } from "../lib/firebase";
 import { signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
@@ -17,11 +19,13 @@ export default function LoginScreen({ onLoginSuccess, initialError }: LoginScree
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(initialError || null);
+  const { t } = useI18n();
+  const l = t.login;
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      setErrorMessage("Please enter both your email and password.");
+      setErrorMessage(l.errors.missing);
       return;
     }
 
@@ -37,12 +41,12 @@ export default function LoginScreen({ onLoginSuccess, initialError }: LoginScree
       const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
       if (!userDoc.exists()) {
         await signOut(auth);
-        throw new Error("Bu hesap için proje erişimi tanımlı değil. Yöneticiyle iletişim kurun.");
+        throw new Error(l.errors.noAccess);
       }
       const userProfile = { ...userDoc.data(), id: userCredential.user.uid, uid: userCredential.user.uid } as UserTenant;
       if (["suspended", "Askıya Alındı"].includes(userProfile.status || "")) {
         await signOut(auth);
-        throw new Error("Bu hesap askıya alınmış. Yöneticiyle iletişim kurun.");
+        throw new Error(l.errors.suspended);
       }
       setLoading(false);
       onLoginSuccess(userProfile);
@@ -51,15 +55,15 @@ export default function LoginScreen({ onLoginSuccess, initialError }: LoginScree
       console.error("Firebase Auth sign-in failed:", signInError);
       setLoading(false);
       
-      let friendlyMessage = "Authentication failed. Please check your credentials.";
+      let friendlyMessage = l.errors.generic;
       if (
         signInError.code === "auth/invalid-credential" || 
         signInError.code === "auth/wrong-password" || 
         signInError.code === "auth/user-not-found"
       ) {
-        friendlyMessage = "Invalid email or password. Please try again.";
+        friendlyMessage = l.errors.invalidCredentials;
       } else if (signInError.code === "auth/invalid-email") {
-        friendlyMessage = "Please enter a valid email address.";
+        friendlyMessage = l.errors.invalidEmail;
       } else if (signInError.message) {
         friendlyMessage = signInError.message;
       }
@@ -73,20 +77,21 @@ export default function LoginScreen({ onLoginSuccess, initialError }: LoginScree
       <aside className="login-story relative hidden flex-col justify-between overflow-hidden bg-navy p-12 text-white lg:flex xl:p-16">
         <div className="relative z-10"><BrandLogo size="lg" layout="full" theme="dark" /></div>
         <div className="relative z-10 max-w-lg py-16">
-          <p className="mb-5 flex items-center gap-2 text-xs font-semibold uppercase tracking-[.2em] text-teal-300"><span className="h-1.5 w-1.5 rounded-full bg-teal-300" /> Your sourcing partner in Türkiye</p>
-          <h1 className="font-display text-5xl font-semibold leading-[1.13] tracking-tight xl:text-6xl">Closer to production.<br /><span className="text-teal-300">Further in business.</span></h1>
-          <p className="mt-6 max-w-sm text-base leading-7 text-slate-300">Bring your suppliers, documents, and operations together. One clear view, from discovery to delivery.</p>
-          <div className="mt-10 space-y-4">{([{ icon: Globe2, text: "Discover and evaluate suppliers" }, { icon: PackageCheck, text: "Coordinate production and logistics" }, { icon: ShieldCheck, text: "Keep every project organized" }]).map(({ icon: Icon, text }) => <div key={text} className="flex items-center gap-3 text-sm text-slate-200"><Icon className="h-5 w-5 text-teal-300" />{text}</div>)}</div>
+          <p className="mb-5 flex items-center gap-2 text-xs font-semibold uppercase tracking-[.2em] text-teal-300"><span className="h-1.5 w-1.5 rounded-full bg-teal-300" /> {l.storyEyebrow}</p>
+          <h1 className="font-display text-5xl font-semibold leading-[1.13] tracking-tight xl:text-6xl">{l.storyTitle1}<br /><span className="text-teal-300">{l.storyTitle2}</span></h1>
+          <p className="mt-6 max-w-sm text-base leading-7 text-slate-300">{l.storyText}</p>
+          <div className="mt-10 space-y-4">{([{ icon: Globe2, text: l.storyPoints[0] }, { icon: PackageCheck, text: l.storyPoints[1] }, { icon: ShieldCheck, text: l.storyPoints[2] }]).map(({ icon: Icon, text }) => <div key={text} className="flex items-center gap-3 text-sm text-slate-200"><Icon className="h-5 w-5 text-teal-300" />{text}</div>)}</div>
         </div>
-        <p className="relative z-10 text-xs text-slate-400">Trade2Turkey · Digital and transparent sourcing</p>
+        <p className="relative z-10 text-xs text-slate-400">{l.storyFooter}</p>
       </aside>
       <div className="flex min-h-screen items-center justify-center px-6 py-12 sm:px-12">
       <div id="login-card-container" className="relative w-full max-w-md space-y-8">
         <div className="space-y-3">
+          <div className="flex justify-end"><LanguageSwitcher /></div>
           <div className="mb-10 lg:hidden"><BrandLogo size="md" layout="full" theme="light" /></div>
-          <p className="text-xs font-semibold uppercase tracking-[.18em] text-teal-700">Your workspace, connected</p>
-          <h2 className="font-display text-4xl font-semibold tracking-tight text-navy">Welcome back.</h2>
-          <p className="text-sm leading-6 text-slate-500">Sign in to manage your sourcing projects and keep your next move in focus.</p>
+          <p className="text-xs font-semibold uppercase tracking-[.18em] text-teal-700">{l.eyebrow}</p>
+          <h2 className="font-display text-4xl font-semibold tracking-tight text-navy">{l.title}</h2>
+          <p className="text-sm leading-6 text-slate-500">{l.subtitle}</p>
         </div>
 
         {errorMessage && (
@@ -97,7 +102,7 @@ export default function LoginScreen({ onLoginSuccess, initialError }: LoginScree
 
         <form onSubmit={handleLoginSubmit} className="space-y-4">
           <div className="space-y-1.5 font-sans">
-            <label htmlFor="login-email-input" className="block text-xs font-bold text-slate-600 uppercase tracking-wider font-sans">Business email</label>
+            <label htmlFor="login-email-input" className="block text-xs font-bold text-slate-600 uppercase tracking-wider font-sans">{l.email}</label>
             <div className="relative">
               <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
@@ -114,7 +119,7 @@ export default function LoginScreen({ onLoginSuccess, initialError }: LoginScree
           </div>
 
           <div className="space-y-1.5 font-sans">
-            <label htmlFor="login-password-input" className="block text-xs font-bold text-slate-600 uppercase tracking-wider font-sans">Secure access password</label>
+            <label htmlFor="login-password-input" className="block text-xs font-bold text-slate-600 uppercase tracking-wider font-sans">{l.password}</label>
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
@@ -130,7 +135,7 @@ export default function LoginScreen({ onLoginSuccess, initialError }: LoginScree
               <button
                 type="button"
                 id="toggle-password-visibility"
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={showPassword ? l.hidePassword : l.showPassword}
                 aria-pressed={showPassword}
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-navy cursor-pointer p-1 rounded"
@@ -148,23 +153,23 @@ export default function LoginScreen({ onLoginSuccess, initialError }: LoginScree
           >
             {loading ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin text-white" /> Loading secure workspace...
+                <Loader2 className="h-4 w-4 animate-spin text-white" /> {l.loading}
               </>
             ) : (
               <>
-                Sign in to workspace <ChevronRight className="h-4 w-4" />
+                {l.submit} <ChevronRight className="h-4 w-4" />
               </>
             )}
           </button>
           <button type="button" className="mt-3 text-sm text-teal-700 hover:text-teal-900" disabled={loading} onClick={async () => {
-            if (!email.trim()) { setErrorMessage("Şifre sıfırlamak için e-posta adresinizi girin."); return; }
+            if (!email.trim()) { setErrorMessage(l.errors.resetNeedsEmail); return; }
             setLoading(true);
-            try { await sendPasswordResetEmail(auth, email.trim().toLowerCase()); setErrorMessage("Hesap mevcutsa şifre belirleme bağlantısı gönderildi. E-posta ve spam klasörünüzü kontrol edin."); }
-            catch { setErrorMessage("Şifre e-postası gönderilemedi. Bir süre sonra tekrar deneyin."); }
+            try { await sendPasswordResetEmail(auth, email.trim().toLowerCase()); setErrorMessage(l.errors.resetSent); }
+            catch { setErrorMessage(l.errors.resetFailed); }
             finally { setLoading(false); }
-          }}>Şifremi unuttum / Şifre belirle</button>
+          }}>{l.forgot}</button>
         </form>
-        <p className="flex items-center justify-center gap-2 border-t border-slate-100 pt-6 text-xs text-slate-500"><Lock className="h-3.5 w-3.5" /> Project access is managed by your administrator.</p>
+        <p className="flex items-center justify-center gap-2 border-t border-slate-100 pt-6 text-xs text-slate-500"><Lock className="h-3.5 w-3.5" /> {l.footer}</p>
       </div>
       </div>
     </div>

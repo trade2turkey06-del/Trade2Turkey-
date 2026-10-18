@@ -261,3 +261,11 @@ test("iddia eşikleri: herkes okur, yalnızca yönetici yazar",async()=>{
   await assertSucceeds(getDoc(doc(dbFor("client"),"claimThresholds/EU")));
   await assertFails(deleteDoc(doc(dbFor("client"),"claimThresholds/EU")));
 });
+test("dil tercihi: kullanıcı kendi profiline yalnızca tr/en yazabilir, başkasınınkine yazamaz",async()=>{
+  await assertSucceeds(updateDoc(doc(dbFor("client"),"users/client"),{language:"en"}));
+  await assertSucceeds(updateDoc(doc(dbFor("client"),"users/client"),{language:"tr"}));
+  await assertFails(updateDoc(doc(dbFor("client"),"users/client"),{language:"de"}));
+  await assertFails(updateDoc(doc(dbFor("client"),"users/client"),{language:1}));
+  await assertFails(updateDoc(doc(dbFor("other"),"users/client"),{language:"en"}));
+  await assertSucceeds(updateDoc(doc(dbFor("admin"),"users/client"),{language:"en"}));
+});

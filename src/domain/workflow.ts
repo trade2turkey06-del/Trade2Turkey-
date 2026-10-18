@@ -1,3 +1,5 @@
+import { CodedError } from "../i18n/errors";
+// Durum anahtarları Firestore'a yazılır; ekrandaki etiketler src/i18n (status.workflow) içindedir.
 export const workflowStatuses = { not_started: "Başlanmadı", in_progress: "Devam ediyor", incomplete: "Tamamlanmadı", completed: "Tamamlandı" } as const;
 export type WorkflowStatus = keyof typeof workflowStatuses;
 export interface TaskRecord {
@@ -27,9 +29,9 @@ export function affectedSteps(ids: string[]) {
   return [...affected];
 }
 export function validateCompletion(task: TaskRecord) {
-  if (!task.assigneeUid || !task.approverUid || task.assigneeUid === task.approverUid) throw new Error("Görev sorumlusu ve onaylayan farklı kişiler olmalı.");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(task.dueDate || "")) throw new Error("Hedef bitiş tarihi seçin.");
+  if (!task.assigneeUid || !task.approverUid || task.assigneeUid === task.approverUid) throw new CodedError("completionPeople");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(task.dueDate || "")) throw new CodedError("completionDueDate");
   let valid = false;
   try { const url = new URL(task.evidenceUrl || ""); valid = url.protocol === "https:" && !url.username && !url.password; } catch {}
-  if (!valid || !task.evidenceName?.trim()) throw new Error("Gerekli çıktı için gerçek belge adı ve HTTPS bağlantısı ekleyin.");
+  if (!valid || !task.evidenceName?.trim()) throw new CodedError("completionEvidence");
 }

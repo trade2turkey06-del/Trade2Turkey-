@@ -6,7 +6,7 @@ import {
   type FormulationRow, type MicroRow, type NutrientKey, type OpenItem, type PackagingRow, type PhysicalRow, type ProcessRow, type ProductSpec, type VaultIssue, type VaultPackaging,
 } from "../../domain/productSpec";
 import type { VaultManufacturer } from "../../lib/productSpecStore";
-import { specText as t } from "../../i18n/productSpec";
+import { useI18n } from "../../i18n";
 import GoogleDriveFolder from "../GoogleDriveFolder";
 import ClaimCheckSection, { type MarketOption } from "./ClaimCheckSection";
 import { formatNumber, input, Labeled, Notice, NumberField, RowTable, Section, SmallButton, TextField } from "./fields";
@@ -14,7 +14,9 @@ import { formatNumber, input, Labeled, Notice, NumberField, RowTable, Section, S
 interface Props { spec: ProductSpec; onChange: (spec: ProductSpec) => void; disabled: boolean; isAdmin: boolean; manufacturer?: VaultManufacturer; packagingConfig?: VaultPackaging; markets: MarketOption[] }
 
 export default function ProductSpecForm({ spec, onChange, disabled, isAdmin, manufacturer, packagingConfig, markets }: Props) {
+  const t = useI18n().t.productSpec;
   const [issues, setIssues] = useState<VaultIssue[] | null>(null);
+  const physicalName = (row: PhysicalRow) => row.name || (row.key ? t.physical.defaults[row.key] : "");
   const set = <K extends keyof ProductSpec>(key: K, value: ProductSpec[K]) => onChange({ ...spec, [key]: value });
   const general = (patch: Partial<ProductSpec["general"]>) => set("general", { ...spec.general, ...patch });
   const total = formulationTotal(spec.formulation);
@@ -22,7 +24,7 @@ export default function ProductSpecForm({ spec, onChange, disabled, isAdmin, man
   const parsed = parseVaultNutrition(vaultNutrition);
   const hasVaultNutrition = !!vaultNutrition && Object.values(vaultNutrition).some(value => String(value || "").trim());
   const nutritionDiffs = hasVaultNutrition ? nutritionDiff(spec.nutrition, parsed.values) : [];
-  const packagingDiffs = packagingDiff(spec, packagingConfig);
+  const packagingDiffs = packagingDiff(spec, packagingConfig, t.packaging.defaultMaterials);
   const setNutrient = (key: NutrientKey, patch: Partial<ProductSpec["nutrition"][NutrientKey]>) => set("nutrition", { ...spec.nutrition, [key]: { ...spec.nutrition[key], ...patch } });
   const fillNutrition = () => { set("nutrition", applyVaultNutrition(spec.nutrition, parsed.values)); setIssues(parsed.issues); };
   const fillStorage = () => { const vault = manufacturer?.vaultDetails?.storageShelfLife; set("storage", { ...spec.storage, frozen: vault?.frozenProducts?.trim() || spec.storage.frozen, ambient: vault?.ambientProducts?.trim() || spec.storage.ambient }); };
@@ -76,10 +78,10 @@ export default function ProductSpecForm({ spec, onChange, disabled, isAdmin, man
 
     <Section title={t.physical.heading}>
       <RowTable<PhysicalRow> rows={spec.physical} onChange={rows => set("physical", rows.some(row => row.id === UNIT_WEIGHT_ROW) ? rows : [spec.physical.find(row => row.id === UNIT_WEIGHT_ROW)!, ...rows].filter(Boolean))} disabled={disabled} create={() => ({ id: newId(), name: "", target: "", unit: "", tolerance: "" })} columns={[
-        { label: t.physical.name, render: (row, update) => row.id === UNIT_WEIGHT_ROW ? <span className="font-medium">{row.name}</span> : <TextField label={t.physical.name} value={row.name} disabled={disabled} onChange={name => update({ name })} /> },
-        { label: t.physical.target, render: (row, update) => <TextField label={`${row.name} ${t.physical.target}`} value={row.target} disabled={disabled} onChange={target => update({ target })} /> },
-        { label: t.physical.unit, className: "w-24", render: (row, update) => row.id === UNIT_WEIGHT_ROW ? <span>g</span> : <TextField label={`${row.name} ${t.physical.unit}`} value={row.unit} maxLength={30} disabled={disabled} onChange={unit => update({ unit })} /> },
-        { label: t.physical.tolerance, render: (row, update) => <TextField label={`${row.name} ${t.physical.tolerance}`} value={row.tolerance} disabled={disabled} onChange={tolerance => update({ tolerance })} /> },
+        { label: t.physical.name, render: (row, update) => row.id === UNIT_WEIGHT_ROW ? <span className="font-medium">{physicalName(row)}</span> : disabled ? <span>{physicalName(row)}</span> : <TextField label={t.physical.name} value={row.name} placeholder={row.key ? t.physical.defaults[row.key] : undefined} disabled={disabled} onChange={name => update({ name })} /> },
+        { label: t.physical.target, render: (row, update) => <TextField label={`${physicalName(row)} ${t.physical.target}`} value={row.target} disabled={disabled} onChange={target => update({ target })} /> },
+        { label: t.physical.unit, className: "w-24", render: (row, update) => row.id === UNIT_WEIGHT_ROW ? <span>g</span> : <TextField label={`${physicalName(row)} ${t.physical.unit}`} value={row.unit} maxLength={30} disabled={disabled} onChange={unit => update({ unit })} /> },
+        { label: t.physical.tolerance, render: (row, update) => <TextField label={`${physicalName(row)} ${t.physical.tolerance}`} value={row.tolerance} disabled={disabled} onChange={tolerance => update({ tolerance })} /> },
       ]} />
       <p className="text-[11px] text-slate-500">{t.physical.unitWeightHint}</p>
     </Section>
@@ -106,7 +108,7 @@ export default function ProductSpecForm({ spec, onChange, disabled, isAdmin, man
       ]} />
     </Section>
 
-    <Section title={t.packaging.heading} actions={!disabled && <SmallButton title={t.packaging.fromVaultHelp} disabled={!packagingConfig} onClick={() => onChange(applyVaultPackaging(spec, packagingConfig))}><DatabaseZap className="h-3.5 w-3.5" /> {t.packaging.fromVault}</SmallButton>}>
+    <Section title={t.packaging.heading} actions={!disabled && <SmallButton title={t.packaging.fromVaultHelp} disabled={!packagingConfig} onClick={() => onChange(applyVaultPackaging(spec, packagingConfig, t.packaging.defaultMaterials))}><DatabaseZap className="h-3.5 w-3.5" /> {t.packaging.fromVault}</SmallButton>}>
       {!packagingConfig && !disabled && <Notice tone="slate">{t.packaging.noVault}</Notice>}
       <RowTable<PackagingRow> rows={spec.packaging} onChange={rows => set("packaging", rows)} disabled={disabled} sortable={false} columns={[
         { label: t.packaging.level, className: "whitespace-nowrap", render: row => t.packaging.levels[row.level] },
@@ -116,7 +118,7 @@ export default function ProductSpecForm({ spec, onChange, disabled, isAdmin, man
         { label: t.packaging.perUnits, className: "w-28", render: (row, update) => <NumberField label={`${t.packaging.levels[row.level]} ${t.packaging.perUnits}`} value={row.perUnits} disabled={disabled} onChange={perUnits => update({ perUnits })} /> },
       ]} />
       <p className="text-[11px] text-slate-500">{t.packaging.perUnitsHelp}</p>
-      {packagingDiffs.length > 0 && <Notice tone="slate"><p className="font-semibold">{t.packaging.diffHeading}</p><ul className="mt-1 list-disc pl-4">{packagingDiffs.map(item => <li key={`${item.level}-${item.field}`}>{item.field === "unitWeight" ? "Birim gramaj (g)" : `${t.packaging.levels[item.level]} · ${({ material: t.packaging.material, size: t.packaging.size, quantity: t.packaging.quantity, perUnits: t.packaging.perUnits } as Record<string, string>)[item.field]}`}: kasa {item.vault}, reçete {item.spec || t.none}</li>)}</ul></Notice>}
+      {packagingDiffs.length > 0 && <Notice tone="slate"><p className="font-semibold">{t.packaging.diffHeading}</p><ul className="mt-1 list-disc pl-4">{packagingDiffs.map(item => <li key={`${item.level}-${item.field}`}>{t.packaging.diffItem(item.field === "unitWeight" ? t.packaging.unitWeight : `${t.packaging.levels[item.level]} · ${({ material: t.packaging.material, size: t.packaging.size, quantity: t.packaging.quantity, perUnits: t.packaging.perUnits } as Record<string, string>)[item.field]}`, item.vault, item.spec || t.none)}</li>)}</ul></Notice>}
     </Section>
 
     <Section title={t.storage.heading} actions={!disabled && <SmallButton disabled={!manufacturer?.vaultDetails?.storageShelfLife} onClick={fillStorage}><DatabaseZap className="h-3.5 w-3.5" /> {t.storage.fromVault}</SmallButton>}>

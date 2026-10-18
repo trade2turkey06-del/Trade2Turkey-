@@ -51,12 +51,14 @@ test("reçete: A.B.9 maliyet satırları oran × birim gramajdan hesaplanır, fi
   spec.formulation = [{ ...emptyFormulationRow(), name: "Un", ratio: 50 }, { ...emptyFormulationRow(), name: "Su", ratio: null }, { ...emptyFormulationRow(), name: "  " }];
   spec.packaging = spec.packaging.map(row => row.level === "primary" ? { ...row, material: "PP poşet", quantity: 1, perUnits: 1 } : row.level === "secondary" ? { ...row, material: "Koli", quantity: 1, perUnits: 12 } : row);
   const { lines, source } = costLinesFromSpec(spec);
-  assert.deepEqual(lines.map(line => [line.source, line.materialName, line.quantityPerUnit, line.unit]), [["formulation", "Un", 0.2, "kg"], ["formulation", "Su", null, "kg"], ["packaging", "PP poşet", 1, "adet"], ["packaging", "Koli", 0.083333, "adet"]]);
+  assert.deepEqual(lines.map(line => [line.source, line.materialName, line.quantityPerUnit, line.unit]), [["formulation", "Un", 0.2, "kg"], ["formulation", "Su", null, "kg"], ["packaging", "PP poşet", 1, "pcs"], ["packaging", "Koli", 0.083333, "pcs"]]);
   for (const line of lines) assert.deepEqual([line.unitPrice, line.currency, line.fxRate, line.wastePct, line.priceSource, line.priceDate], [null, "", null, null, "", ""]);
   assert.equal(source.unitWeightG, 400); assert.equal(source.version, "v1.0");
   assert.equal(costLinesFromSpec(base()).lines.length, 0);
 });
 test("reçete: versiyonlama, onay koşulları ve A.B.8 bağlantısı", () => {
+  const fresh = base();
+  assert.deepEqual(fresh.physical.map(row => [row.key, row.name]), [["unitWeight", ""], ["diameter", ""], ["thickness", ""], ["color", ""], ["moisture", ""]], "varsayılan satırlar dilden bağımsız anahtarla saklanır");
   assert.equal(nextVersion("v1.0"), "v1.1"); assert.equal(nextVersion("v1.9"), "v1.10");
   const spec = base();
   assert.deepEqual(approvalErrors(spec), ["t2t", "manufacturer"]);
@@ -75,8 +77,8 @@ test("reçete: versiyonlama, onay koşulları ve A.B.8 bağlantısı", () => {
   assert.equal(specLinkValid({ status: "approved", manufacturerId: "m2" }, "m1"), false);
   assert.equal(specLinkValid(undefined, "m1"), false);
 });
-test("reçete: ambalaj kasadan tek yönlü dolar ve farklar listelenir", () => {
-  const config = { packagingStyle: "PP poşet", singleWeight: 400, masterCartonCount: 12, palletCartonCount: 72, cartonDimensions: "52x29.5x20 cm" };
+test("reçete: ambalaj kasadan tek yönlü dolar ve farklar listelenir (kasa ağırlığı kg → reçete g)", () => {
+  const config = { packagingStyle: "PP poşet", singleWeight: 0.4, masterCartonCount: 12, palletCartonCount: 72, cartonDimensions: "52x29.5x20 cm" };
   const filled = applyVaultPackaging(base(), config);
   assert.deepEqual(filled.packaging.map(row => [row.level, row.material, row.quantity, row.perUnits]), [["primary", "PP poşet", 1, 1], ["secondary", "Koli", 1, 12], ["pallet", "Palet", 1, 864], ["label", "", null, null]]);
   assert.equal(filled.physical.find(row => row.id === UNIT_WEIGHT_ROW)!.target, "400");
@@ -84,4 +86,7 @@ test("reçete: ambalaj kasadan tek yönlü dolar ve farklar listelenir", () => {
   const changed = { ...filled, packaging: filled.packaging.map(row => row.level === "secondary" ? { ...row, perUnits: 10 } : row) };
   assert.deepEqual(packagingDiff(changed, config).map(item => [item.level, item.field]), [["secondary", "perUnits"]]);
   assert.deepEqual(packagingDiff(base(), undefined), []);
+  const english = applyVaultPackaging(base(), config, { carton: "Carton", pallet: "Pallet" });
+  assert.deepEqual(english.packaging.map(row => row.material), ["PP poşet", "Carton", "Pallet", ""]);
+  assert.equal(english.packaging[0].size, "400 g");
 });

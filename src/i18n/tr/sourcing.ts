@@ -1,0 +1,91 @@
+// Tedarik iş akışı: durum etiketleri, 21 adımın adı/KPI/çıktısı, pano ve "Ayrıntılar" paneli.
+// Firestore'a yalnızca anahtarlar yazılır (not_started, pending…); bu metinler sadece ekranda kullanılır.
+export const status = {
+  workflow: { not_started: "Başlanmadı", in_progress: "Devam ediyor", incomplete: "Tamamlanmadı", completed: "Tamamlandı" } as Record<string, string>,
+  approved: "Onaylandı",
+  pending: "Onay bekliyor",
+  overdue: "Gecikti",
+};
+
+export interface StepText { name: string; kpi: string; output: string }
+export const steps: Record<string, StepText> = {
+  "A.A.1": { name: "Proje Başlangıç Bilgilerinin Onaylanması", kpi: "Proje Bilgileri Eksiksiz Toplama Oranı", output: "Proje Bilgi Formu (Eksiksiz), B2B müşterisinden toplantı tutanakları" },
+  "A.A.2": { name: "Hedef Ürün Özelliklerinin Oluşturulması", kpi: "Ürün özelliklerinin oluşturulması", output: "Onaylanmış Hedef Ürün Özellikleri" },
+  "A.A.3": { name: "İlk Araştırma ve Geniş Tedarikçi Listesi", kpi: "Tedarikçi Araştırma Kapsamı (Min 10 Üretici)", output: "Üreticilerin İlk Geniş Listesi" },
+  "A.A.4": { name: "Teklif Talebi (RFQ) Gönderimi", kpi: "Teklif Talebi formu tedarikçilere gönderildi ve Yanıt Oranı %70", output: "Doldurulmuş Teklif Talebi (RFQ) formları" },
+  "A.A.5": { name: "Üretici Kısa Listesi", kpi: "En Az 3 Firmalık Kısa Liste", output: "E-posta veya liste olarak kısa listeye alınan şirketler" },
+  "A.A.6": { name: "Maliyetlendirme - Değer Zinciri", kpi: "%95 doğru maliyetlendirme", output: "Nihai Değer Zinciri Excel Raporu" },
+  "A.A.7": { name: "Proje Devam/Tamam Kararı", kpi: "Proje Devam/Tamam Kararı Durumu", output: "Projenin değerini, geri dönüş potansiyelini (ROI) ve rekabet ortamı raporunu belirler" },
+  "A.B.1": { name: "Gizlilik Sözleşmesi (NDA)", kpi: "Kısa Listedeki Şirketlerle NDA İmzalanması", output: "Karşılıklı İmzalanmış NDA" },
+  "A.B.2": { name: "Tanışma Toplantısı", kpi: "Kısa listedeki şirketlerin %100 toplantı katılımı", output: "Her üretici için takip notları" },
+  "A.B.3": { name: "Numune Talep Formu", kpi: "Doğru form ile numune talebi işlemleri", output: "Tamamlanmış ve Onaylanmış Numune Talep Formu" },
+  "A.B.4": { name: "Numune Onay veya Red Güncellemesi", kpi: "Numune incelemesinin tamamlanması", output: "Numune incelemesine ilişkin notlar" },
+  "A.B.5": { name: "SMM (COGS) Detay Sayfası", kpi: "SMM (COGS) Detay Sayfası kısa listedeki her üretici tarafından oluşturulur ve gönderilir", output: "Her üreticinin maliyet detaylarına sahip olma" },
+  "A.B.6": { name: "RFQ Karşılaştırma Matrisi", kpi: "Veri girişinin eksiksiz yapılması", output: "Güncel RFQ Karşılaştırma Matrisi" },
+  "A.B.7": { name: "Yüksek Potansiyelli Tedarikçinin Belirlenmesi", kpi: "En az 1 yüksek potansiyelli tedarikçiye sahip olma", output: "En az 1 yüksek potansiyelli tedarikçinin belirlenmesi" },
+  "A.B.8": { name: "Ürün Reçetesinin Oluşturulması", kpi: "Formülasyonu ve ambalaj BOM'u eksiksiz, onaylı ürün reçetesi", output: "İmzalı ve versiyonlanmış ürün reçetesi" },
+  "A.B.9": { name: "Reçetedeki Malzemelerin Maliyetlendirilmesi", kpi: "Her malzemenin maliyet doğruluğu (%100)", output: "Hedef ürün hakkında net maliyet sayfasına sahip olma" },
+  "A.B.10": { name: "Nihai Özellikler ve Maliyetlendirme", kpi: "Hedef ve nihai maliyet arasındaki fark (Maks %10)", output: "Onaylanmış Nihai Özellikler ve Maliyet Belgesi" },
+  "A.B.11": { name: "Yerinde Ziyaret ile Denetim", kpi: "Kontrol listesine göre tamamlanmış denetim (hijyen, kapasite, kalite yönetim sistemi, sertifikalar)", output: "Fabrika Denetim Raporu / Yerinde Ziyaret Özeti" },
+  "A.B.12": { name: "Nihai Onay - Kritik Kontrol Noktası", kpi: "Kritik Kontrol: Değer zinciri, Ürün özellikleri, Finans ve Piyasa koşullarının kontrolü", output: "Projeye başlamak için yazılı onay" },
+  "A.B.13": { name: "Üretim Öncesi Toplantı", kpi: "Stok kodları (SKU), etiket ve teknik özellikler her iki taraf için de %100 net olmalıdır", output: "Stok kodları, etiket ve teknik özellikler standart belge olarak oluşturulmuştur" },
+  "A.B.14": { name: "Ticari Anlaşma", kpi: "Sözleşmenin Yürürlüğe Girmesi", output: "Karşılıklı İmzalanmış Ticari Sözleşme" },
+};
+
+export const sourcing = {
+  title: "Tedarik iş akışı",
+  note: "Uçtan uca tedarik süreci",
+  groups: {
+    "A.A.": { title: "Keşif ve fizibilite", subtitle: "Projenin temellerini oluşturun" },
+    "A.B.": { title: "Teklif, kalite ve uyumluluk", subtitle: "Tedarik sürecini doğrulayın ve tamamlayın" },
+  } as Record<string, { title: string; subtitle: string }>,
+  metrics: {
+    total: "Toplam adım", active: "Devam eden", activeNote: "Üzerinde çalışılan görevler",
+    pending: "Onay bekleyen", pendingNote: "Değerlendirme bekleyen işler", done: "Tamamlanan", doneNote: "Tamamlandı ve onaylandı",
+  },
+  boardSubtitle: "Her aşamada net sorumluluk, izlenebilir ilerleme.",
+  progress: "Proje ilerlemesi",
+  progressLabel: (title: string) => `Onaylanan adımlar: ${title}`,
+  filterLabel: "Görev durumuna göre filtrele",
+  filters: { all: "Tüm adımlar", in_progress: "Devam eden", pending: "Onay bekleyen", approved: "Tamamlanan" } as Record<string, string>,
+  searchLabel: (title: string) => `${title} adımı ara`,
+  searchPlaceholder: "Adım adı veya kodu ara…",
+  loading: "İş akışı yükleniyor…",
+  stepCount: (shown: number, total: number) => `${shown} / ${total} adım`,
+  noMatchTitle: "Eşleşen adım bulunamadı",
+  noMatchText: "Başka bir arama deneyin veya filtreleri temizleyin.",
+  showAll: "Tüm adımları göster",
+  footer: "Ön koşulları onaylanan adımlar için çalışmaya başlayabilirsiniz.",
+  days: (days: number) => `${days} gün`,
+  details: {
+    kpi: "KPI:", output: "Gerekli çıktı:", prerequisite: "Ön koşul:", none: "Yok", returnTo: "Reddedilirse dönüş:", sameStep: "Aynı adım",
+    duration: "Süre:", approvalDays: (days: number) => ` · Onay: ${days} gün`, roles: "Roller:",
+    roleLine: (requester: string, owner: string, approver: string) => `Talep eden ${requester} · Sorumlu ${owner} · Onaylayan ${approver}`,
+    waiting: (ids: string) => `Beklenen ön koşullar: ${ids}`,
+    returnReason: (reason: string) => `İade gerekçesi: ${reason}`,
+    status: "Durum", assignee: "Görev sorumlusu", approver: "Onaylayan", choosePerson: "Kişi seçin", dueDate: "Hedef bitiş tarihi",
+    evidenceName: "Belge / çıktı adı", evidenceUrl: "Belge bağlantısı (HTTPS)", notes: "Notlar",
+    submit: "Kaydet ve onaya gönder", rejectReason: "Ret / iade gerekçesi", approve: "Onayla", reject: "Gerekçeyle iade et",
+    newPeriod: "Yeni dönem başlat",
+    cycles: (count: number) => `Önceki PO döngüleri (${count})`, cycle: (n: number) => `Döngü ${n}`,
+    periods: (count: number) => `Geçmiş dönemler (${count})`, period: (n: number) => `Dönem ${n}`,
+    approvedOn: (date: string) => `onay: ${date}`, target: (date: string) => `hedef: ${date}`,
+    history: (count: number) => `İşlem geçmişi (${count})`, historySaving: "Kaydediliyor",
+    documents: "Belge yükle / belgeleri görüntüle",
+  },
+  roles: { "Project Manager": "Proje Yöneticisi", "Sourcing Manager": "Tedarik Yöneticisi", "General Manager": "Genel Müdür" } as Record<string, string>,
+  // İşlem geçmişinde gösterilen olay açıklamaları (yeni kayıtlar anahtarla saklanır).
+  events: {
+    shortlisted: (name: string) => `${name} kısa listeye eklendi (A.A.3)`,
+    periodClosed: (n: number) => `Dönem ${n} kapatıldı, yeni dönem başlatıldı`,
+  },
+  messages: {
+    newPeriodConfirm: (id: string) => `${id} için yeni dönem başlatılsın mı? Mevcut onaylı dönem geçmişe kaydedilir.`,
+    newPeriodStarted: "Yeni dönem başlatıldı.",
+    newPeriodFailed: "Yeni dönem başlatılamadı.",
+    shortlisted: (name: string) => `“${name}” A.A.5 Üretici Kısa Listesi'ne eklendi.`,
+    shortlistFailed: "Kısa listeye eklenemedi.",
+  },
+  loadError: "İş akışı yüklenemedi. Bağlantı veya erişim yetkinizi kontrol edin.",
+  usersLoadError: "Görev atanabilecek kullanıcılar yüklenemedi.",
+};

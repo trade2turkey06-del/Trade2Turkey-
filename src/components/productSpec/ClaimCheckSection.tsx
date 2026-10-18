@@ -5,25 +5,28 @@ import {
   type ClaimReason, type ClaimRule, type MarketThresholds, type ProductSpec,
 } from "../../domain/productSpec";
 import { saveThresholds } from "../../lib/productSpecStore";
-import { specText as t } from "../../i18n/productSpec";
+import { useI18n, type Messages } from "../../i18n";
 import { formatNumber, input, Labeled, Notice, NumberField, Section, SmallButton, TextField } from "./fields";
 
 export type MarketOption = MarketThresholds & { stored: boolean };
+// Kayıtlı pazar adı veridir; henüz kaydedilmemiş örnek pazarlar seçili dilde adlandırılır.
+export const marketName = (t: Messages["productSpec"], market: MarketOption) => market.stored ? market.market : t.claims.defaultMarkets[market.id] ?? market.market;
 const levelTone: Record<string, string> = { low: "bg-emerald-100 text-emerald-800", medium: "bg-amber-100 text-amber-800", high: "bg-red-100 text-red-800", unknown: "bg-slate-100 text-slate-600" };
 const statusTone: Record<string, string> = { ok: "bg-emerald-100 text-emerald-800", check: "bg-amber-100 text-amber-800", fail: "bg-red-100 text-red-800" };
-export function reasonText(reason: ClaimReason) {
+export function reasonText(t: Messages["productSpec"], reason: ClaimReason) {
   if (reason.code === "formulationFail") return t.claims.reasons.formulationFail(reason.names.join(", "));
   if (reason.code === "compare") return t.claims.reasons.compare(formatNumber(reason.value, 2), reason.operator, formatNumber(reason.threshold, 2));
   return t.claims.reasons[reason.code];
 }
 
 export default function ClaimCheckSection({ spec, onChange, disabled, isAdmin, claims, markets }: { spec: ProductSpec; onChange: (spec: ProductSpec) => void; disabled: boolean; isAdmin: boolean; claims: string[]; markets: MarketOption[] }) {
+  const t = useI18n().t.productSpec;
   const market = markets.find(item => item.id === spec.general.claimMarket) ?? markets[0];
   const proteinPct = proteinEnergyPct(spec.nutrition);
   return <Section title={t.claims.heading}>
     <Notice>{t.claims.disclaimer}</Notice>
     <div className="grid gap-4 sm:grid-cols-3">
-      <Labeled label={t.claims.market}><select className={input} value={market?.id ?? ""} disabled={disabled} onChange={event => onChange({ ...spec, general: { ...spec.general, claimMarket: event.target.value } })}>{markets.map(item => <option key={item.id} value={item.id}>{item.id} — {item.market}</option>)}</select></Labeled>
+      <Labeled label={t.claims.market}><select className={input} value={market?.id ?? ""} disabled={disabled} onChange={event => onChange({ ...spec, general: { ...spec.general, claimMarket: event.target.value } })}>{markets.map(item => <option key={item.id} value={item.id}>{item.id} — {marketName(t, item)}</option>)}</select></Labeled>
       <div className="rounded-lg bg-slate-50 p-3 sm:col-span-2"><p className="text-xs text-slate-500">{t.claims.proteinEnergy} <span className="font-mono">{t.claims.proteinEnergyFormula}</span></p><p className="mt-1 text-lg font-semibold text-navy">{proteinPct === null ? <span className="text-sm font-normal text-slate-500">{t.claims.proteinEnergyMissing}</span> : `%${formatNumber(proteinPct, 1)}`}</p><p className="text-[11px] text-slate-400">{t.claims.basis}</p></div>
     </div>
     <div><p className="mb-2 text-xs font-semibold text-slate-600">{t.claims.levelsHeading}</p><div className="flex flex-wrap gap-2">{LEVEL_NUTRIENTS.map(key => {
@@ -31,7 +34,7 @@ export default function ClaimCheckSection({ spec, onChange, disabled, isAdmin, c
       return <span key={key} className={`rounded-full px-3 py-1 text-xs font-medium ${levelTone[result]}`}>{t.claims.levelNutrients[key]}: {t.claims.levels[result]}{value !== null && ` (${formatNumber(value, 2)} g)`}</span>;
     })}</div></div>
     <div><p className="mb-2 text-xs font-semibold text-slate-600">{t.claims.claimsHeading}</p>
-      {claims.length ? <ul className="space-y-1.5">{claims.map(claim => { const result = claimStatus(claim, spec, market); return <li key={claim} className="flex flex-wrap items-center gap-2 text-sm"><span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusTone[result.status]}`}>{t.claims.statuses[result.status]}</span><span className="font-medium">{claim}</span><span className="text-xs text-slate-500">{reasonText(result.reason)}</span></li>; })}</ul>
+      {claims.length ? <ul className="space-y-1.5">{claims.map(claim => { const result = claimStatus(claim, spec, market); return <li key={claim} className="flex flex-wrap items-center gap-2 text-sm"><span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusTone[result.status]}`}>{t.claims.statuses[result.status]}</span><span className="font-medium">{claim}</span><span className="text-xs text-slate-500">{reasonText(t, result.reason)}</span></li>; })}</ul>
         : <p className="text-xs text-slate-400">{t.claims.noClaims}</p>}
     </div>
     {market && <ThresholdSettings key={market.id} market={market} markets={markets} isAdmin={isAdmin} />}
@@ -40,17 +43,18 @@ export default function ClaimCheckSection({ spec, onChange, disabled, isAdmin, c
 
 // Pazar ayarları: koddaki değerler yalnızca kayıt yoksa gösterilen örneklerdir; kaydedilen değerler claimThresholds koleksiyonuna yazılır.
 function ThresholdSettings({ market, markets, isAdmin }: { market: MarketOption; markets: MarketOption[]; isAdmin: boolean }) {
-  const [draft, setDraft] = useState<MarketThresholds>(structuredClone(market));
+  const t = useI18n().t.productSpec;
+  const [draft, setDraft] = useState<MarketThresholds>({ ...structuredClone(market), market: marketName(t, market) });
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  useEffect(() => setDraft(structuredClone(market)), [market.updatedAt?.seconds, market.stored]);
+  useEffect(() => setDraft({ ...structuredClone(market), market: marketName(t, market) }), [market.updatedAt?.seconds, market.stored, t]);
   const readOnly = !isAdmin || busy;
   const setRule = (id: string, patch: Partial<ClaimRule>) => setDraft(previous => ({ ...previous, claims: previous.claims.map(item => item.id === id ? { ...item, ...patch } : item) }));
-  const save = async (value: MarketThresholds) => { setBusy(true); setMessage(""); try { await saveThresholds(value); setMessage(t.saved); } catch { setMessage("Kaydedilemedi. Yönetici yetkisi gerekli."); } finally { setBusy(false); } };
+  const save = async (value: MarketThresholds) => { setBusy(true); setMessage(""); try { await saveThresholds(value); setMessage(t.saved); } catch { setMessage(t.claims.settingsSaveFailed); } finally { setBusy(false); } };
   const addMarket = () => {
     const code = window.prompt(t.claims.newMarketPrompt)?.trim().toUpperCase();
     if (!code) return;
-    if (!/^[A-Z0-9-]{2,20}$/.test(code)) { setMessage("Pazar kodu 2–20 harf/rakam olmalı."); return; }
+    if (!/^[A-Z0-9-]{2,20}$/.test(code)) { setMessage(t.claims.marketCodeInvalid); return; }
     if (markets.some(item => item.id === code)) { setMessage(t.claims.marketExists); return; }
     void save({ ...structuredClone(DEFAULT_THRESHOLDS[0]), id: code, market: code });
   };

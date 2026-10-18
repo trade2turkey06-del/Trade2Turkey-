@@ -2,7 +2,7 @@ import { useState } from "react";
 import { BookOpenCheck, Download } from "lucide-react";
 import { costLinesFromSpec, specLinkValid, versionOrder, type ProductSpec, type RecipeCostLine, type RecipeCostSource } from "../../domain/productSpec";
 import type { VaultManufacturer } from "../../lib/productSpecStore";
-import { specText as t } from "../../i18n/productSpec";
+import { useI18n } from "../../i18n";
 import ProductSpecWorkspace, { StatusBadge } from "./ProductSpecWorkspace";
 import { formatNumber, Notice } from "./fields";
 
@@ -11,6 +11,7 @@ const panel = "space-y-3 rounded-xl border border-teal-200 bg-teal-50/40 p-4";
 
 // A.B.7: yüksek potansiyelli üretici, Belge Kasası'ndaki üreticilerden seçilir.
 export function HighPotentialPicker({ manufacturers, value, onChange, disabled }: { manufacturers: VaultManufacturer[]; value?: string; onChange: (id: string, name: string) => void; disabled: boolean }) {
+  const t = useI18n().t.productSpec;
   return <div className={panel}>
     <label className="block text-sm font-semibold text-navy">{t.workflow.ab7Label}
       <select className={select} value={value ?? ""} disabled={disabled || !manufacturers.length} onChange={event => onChange(event.target.value, manufacturers.find(item => item.id === event.target.value)?.name ?? "")}>
@@ -30,6 +31,7 @@ export function SpecLinkPanel({ projectId, isAdmin, preparedBy, manufacturers, s
   draft: { approvedSpecId?: string; specManufacturerId?: string; specManufacturerName?: string; specManufacturerFallback?: boolean; [key: string]: unknown };
   onChange: (patch: Record<string, unknown>) => void; disabled: boolean;
 }) {
+  const t = useI18n().t.productSpec;
   const [open, setOpen] = useState(false);
   const fromAb7 = ab7?.highPotentialManufacturerId || "";
   const ab7Approved = ab7?.approval === "approved" && ab7?.workflowStatus === "completed";
@@ -64,11 +66,12 @@ export function SpecLinkPanel({ projectId, isAdmin, preparedBy, manufacturers, s
 
 // A.B.9: onaylı reçeteden maliyet satırları (fiyat alanları boş). Bu aşamada yalnızca önizleme; maliyet editörü sonraki adım.
 export function RecipeCostPreview({ spec, lines, source, onImport, canImport }: { spec?: ProductSpec; lines?: RecipeCostLine[]; source?: RecipeCostSource | null; onImport: (lines: RecipeCostLine[], source: RecipeCostSource) => void; canImport: boolean }) {
+  const t = useI18n().t.productSpec;
   const [message, setMessage] = useState("");
   const c = t.workflow.ab9Columns;
   const doImport = () => {
     if (!spec) return;
-    if (lines?.length && !window.confirm("Mevcut satırlar onaylı reçetedeki satırlarla değiştirilsin mi?")) return;
+    if (lines?.length && !window.confirm(t.workflow.ab9ReplaceConfirm)) return;
     const result = costLinesFromSpec(spec); onImport(result.lines, result.source); setMessage(t.workflow.ab9Imported(result.lines.length));
   };
   const empty = (value: unknown) => value === null || value === "" ? <span className="text-slate-300">—</span> : String(value);
@@ -82,7 +85,7 @@ export function RecipeCostPreview({ spec, lines, source, onImport, canImport }: 
     {source && <p className="text-xs text-slate-600">{t.workflow.ab9Source(source.productName, source.version, source.manufacturerName)}</p>}
     {source && source.unitWeightG === null && lines?.some(line => line.source === "formulation") && <Notice>{t.workflow.ab9MissingWeight}</Notice>}
     {lines?.length ? <div className="overflow-x-auto"><table className="text-xs"><thead><tr><th>{c.source}</th><th>{c.material}</th><th>{c.quantity}</th><th>{c.unit}</th><th>{c.unitPrice}</th><th>{c.currency}</th><th>{c.fxRate}</th><th>{c.waste}</th><th>{c.priceSource}</th><th>{c.priceDate}</th></tr></thead>
-      <tbody>{lines.map(line => <tr key={line.id}><td>{t.workflow.ab9Sources[line.source]}</td><td>{line.materialName}</td><td>{line.quantityPerUnit === null ? empty(null) : formatNumber(line.quantityPerUnit)}</td><td>{line.unit}</td><td>{empty(line.unitPrice)}</td><td>{empty(line.currency)}</td><td>{empty(line.fxRate)}</td><td>{empty(line.wastePct)}</td><td>{empty(line.priceSource)}</td><td>{empty(line.priceDate)}</td></tr>)}</tbody>
+      <tbody>{lines.map(line => <tr key={line.id}><td>{t.workflow.ab9Sources[line.source]}</td><td>{line.materialName}</td><td>{line.quantityPerUnit === null ? empty(null) : formatNumber(line.quantityPerUnit)}</td><td>{t.workflow.ab9Units[line.unit] ?? line.unit}</td><td>{empty(line.unitPrice)}</td><td>{empty(line.currency)}</td><td>{empty(line.fxRate)}</td><td>{empty(line.wastePct)}</td><td>{empty(line.priceSource)}</td><td>{empty(line.priceDate)}</td></tr>)}</tbody>
     </table></div> : <p className="text-xs text-slate-400">{t.workflow.ab9Empty}</p>}
     <p role="status" className="text-xs text-indigo-800">{message}</p>
   </div>;

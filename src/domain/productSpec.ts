@@ -6,7 +6,9 @@ export interface FormulationRow { id: string; name: string; ratio: number | null
 export const NUTRIENTS = ["energyKj", "energyKcal", "fat", "saturatedFat", "carbohydrate", "sugar", "fiber", "protein", "salt"] as const;
 export type NutrientKey = typeof NUTRIENTS[number];
 export interface NutrientValue { target: number | null; actual: number | null; tolerance: number | null }
-export interface PhysicalRow { id: string; name: string; target: string; unit: string; tolerance: string }
+// Varsayılan satırlar dilden bağımsız bir anahtarla saklanır (name boş kalır, ekranda çevrilir); kullanıcı adı girerse o gösterilir.
+export type PhysicalKey = "unitWeight" | "diameter" | "thickness" | "color" | "moisture";
+export interface PhysicalRow { id: string; key?: PhysicalKey; name: string; target: string; unit: string; tolerance: string }
 export interface MicroRow { id: string; parameter: string; limit: string; unit: string; method: string }
 export interface ProcessRow { id: string; step: string; parameter: string; control: string }
 export const PACKAGING_LEVELS = ["primary", "secondary", "pallet", "label"] as const;
@@ -48,11 +50,11 @@ export function createSpec(input: { projectId: string; manufacturerId: string; m
     formulation: [],
     nutrition: emptyNutrition(),
     physical: [
-      { id: UNIT_WEIGHT_ROW, name: "Birim gramaj", target: "", unit: "g", tolerance: "" },
-      { id: newId(), name: "Çap", target: "", unit: "mm", tolerance: "" },
-      { id: newId(), name: "Kalınlık", target: "", unit: "mm", tolerance: "" },
-      { id: newId(), name: "Renk", target: "", unit: "", tolerance: "" },
-      { id: newId(), name: "Nem", target: "", unit: "%", tolerance: "" },
+      { id: UNIT_WEIGHT_ROW, key: "unitWeight", name: "", target: "", unit: "g", tolerance: "" },
+      { id: newId(), key: "diameter", name: "", target: "", unit: "mm", tolerance: "" },
+      { id: newId(), key: "thickness", name: "", target: "", unit: "mm", tolerance: "" },
+      { id: newId(), key: "color", name: "", target: "", unit: "", tolerance: "" },
+      { id: newId(), key: "moisture", name: "", target: "", unit: "%", tolerance: "" },
     ],
     micro: [], allergens: { mayContain: "" }, process: [],
     packaging: PACKAGING_LEVELS.map(level => ({ id: newId(), level, material: "", size: "", quantity: null, perUnits: null })),
@@ -228,19 +230,24 @@ export function claimStatus(claim: string, spec: Pick<ProductSpec, "nutrition" |
 // ---- Kasa paketleme konfigürasyonundan tek yönlü ön doldurma ----
 export interface VaultPackaging { productVariant?: string; singleWeight?: number; packagingStyle?: string; innerBoxCount?: number; masterCartonCount?: number; palletCartonCount?: number; cartonDimensions?: string }
 const positive = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
-export function packagingFromVault(config: VaultPackaging | undefined) {
+// Kasadaki "Tekli Ürün Ağırlığı" kg cinsindendir (kasa ekranı "… kg" gösterir); reçetede birim gramaj g olarak tutulur.
+// Koli/palet malzeme adları kullanıcının düzenleyebildiği metindir; ön doldurma anındaki dilde yazılır.
+export interface MaterialNames { carton: string; pallet: string }
+const DEFAULT_MATERIALS: MaterialNames = { carton: "Koli", pallet: "Palet" };
+export function packagingFromVault(config: VaultPackaging | undefined, names: MaterialNames = DEFAULT_MATERIALS) {
   if (!config) return null;
-  const perCarton = positive(config.masterCartonCount), cartonsPerPallet = positive(config.palletCartonCount), weight = positive(config.singleWeight);
+  const perCarton = positive(config.masterCartonCount), cartonsPerPallet = positive(config.palletCartonCount), weightKg = positive(config.singleWeight);
+  const weight = weightKg === null ? null : round(weightKg * 1000, 3);
   const values: Record<PackagingLevel, Partial<PackagingRow>> = {
     primary: { material: config.packagingStyle?.trim() || "", size: weight ? `${weight} g` : "", quantity: 1, perUnits: 1 },
-    secondary: { material: "Koli", size: config.cartonDimensions?.trim() || "", quantity: perCarton ? 1 : null, perUnits: perCarton },
-    pallet: { material: "Palet", size: "", quantity: perCarton && cartonsPerPallet ? 1 : null, perUnits: perCarton && cartonsPerPallet ? perCarton * cartonsPerPallet : null },
+    secondary: { material: names.carton, size: config.cartonDimensions?.trim() || "", quantity: perCarton ? 1 : null, perUnits: perCarton },
+    pallet: { material: names.pallet, size: "", quantity: perCarton && cartonsPerPallet ? 1 : null, perUnits: perCarton && cartonsPerPallet ? perCarton * cartonsPerPallet : null },
     label: {},
   };
   return { values, unitWeight: weight };
 }
-export function applyVaultPackaging(spec: ProductSpec, config: VaultPackaging | undefined): ProductSpec {
-  const vault = packagingFromVault(config);
+export function applyVaultPackaging(spec: ProductSpec, config: VaultPackaging | undefined, names?: MaterialNames): ProductSpec {
+  const vault = packagingFromVault(config, names);
   if (!vault) return spec;
   const packaging = PACKAGING_LEVELS.map(level => {
     const current = spec.packaging.find(row => row.level === level) ?? { id: newId(), level, material: "", size: "", quantity: null, perUnits: null };
@@ -251,8 +258,8 @@ export function applyVaultPackaging(spec: ProductSpec, config: VaultPackaging | 
   const physical = vault.unitWeight === null ? spec.physical : spec.physical.map(row => row.id === UNIT_WEIGHT_ROW ? { ...row, target: String(vault.unitWeight) } : row);
   return { ...spec, packaging: [...packaging, ...extra], physical };
 }
-export function packagingDiff(spec: ProductSpec, config: VaultPackaging | undefined) {
-  const vault = packagingFromVault(config);
+export function packagingDiff(spec: ProductSpec, config: VaultPackaging | undefined, names?: MaterialNames) {
+  const vault = packagingFromVault(config, names);
   if (!vault) return [];
   const diffs: { level: PackagingLevel; field: string; vault: string; spec: string }[] = [];
   for (const level of PACKAGING_LEVELS) {
@@ -271,7 +278,7 @@ export function packagingDiff(spec: ProductSpec, config: VaultPackaging | undefi
 // ---- A.B.9 maliyet satırları: fiyat alanları bilinçli olarak boş gelir; maliyet editörü sonradan doldurur. ----
 export interface RecipeCostLine {
   id: string; source: "formulation" | "packaging"; sourceRowId: string; packagingLevel: PackagingLevel | "";
-  materialName: string; quantityPerUnit: number | null; unit: "kg" | "adet";
+  materialName: string; quantityPerUnit: number | null; unit: "kg" | "pcs"; // birim kodu dilden bağımsızdır, ekranda çevrilir
   unitPrice: number | null; currency: string; fxRate: number | null; wastePct: number | null; priceSource: string; priceDate: string;
 }
 export interface RecipeCostSource { specId: string; lineageId: string; version: string; productName: string; manufacturerId: string; manufacturerName: string; unitWeightG: number | null; importedAt: string }
@@ -286,7 +293,7 @@ export function costLinesFromSpec(spec: ProductSpec): { lines: RecipeCostLine[];
   }));
   const packaging = spec.packaging.filter(row => row.material.trim()).map(row => ({
     id: newId(), source: "packaging" as const, sourceRowId: row.id, packagingLevel: row.level, materialName: row.material.trim(),
-    quantityPerUnit: row.quantity === null ? null : round(row.quantity / (row.perUnits && row.perUnits > 0 ? row.perUnits : 1), 6), unit: "adet" as const, ...blank,
+    quantityPerUnit: row.quantity === null ? null : round(row.quantity / (row.perUnits && row.perUnits > 0 ? row.perUnits : 1), 6), unit: "pcs" as const, ...blank,
   }));
   return {
     lines: [...formulation, ...packaging],

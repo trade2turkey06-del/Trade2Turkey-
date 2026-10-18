@@ -4,6 +4,8 @@ import { confirmPurchaseOrder, countStock, createEntity, markShipment, quoteToPu
 import { useProjectData } from "../lib/useProjectData";
 import { money, positiveInt, safeHttps, stockPlan } from "../domain/operations";
 import { startPurchaseCycle } from "../lib/logisticsCycle";
+import { eventText } from "../lib/eventText";
+import { useI18n } from "../i18n";
 
 const names = ["products", "vendors", "quotes", "purchaseOrders", "salesOrders", "stock", "shipmentRecords", "events"] as const;
 const field = "mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900";
@@ -16,6 +18,8 @@ const number = (form: HTMLFormElement, key: string) => Number(read(form, key));
 const stateLabels: Record<string, string> = { draft: "Taslak", reserved: "Rezerve", partial: "Kısmi", shipped: "Sevk edildi", cancelled: "İptal", ordered: "Sipariş verildi", received: "Teslim alındı", in_transit: "Yolda", delivered: "Teslim edildi" };
 
 export default function OperationsHub({ projectId, isAdmin, initialTab = "warehouse" }: { projectId: string; isAdmin: boolean; initialTab?: "procurement" | "warehouse" }) {
+  // İş akışı olayları anahtarla saklanır; açıklama seçili dilde gösterilir (sekmenin diğer metinleri 2. aşamada).
+  const { t } = useI18n();
   const { data, error, loading } = useProjectData(projectId, names);
   const [tab, setTab] = useState(initialTab);
   const [busy, setBusy] = useState(false);
@@ -58,7 +62,7 @@ export default function OperationsHub({ projectId, isAdmin, initialTab = "wareho
         <Panel title="Sevkiyatlar ve platform takibi"><p className="text-sm text-slate-600">Taşıyıcı ve pazaryeri API bağlantısı yok. Etiketi taşıyıcıdan alın; platformdaki stok/takip güncellemesini kendiniz yapıp burada doğrulayın.</p><div className="space-y-3">{(data.shipmentRecords || []).map(item => <div key={item.id} className="space-y-2 rounded-xl border p-4 text-sm"><p className="font-semibold">{productName(item.productId)} · {item.quantity} adet · {item.carrier} / {item.tracking}</p><p>{stateLabels[item.status]} · Tahmini teslim: {item.expectedArrival} · Platform: {item.platformSync === "manual_confirmed" ? "Kullanıcı tarafından güncellendi" : "Manuel güncelleme bekliyor"}</p><div className="flex flex-wrap gap-3">{safeHttps(item.labelUrl) && <a href={item.labelUrl} target="_blank" rel="noreferrer" className="underline">Etiket</a>}{safeHttps(item.proofUrl) && <a href={item.proofUrl} target="_blank" rel="noreferrer" className="underline">Fotoğraf</a>}{isAdmin && item.status !== "delivered" && <button className={button} onClick={() => void run(() => markShipment(projectId,item.id,"delivered"))}>Teslimatı doğrula</button>}{isAdmin && item.platformSync !== "manual_confirmed" && <button className="rounded-lg border px-3 py-2" onClick={() => void run(() => markShipment(projectId,item.id,"manual_confirmed"))}>Platformda güncelledim</button>}</div></div>)}</div></Panel>
       </>}
       <LegacyOperations projectId={projectId} />
-      <details className="rounded-2xl border bg-white p-5"><summary className="cursor-pointer font-bold">Operasyon işlem geçmişi</summary><ul className="mt-4 space-y-2 text-xs text-slate-600">{[...(data.events || [])].sort((a,b) => (b.at?.seconds || 0) - (a.at?.seconds || 0)).slice(0,100).map(event => <li key={event.id}>{event.at?.toDate?.().toLocaleString("tr-TR",{timeZone:"Europe/Istanbul"})} · {event.action} · {event.detail} · {event.actorUid}</li>)}</ul></details>
+      <details className="rounded-2xl border bg-white p-5"><summary className="cursor-pointer font-bold">Operasyon işlem geçmişi</summary><ul className="mt-4 space-y-2 text-xs text-slate-600">{[...(data.events || [])].sort((a,b) => (b.at?.seconds || 0) - (a.at?.seconds || 0)).slice(0,100).map(event => <li key={event.id}>{event.at?.toDate?.().toLocaleString("tr-TR",{timeZone:"Europe/Istanbul"})} · {event.action} · {eventText(t, event)} · {event.actorUid}</li>)}</ul></details>
     </fieldset>}
   </div>;
 }

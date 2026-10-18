@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { parseDecimal } from "../../domain/productSpec";
-import { specText as t } from "../../i18n/productSpec";
+import { getLang, localeOf, useI18n } from "../../i18n";
 
 export const input = "w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 disabled:border-transparent disabled:bg-transparent disabled:px-0";
-export const formatNumber = (value: number | null | undefined, digits = 6) => value === null || value === undefined ? "" : value.toLocaleString("tr-TR", { maximumFractionDigits: digits, useGrouping: false });
+export const formatNumber = (value: number | null | undefined, digits = 6) => value === null || value === undefined ? "" : value.toLocaleString(localeOf(getLang()), { maximumFractionDigits: digits, useGrouping: false });
 
 // Ondalık alan: "5,87" ve "5.87" kabul edilir; yazarken metin korunur, okunamayan giriş kırmızı çerçeveyle gösterilir.
 export function NumberField({ value, onChange, disabled, label, className = "" }: { value: number | null; onChange: (value: number | null) => void; disabled?: boolean; label: string; className?: string }) {
@@ -36,11 +36,12 @@ export const SmallButton = ({ onClick, disabled, children, title }: { onClick: (
 // Serbest satırlı tablo: ekleme, silme ve yukarı/aşağı sıralama.
 export interface Column<T> { label: string; className?: string; render: (row: T, update: (patch: Partial<T>) => void) => ReactNode }
 export function RowTable<T extends { id: string }>({ rows, columns, onChange, create, disabled, empty, sortable = true, footer }: { rows: T[]; columns: Column<T>[]; onChange: (rows: T[]) => void; create?: () => T; disabled: boolean; empty?: string; sortable?: boolean; footer?: ReactNode }) {
+  const t = useI18n().t.productSpec;
   const update = (id: string, patch: Partial<T>) => onChange(rows.map(row => row.id === id ? { ...row, ...patch } : row));
   const move = (index: number, delta: number) => { const next = [...rows]; [next[index], next[index + delta]] = [next[index + delta], next[index]]; onChange(next); };
   return <div className="space-y-2">
     <div className="spec-scroll overflow-x-auto"><table>
-      <thead><tr>{columns.map(column => <th key={column.label} className={column.className}>{column.label}</th>)}{!disabled && create && <th className="spec-no-print w-24"><span className="sr-only">İşlem</span></th>}</tr></thead>
+      <thead><tr>{columns.map(column => <th key={column.label} className={column.className}>{column.label}</th>)}{!disabled && create && <th className="spec-no-print w-24"><span className="sr-only">{t.actions}</span></th>}</tr></thead>
       <tbody>{rows.map((row, index) => <tr key={row.id}>
         {columns.map(column => <td key={column.label} className={column.className}>{column.render(row, patch => update(row.id, patch))}</td>)}
         {!disabled && create && <td className="spec-no-print whitespace-nowrap">

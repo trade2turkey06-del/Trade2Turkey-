@@ -44,11 +44,11 @@ test("RFQ: section weights must total 100 and manufacturers must be 3–6", () =
   assert.equal(weightTotal(matrix), 100);
   assert.doesNotThrow(() => validateMatrix(matrix));
   section(matrix, "soft").weight = 15;
-  assert.throws(() => validateMatrix(matrix), /add up to 100/);
+  assert.throws(() => validateMatrix(matrix), { code: "matrixWeights", params: { total: "105" } });
   section(matrix, "soft").weight = 10;
-  assert.throws(() => validateMatrix(removeManufacturer(matrix, matrix.manufacturers[0].id)), /3–6/);
+  assert.throws(() => validateMatrix(removeManufacturer(matrix, matrix.manufacturers[0].id)), { code: "matrixManufacturers", params: { min: "3", max: "6" } });
   matrix.items[0].criteria[1].scores[matrix.manufacturers[0].id] = 7;
-  assert.throws(() => validateMatrix(matrix), /1 to 5/);
+  assert.throws(() => validateMatrix(matrix), { code: "matrixScores" });
 });
 
 test("RFQ: numbers are read from free text", () => {

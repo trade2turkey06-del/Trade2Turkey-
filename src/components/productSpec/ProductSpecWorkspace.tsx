@@ -4,13 +4,13 @@ import { CheckCircle2, FilePlus2, Lock, Printer, X } from "lucide-react";
 import { approvalErrors, createSpec, newVersionFrom, versionOrder, type ProductSpec } from "../../domain/productSpec";
 import { createSpecDoc, saveSpecDoc, useClaimThresholds, useManufacturers, useProductSpecs, useProjectPackaging } from "../../lib/productSpecStore";
 import { auth } from "../../lib/firebase";
-import { specText as t } from "../../i18n/productSpec";
+import { useI18n } from "../../i18n";
 import ProductSpecForm from "./ProductSpecForm";
 import ProductSpecPrint, { printCss } from "./ProductSpecPrint";
 import { input, Notice } from "./fields";
 
 const statusTone: Record<string, string> = { draft: "bg-slate-100 text-slate-700", review: "bg-amber-100 text-amber-800", approved: "bg-emerald-100 text-emerald-800" };
-export const StatusBadge = ({ status }: { status: string }) => <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusTone[status] ?? statusTone.draft}`}>{t.status[status] ?? status}</span>;
+export const StatusBadge = ({ status }: { status: string }) => { const t = useI18n().t.productSpec; return <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusTone[status] ?? statusTone.draft}`}>{t.status[status] ?? status}</span>; };
 // Scoped styles; the overlay is rendered outside <main>, so the app-wide table/input rules do not apply here.
 const screenCss = `
 #product-spec table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -22,6 +22,7 @@ const ensureStyle = (id: string, css: string) => { if (!document.getElementById(
 const sameSave = (a?: ProductSpec, b?: ProductSpec) => a?.updatedAt?.seconds === b?.updatedAt?.seconds && a?.updatedAt?.nanoseconds === b?.updatedAt?.nanoseconds;
 
 export default function ProductSpecWorkspace({ projectId, isAdmin, preparedBy, initialManufacturerId, onClose }: { projectId: string; isAdmin: boolean; preparedBy: string; initialManufacturerId?: string; onClose: () => void }) {
+  const t = useI18n().t.productSpec;
   const { specs, loading, error } = useProductSpecs(projectId);
   const manufacturers = useManufacturers(projectId);
   const packagingConfig = useProjectPackaging(projectId);
@@ -60,7 +61,7 @@ export default function ProductSpecWorkspace({ projectId, isAdmin, preparedBy, i
   // Live updates replace the draft only when there are no unsaved edits.
   useEffect(() => { if (selected && (!draft || draft.id !== selected.id || (!dirty && !sameSave(draft, selected)))) { setDraft(structuredClone(selected)); setDirty(false); } }, [selected]);
 
-  const select = (id: string) => { if (dirty && !window.confirm("Kaydedilmemiş değişiklikler kaybolacak. Devam edilsin mi?")) return; setSelectedId(id); setDraft(null); setDirty(false); setMessage(""); };
+  const select = (id: string) => { if (dirty && !window.confirm(t.unsavedLeave)) return; setSelectedId(id); setDraft(null); setDirty(false); setMessage(""); };
   const run = async (task: () => Promise<void>, success = t.saved) => {
     setBusy(true); setMessage("");
     try { await task(); setMessage(success); }
@@ -101,7 +102,7 @@ export default function ProductSpecWorkspace({ projectId, isAdmin, preparedBy, i
         <header className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
           <div className="min-w-0 flex-1"><h2 id="product-spec-title" className="text-base font-semibold text-navy">{t.title}</h2><p className="text-xs text-slate-500">{t.subtitle}</p></div>
           {draft && <button type="button" onClick={print} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"><Printer className="h-4 w-4" /> {t.exportPdf}</button>}
-          <button type="button" onClick={() => { if (!dirty || window.confirm("Kaydedilmemiş değişiklikler kaybolacak. Kapatılsın mı?")) onClose(); }} aria-label={t.close} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+          <button type="button" onClick={() => { if (!dirty || window.confirm(t.unsavedClose)) onClose(); }} aria-label={t.close} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
         </header>
         <div className="grid min-h-0 flex-1 overflow-auto md:grid-cols-[260px_1fr] md:overflow-hidden">
           <aside className="space-y-4 border-b border-slate-200 bg-white p-4 md:overflow-auto md:border-b-0 md:border-r">

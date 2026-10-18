@@ -25,7 +25,8 @@ import AdminOverview from "./components/AdminOverview";
 import BackupPanel from "./components/BackupPanel";
 import UserManagement from "./components/UserManagement";
 import { trustedAdministrator } from "./domain/access";
-import { onSnapshot, collection, query, where, doc, setDoc, deleteDoc, writeBatch, getDocs, documentId, runTransaction } from "firebase/firestore";
+import { onSnapshot, collection, query, where, doc, setDoc, deleteDoc, writeBatch, getDocs, documentId, runTransaction, updateDoc } from "firebase/firestore";
+import { getMessages, useI18n } from "./i18n";
 
 import { 
   INITIAL_TARGET_SPECS, INITIAL_RFQS, 
@@ -47,6 +48,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<UserTenant | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [appError, setAppError] = useState("");
+  const { t, fmt, bindUser } = useI18n();
 
   useEffect(() => {
     let stopProfile = () => {};
@@ -57,7 +59,7 @@ export default function App() {
       localStorage.removeItem("t2t_current_user");
       localStorage.removeItem("t2t_preset_creds");
       localStorage.removeItem("t2t_custom_users");
-      if (!user) { setAuthReady(true); return; }
+      if (!user) { bindUser(null); setAuthReady(true); return; }
       setAuthReady(false);
       stopProfile = onSnapshot(doc(db, "users", user.uid), async snapshot => {
         const profile = snapshot.data();
@@ -65,18 +67,20 @@ export default function App() {
           if (["admin","owner"].includes(profile.role)) {
             try {
               const result=await user.getIdTokenResult();
-              if (!trustedAdministrator(user.uid,result.claims)) {setCurrentUser(null);setAppError("Yönetici yetkisi doğrulanamadı. Hesap yöneticisiyle iletişim kurun.");setAuthReady(true);return;}
-            } catch {setAppError("Oturum doğrulanamadı.");setAuthReady(true);return;}
+              if (!trustedAdministrator(user.uid,result.claims)) {setCurrentUser(null);setAppError(getMessages().shell.errors.adminNotVerified);setAuthReady(true);return;}
+            } catch {setAppError(getMessages().shell.errors.sessionNotVerified);setAuthReady(true);return;}
           }
           if (auth.currentUser?.uid !== user.uid) return;
           setAppError("");
+          // Dil tercihi: profildeki değer, yoksa bu kullanıcının yerel seçimi; değişiklik profile de yazılır.
+          bindUser(user.uid, profile.language, language => updateDoc(doc(db, "users", user.uid), { language }));
           setCurrentUser({ ...profile, role: profile.role === "owner" ? "admin" : profile.role, id: user.uid, uid: user.uid } as UserTenant);
         } else {
           setCurrentUser(null);
-          setAppError("Hesabınızın proje erişimi tanımlı değil veya askıya alınmış. Yöneticiyle iletişim kurun.");
+          setAppError(getMessages().shell.errors.noProjectAccess);
         }
         setAuthReady(true);
-      }, () => { setAppError("Oturum ve yetkiler doğrulanamadı. Yeniden giriş yapın."); setAuthReady(true); });
+      }, () => { setAppError(getMessages().shell.errors.authFailed); setAuthReady(true); });
     });
     return () => { stopAuth(); stopProfile(); };
   }, []);
@@ -123,7 +127,7 @@ export default function App() {
       localStorage.setItem("t2t_project_names", JSON.stringify(projectMap));
       setProjects(items);
       setActiveProjectId(previous => items.some(item => item.id === previous) ? previous : items[0]?.id || "");
-    }, () => setAppError("Proje listesi yüklenemedi."));
+    }, () => setAppError(getMessages().shell.errors.projectsLoad));
 
     return () => unsub();
   }, [currentUser?.id, currentUser?.role, currentUser?.projectId, JSON.stringify(currentUser?.assignedProjects)]);
@@ -131,21 +135,21 @@ export default function App() {
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProjName.trim() || !newProjId.trim()) {
-      setNewProjFeedback("Lütfen gerekli alanları (Proje Adı, Proje Kimliği) doldurun.");
+      setNewProjFeedback(t.shell.newProjectModal.required);
       return;
     }
 
     // Transform Project ID to uppercase and space-less format
     const cleanedProjId = newProjId.trim().toUpperCase().replace(/\s+/g, "-");
-    if (cleanedProjId.length > 100 || cleanedProjId.includes("/") || [".",".."].includes(cleanedProjId)) {setNewProjFeedback("Proje kimliği en fazla 100 karakter olmalı ve / içermemeli.");return;}
+    if (cleanedProjId.length > 100 || cleanedProjId.includes("/") || [".",".."].includes(cleanedProjId)) {setNewProjFeedback(t.shell.newProjectModal.invalidId);return;}
 
     // Check if project ID already exists
     if (projects.some(p => p.id === cleanedProjId)) {
-      setNewProjFeedback("Bu Proje Kimliği zaten mevcut.");
+      setNewProjFeedback(t.shell.newProjectModal.exists);
       return;
     }
 
-    setNewProjFeedback("Proje oluşturuluyor...");
+    setNewProjFeedback(t.shell.newProjectModal.creating);
 
     try {
       const projRef = doc(db, "projects", cleanedProjId);
@@ -164,7 +168,7 @@ export default function App() {
         createdAt: new Date().toISOString(),
         sopStepsTemplate: defaultSopSteps
       };
-      await runTransaction(db,async tx=>{const existing=await tx.get(projRef);if(existing.exists())throw new Error("Bu proje kimliği zaten mevcut.");tx.set(projRef,newProj);});
+      await runTransaction(db,async tx=>{const existing=await tx.get(projRef);if(existing.exists())throw new Error(t.shell.newProjectModal.exists);tx.set(projRef,newProj);});
       
       setNewProjName("");
       setNewProjId("");
@@ -173,7 +177,7 @@ export default function App() {
       setShowNewProjectModal(false);
     } catch (err) {
       console.error("Failed to create project:", err);
-      setNewProjFeedback("Proje oluşturulurken bir hata oluştu.");
+      setNewProjFeedback(t.shell.newProjectModal.failed);
     }
   };
 
@@ -250,7 +254,7 @@ export default function App() {
       }
     } catch (e) {
       console.error(`Failed to sync collection ${collectionName} with Firestore:`, e);
-      setAppError("Değişiklik kaydedilemedi. Bağlantı ve erişim yetkinizi kontrol edin.");
+      setAppError(getMessages().shell.errors.changeNotSaved);
     }
   }, []);
 
@@ -324,7 +328,7 @@ export default function App() {
     const unsubscribers = Object.entries(setters).map(([name, setter]) => onSnapshot(
       query(collection(db, name), where("projectId", "==", activeProjectId)),
       snapshot => setter(snapshot.docs.map(item => ({ ...item.data(), id: item.data().id || item.id }))),
-      () => setAppError(`${name}: kayıtlar yüklenemedi. Erişim veya bağlantıyı kontrol edin.`)
+      () => setAppError(getMessages().shell.errors.collectionLoad(name))
     ));
     if (currentUser.role === "admin") unsubscribers.push(onSnapshot(collection(db, "users"), snapshot => {
       setCustomUsers(snapshot.docs.map(item => ({ ...item.data(), id: item.id } as UserTenant)));
@@ -347,6 +351,7 @@ export default function App() {
 
   // Handle Logout Session clear
   const handleLogout = React.useCallback(async () => {
+    bindUser(null);
     await signOut(auth);
     setDriveAuth(null, null, null);
     setCurrentUser(null);
@@ -373,7 +378,7 @@ export default function App() {
   }, []);
 
   // 3. Render login portal screen if un-authenticated
-  if (!authReady) return <div role="status" className="flex min-h-screen flex-col items-center justify-center gap-5 bg-slate-50"><div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-teal-600" /><p className="text-sm font-medium text-slate-500">Çalışma alanınız hazırlanıyor…</p></div>;
+  if (!authReady) return <div role="status" className="flex min-h-screen flex-col items-center justify-center gap-5 bg-slate-50"><div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-teal-600" /><p className="text-sm font-medium text-slate-500">{t.shell.preparing}</p></div>;
   if (!currentUser) {
     return <LoginScreen initialError={appError} onLoginSuccess={() => {}} />;
   }
@@ -410,11 +415,11 @@ export default function App() {
       <main id="workspace-content" tabIndex={-1} className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
         <div className="page-intro">
-          <div><p className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.18em] text-teal-700"><span className="h-1.5 w-1.5 rounded-full bg-teal-600" /> {projects.find(project => project.id === activeProjectId)?.name || "Trade2Turkey Workspace"}</p>
-            <h2 className="font-display text-3xl font-semibold tracking-tight text-navy sm:text-4xl">{{ sourcing: "İyi bir tedarik, net bir süreçle başlar.", overview: "Büyük resmi görün. Sıradaki adımı belirleyin.", logistics: "Üretimden teslimata, birlikte ilerleyin.", sectors: "Sektör bazında üretici rehberiniz.", report: "Verilerinizden daha net kararlar alın.", "client-discovery": "Yeni bağlantılar. Yeni fırsatlar.", "market-insights": "Pazarı anlayın. Fırsatları keşfedin." }[currentTab] || "Çalışma alanınıza hoş geldiniz."}</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">{{ sourcing: "Keşiften onaya kadar her görevi, sorumluyu ve belgeyi tek bir yerde takip edin.", overview: "Projenizin önceliklerini, bekleyen onaylarını ve operasyonel durumunu inceleyin.", logistics: "Ürünlerinizi, satın alma süreçlerinizi ve sevkiyatlarınızı düzenli bir akışta yönetin.", sectors: "Üreticileri sektörlere göre düzenleyin; iletişim bilgilerine tek yerden ulaşın.", report: "Projenizin güncel durumunu inceleyin, paylaşılabilir raporlar hazırlayın.", "client-discovery": "Müşteri ilişkilerinizi ve proje çalışma alanlarınızı yönetin.", "market-insights": "Araştırmalarınızı bir araya getirin ve bir sonraki adımınızı planlayın." }[currentTab]}</p>
+          <div><p className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.18em] text-teal-700"><span className="h-1.5 w-1.5 rounded-full bg-teal-600" /> {projects.find(project => project.id === activeProjectId)?.name || t.shell.defaultWorkspaceName}</p>
+            <h2 className="font-display text-3xl font-semibold tracking-tight text-navy sm:text-4xl">{t.shell.intro.titles[currentTab] || t.shell.intro.defaultTitle}</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">{t.shell.intro.texts[currentTab]}</p>
           </div>
-          <div className="intro-date"><span className="text-[10px] uppercase tracking-widest text-slate-400">Bugün</span><span className="mt-1 block text-xs font-semibold text-slate-600">{new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Istanbul" }).format(new Date())}</span></div>
+          <div className="intro-date"><span className="text-[10px] uppercase tracking-widest text-slate-400">{t.shell.today}</span><span className="mt-1 block text-xs font-semibold text-slate-600">{fmt.date(new Date())}</span></div>
         </div>
 
         {/* ADMIN-ONLY: CORPORATE TENANT MANAGEMENT DESK */}
@@ -584,7 +589,7 @@ export default function App() {
           )}
 
           {/* SOURCING FLOW (SECTION A) TAB VIEW */}
-          {!activeProjectId && <p className="rounded-xl border bg-white p-6">Henüz erişilebilir proje yok. Yönetici yeni bir proje oluşturabilir veya size proje atayabilir.</p>}
+          {!activeProjectId && <p className="rounded-xl border bg-white p-6">{t.shell.noAccessibleProject}</p>}
           {activeProjectId && currentTab === "sourcing" && (
             <div key={activeProjectId} className="space-y-6">
               <SourcingWorkflow projectId={activeProjectId} currentUser={currentUser} />
@@ -635,10 +640,10 @@ export default function App() {
           <div className="flex items-center gap-3">
             <span className="font-bold text-slate-800">Trade2Turkey Co-op Ltd.</span>
             <span>|</span>
-            <span>İhracat Lojistiği ve Tedarik Denetim Merkezi</span>
+            <span>{t.shell.footerTagline}</span>
           </div>
           <div className="text-slate-400 text-[10px]">
-            Trade2Turkey • Proje bazlı operasyon yönetimi
+            {t.shell.footerNote}
           </div>
         </div>
       </footer>
@@ -652,10 +657,10 @@ export default function App() {
             <div className="flex justify-between items-start border-b border-slate-800 pb-4">
               <div className="space-y-1">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-teal-500/10 border border-teal-500/25 text-teal-400 text-[10px] font-bold font-mono tracking-wider uppercase">
-                  Yeni Proje Yönetimi
+                  {t.shell.newProjectModal.badge}
                 </div>
                 <h3 className="text-lg font-black text-white font-display">
-                  Yeni Tedarik/Satış Projesi Ekle
+                  {t.shell.newProjectModal.title}
                 </h3>
               </div>
               <button
@@ -665,7 +670,7 @@ export default function App() {
                 }}
                 className="text-slate-400 hover:text-white transition cursor-pointer text-sm font-bold bg-slate-850 px-2.5 py-1 rounded-lg border border-slate-800"
               >
-                ✕ Kapat
+                {t.shell.newProjectModal.close}
               </button>
             </div>
 
@@ -681,12 +686,12 @@ export default function App() {
               {/* Proje Adı */}
               <div className="space-y-1.5 font-sans">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  Proje Adı *
+                  {t.shell.newProjectModal.name}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Örn: Meyve Suyu Projesi"
+                  placeholder={t.shell.newProjectModal.namePlaceholder}
                   value={newProjName}
                   onChange={(e) => setNewProjName(e.target.value)}
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-teal-500 transition"
@@ -696,28 +701,28 @@ export default function App() {
               {/* Proje Kimliği / ID */}
               <div className="space-y-1.5 font-sans">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  Proje Kimliği / ID *
+                  {t.shell.newProjectModal.id}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Örn: PROJE-MEYVESUYU"
+                  placeholder={t.shell.newProjectModal.idPlaceholder}
                   value={newProjId}
                   onChange={(e) => setNewProjId(e.target.value)}
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-teal-500 transition font-mono uppercase"
                 />
                 <span className="text-[9px] text-slate-500 block leading-normal mt-1">
-                  Girilen kimlik otomatik olarak büyük harfe ve boşluksuz/tireli formata dönüştürülür.
+                  {t.shell.newProjectModal.idHint}
                 </span>
               </div>
 
               {/* Proje Bağlamı / Açıklaması */}
               <div className="space-y-1.5 font-sans">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  Proje Bağlamı / Açıklaması
+                  {t.shell.newProjectModal.description}
                 </label>
                 <textarea
-                  placeholder="Projenin amacını, hedeflerini veya sektörel detaylarını belirtin..."
+                  placeholder={t.shell.newProjectModal.descriptionPlaceholder}
                   value={newProjDesc}
                   onChange={(e) => setNewProjDesc(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-teal-500 transition h-20 resize-none font-sans"
@@ -733,13 +738,13 @@ export default function App() {
                   }}
                   className="px-4 py-2 border border-slate-800 hover:bg-slate-850 text-xs font-bold text-slate-400 hover:text-white rounded-xl transition cursor-pointer"
                 >
-                  Vazgeç
+                  {t.shell.newProjectModal.cancel}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-slate-955 text-xs font-bold rounded-xl transition cursor-pointer"
                 >
-                  Proje Oluştur
+                  {t.shell.newProjectModal.create}
                 </button>
               </div>
 

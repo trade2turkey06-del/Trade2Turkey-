@@ -48,5 +48,5 @@ export function normalizeVaultDetails(raw: unknown): ProjectVaultDetails {
   };
 }
 
-// Ekranda gösterilecek değer: boş ya da yalnızca boşluk ise "Belirtilmedi".
-export const shown = (value: string | undefined) => value && value.trim() ? value : NOT_SPECIFIED;
+// Ekranda gösterilecek değer: boş ya da yalnızca boşluk ise seçili dildeki "Belirtilmedi" karşılığı.
+export const shown = (value: string | undefined, fallback = NOT_SPECIFIED) => value && value.trim() ? value : fallback;

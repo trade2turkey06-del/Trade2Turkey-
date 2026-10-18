@@ -19,13 +19,13 @@ service cloud.firestore {
       return event.projectId == projectId && event.actorUid == request.auth.uid && event.at == request.time;
     }
     function validUser(data, id) {
-      return data.size() <= 45 && data.id == id && text(data.email, 254) && data.role in ['admin', 'owner', 'client', 'freelancer'] && str(data.get('projectId',''), 100) && str(data.get('companyName',''),200) && data.get('assignedProjects',[]) is list && data.get('assignedProjects',[]).size() <= 30 && str(data.get('name',''),200) && str(data.get('displayName',''),200) && str(data.get('contactPerson',''),200) && str(data.get('title',''),200) && str(data.get('secondaryEmail',''),254) && str(data.get('workPhone',''),50) && str(data.get('cellPhone',''),50) && str(data.get('website',''),2000) && data.get('onboardingCompleted',false) is bool;
+      return data.size() <= 45 && data.id == id && text(data.email, 254) && data.role in ['admin', 'owner', 'client', 'freelancer'] && str(data.get('projectId',''), 100) && str(data.get('companyName',''),200) && data.get('assignedProjects',[]) is list && data.get('assignedProjects',[]).size() <= 30 && str(data.get('name',''),200) && str(data.get('displayName',''),200) && str(data.get('contactPerson',''),200) && str(data.get('title',''),200) && str(data.get('secondaryEmail',''),254) && str(data.get('workPhone',''),50) && str(data.get('cellPhone',''),50) && str(data.get('website',''),2000) && data.get('onboardingCompleted',false) is bool && data.get('language','tr') in ['tr','en'];
     }
     match /users/{uid} {
       allow get: if signedIn() && (request.auth.uid == uid || admin());
       allow list: if admin();
       allow create: if admin() && validUser(request.resource.data, uid);
-      allow update: if validUser(request.resource.data, uid) && (admin() || (active() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['companyName','name','displayName','contactPerson','title','secondaryEmail','workPhone','cellPhone','website','onboardingCompleted'])));
+      allow update: if validUser(request.resource.data, uid) && (admin() || (active() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['companyName','name','displayName','contactPerson','title','secondaryEmail','workPhone','cellPhone','website','onboardingCompleted','language'])));
       allow delete: if false;
     }
 

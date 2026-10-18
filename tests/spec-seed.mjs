@@ -40,7 +40,7 @@ await env.withSecurityRulesDisabled(async context => {
   await setDoc(doc(db, "users/approver"), { id: "approver", email: "approver@t2t.test", companyName: "Yerel Onaylayan", role: "admin", projectId: "DEMO", assignedProjects: ["DEMO", PROJECT], status: "active" }, { merge: true });
   await setDoc(doc(db, "projects", PROJECT), {
     id: PROJECT, name: "Unlu Mamüller (örnek veri)", description: "Kurgusal emülatör verisi", status: "active",
-    packaging_config: { productVariant: "Sade Tortilla", singleWeight: 400, packagingStyle: "PP poşet (örnek)", innerBoxCount: 0, masterCartonCount: 12, palletCartonCount: 72, cartonNetWeight: 4.8, cartonGrossWeight: 5.2, cartonDimensions: "52x29,5x20 cm", totalGrossWeight: 0 },
+    packaging_config: { productVariant: "Sade Tortilla", singleWeight: 0.4, packagingStyle: "PP poşet (örnek)", innerBoxCount: 0, masterCartonCount: 12, palletCartonCount: 72, cartonNetWeight: 4.8, cartonGrossWeight: 5.2, cartonDimensions: "52x29,5x20 cm", totalGrossWeight: 0 },
   }, { merge: true });
   await setDoc(doc(db, "projects", PROJECT, "manufacturers", MAIN), { id: MAIN, name: "Kuzey Ovası Fırıncılık A.Ş. (kurgusal)", vaultDetails: vault });
   // Bilerek eksik kasa verisi: Belge Kasası "Belirtilmedi" göstermeli, Tedarik sekmesi çökmemeli.

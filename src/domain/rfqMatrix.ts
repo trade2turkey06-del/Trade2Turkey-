@@ -1,4 +1,5 @@
 // RFQ comparison matrix (A.B.6): template, scoring formulas and CSV export. Pure functions only — no network calls.
+import { CodedError } from "../i18n/errors";
 
 export type SectionId = "offer" | "technical" | "commercial" | "company" | "soft";
 // Numeric criteria that get a suggested score: lower values are better for prices/lead time, higher for capacity/experience.
@@ -129,11 +130,11 @@ export function removeManufacturer(matrix: RfqMatrix, id: string): RfqMatrix {
     sections: matrix.sections.map(section => ({ ...section, criteria: section.criteria.map(strip) })) };
 }
 export function validateMatrix(matrix: RfqMatrix) {
-  if (matrix.manufacturers.length < MIN_MANUFACTURERS || matrix.manufacturers.length > MAX_MANUFACTURERS) throw new Error(`The matrix needs ${MIN_MANUFACTURERS}–${MAX_MANUFACTURERS} manufacturers.`);
-  if (matrix.manufacturers.some(manufacturer => !manufacturer.name.trim())) throw new Error("Every manufacturer needs a name.");
-  if (!weightsValid(matrix)) throw new Error(`Section weights must add up to 100% (currently ${weightTotal(matrix)}%).`);
-  if (allCriteria(matrix).some(item => !Number.isFinite(item.weight) || item.weight < 0)) throw new Error("Criterion weights must be 0 or more.");
-  if (allCriteria(matrix).some(item => Object.values(item.scores).some(score => !validScore(score)))) throw new Error("Scores must be whole numbers from 1 to 5.");
+  if (matrix.manufacturers.length < MIN_MANUFACTURERS || matrix.manufacturers.length > MAX_MANUFACTURERS) throw new CodedError("matrixManufacturers", { min: String(MIN_MANUFACTURERS), max: String(MAX_MANUFACTURERS) });
+  if (matrix.manufacturers.some(manufacturer => !manufacturer.name.trim())) throw new CodedError("matrixNames");
+  if (!weightsValid(matrix)) throw new CodedError("matrixWeights", { total: String(weightTotal(matrix)) });
+  if (allCriteria(matrix).some(item => !Number.isFinite(item.weight) || item.weight < 0)) throw new CodedError("matrixCriterionWeights");
+  if (allCriteria(matrix).some(item => Object.values(item.scores).some(score => !validScore(score)))) throw new CodedError("matrixScores");
 }
 
 const csvCell = (value: unknown) => { const text = String(value ?? ""); return /[",\n;]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text; };

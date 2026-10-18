@@ -11,7 +11,8 @@ import { subscribeDriveAuth, setDriveAuth } from "../lib/driveAuth";
 import { db, auth } from "../lib/firebase";
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
 import { DriveFile, PROJECT_NAMES } from "../data/driveData";
-import { emptyVaultDetails, normalizeVaultDetails, shown, type ProjectVaultDetails } from "../domain/vaultDetails";
+import { emptyVaultDetails, normalizeVaultDetails, shown as shownValue, type ProjectVaultDetails } from "../domain/vaultDetails";
+import { useI18n } from "../i18n";
 
 interface ProjectDocumentVaultProps {
   currentProjectId: string;
@@ -112,6 +113,8 @@ const DEFAULT_PACKAGING_CONFIG: PackagingConfig = {
 
 
 export default function ProjectDocumentVault({ currentProjectId, readOnly = false }: ProjectDocumentVaultProps) {
+  const v = useI18n().t.vault, f = v.fields;
+  const shown = (value?: string) => shownValue(value, v.notSpecified);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Fetch details dynamically from Firestore or default fallback map
@@ -463,7 +466,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
     try {
       const response = await apiFetch("/api/auth/google-url");
       if (!response.ok) {
-        throw new Error("Google yetkilendirme linki alınamadı.");
+        throw new Error(v.documents.authLinkFailed);
       }
       const { url } = await response.json();
       const width = 580;
@@ -478,11 +481,11 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
       );
 
       if (!popup) {
-        alert("Açılır pencere engelleyicisi algılandı! Lütfen pencerelere izin verin.");
+        alert(v.documents.popupBlocked);
       }
     } catch (err: any) {
       console.error("Auth trigger failed:", err);
-      alert(`Kimlik doğrulama başlatılamadı: ${err.message}`);
+      alert(v.documents.authFailed(err.message));
     }
   };
 
@@ -496,7 +499,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
     if (!rawFile) return;
 
     if (!authState.accessToken) {
-      alert("Lütfen önce Google Drive'a bağlanın.");
+      alert(v.documents.connectFirst);
       return;
     }
 
@@ -520,7 +523,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || `Yükleme başarısız (Status: ${response.status})`);
+        throw new Error(errData.error || v.documents.uploadStatus(response.status));
       }
 
       const result = await response.json();
@@ -551,7 +554,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
 
     } catch (err: any) {
       console.error("Vault upload failed:", err);
-      setUploadError(err.message || "Dosya yüklenemedi.");
+      setUploadError(err.message || v.documents.uploadFailed);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -559,13 +562,13 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
   };
 
   const handleDeleteFile = async (file: DriveFile) => {
-    if (!confirm(`"${file.fileName}" belgesini kasadan silmek istediğinize emin misiniz?`)) return;
+    if (!confirm(v.documents.deleteConfirm(file.fileName))) return;
     try {
       const docId = file.documentId || `${currentProjectId}_vault_${file.fileName.replace(/\s+/g, "_")}`;
       await deleteDoc(doc(db, "driveFiles", docId));
     } catch (err) {
       console.error("Document delete failed:", err);
-      alert("Belge veritabanından silinemedi.");
+      alert(v.documents.deleteFailed);
     }
   };
 
@@ -590,10 +593,10 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             </h3>
           </div>
           <h2 className="text-xl font-black text-white font-display uppercase tracking-wide">
-            {getProjectName(currentProjectId)} Kasası
+            {v.title(getProjectName(currentProjectId))}
           </h2>
           <p className="text-[11px] text-slate-300 font-mono leading-relaxed max-w-xl">
-            Tedarik zinciri, lojistik paketleme ve resmi sertifikasyon dokümanlarının bulut depolama entegrasyonuyla güvenli yönetimi.
+            {v.subtitle}
           </p>
         </div>
 
@@ -602,20 +605,20 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
           {authState.accessToken ? (
             <div className="flex items-center gap-3">
               {authState.picture ? (
-                <img src={authState.picture} alt="Google User" className="w-8 h-8 rounded-full border border-cyan-500/40" />
+                <img src={authState.picture} alt={v.googleUser} className="w-8 h-8 rounded-full border border-cyan-500/40" />
               ) : (
                 <div className="w-8 h-8 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center font-mono font-bold text-cyan-400 text-xs">
                   G
                 </div>
               )}
               <div className="text-left">
-                <span className="block text-[9px] text-cyan-400 font-black font-mono tracking-wider uppercase leading-none">Bağlı</span>
+                <span className="block text-[9px] text-cyan-400 font-black font-mono tracking-wider uppercase leading-none">{v.connected}</span>
                 <span className="block text-xs font-bold text-white truncate max-w-[150px] leading-tight mt-1">{authState.email}</span>
               </div>
               <button 
                 onClick={handleDisconnectGoogle}
                 className="p-1.5 rounded-lg border border-blue-900/30 hover:border-red-500/30 hover:bg-red-500/10 text-slate-300 hover:text-red-400 transition cursor-pointer"
-                title="Google Drive Bağlantısını Kes"
+                title={v.disconnect}
               >
                 <Unlink className="h-3.5 w-3.5" />
               </button>
@@ -626,7 +629,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
               className="bg-navy hover:bg-navy-light text-white text-xs font-black px-4 py-2.5 rounded-xl border border-navy/20 flex items-center gap-2 transition cursor-pointer select-none"
             >
               <Link2 className="h-4 w-4 text-cyan-400" />
-              <span>Google Drive'a Bağlan</span>
+              <span>{v.connect}</span>
             </button>
           )}
         </div>
@@ -636,7 +639,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
       {successToast && (
         <div className="fixed bottom-5 right-5 z-[150] bg-emerald-500 text-slate-950 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 font-bold text-xs animate-bounce font-mono">
           <CheckCircle className="h-4 w-4 text-slate-955" />
-          Proje Bilgileri Başarıyla Kaydedildi!
+          {v.savedToast}
         </div>
       )}
 
@@ -645,7 +648,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
         <div className="flex items-center gap-2">
           <Database className="h-4 w-4 text-cyan-400" />
           <span className="text-xs font-bold text-slate-350 font-mono uppercase tracking-wider">
-            Üreticiler:
+            {v.manufacturers}
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2 flex-1 md:flex-initial">
@@ -654,7 +657,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
               key={m.id}
               onClick={() => {
                 if (isEditing) {
-                  if (confirm("Kaydedilmemiş değişiklikleriniz var. Değişiklikleri iptal edip üretici değiştirmek istiyor musunuz?")) {
+                  if (confirm(v.unsavedSwitch)) {
                     setIsEditing(false);
                     setSelectedManufacturerId(m.id);
                   }
@@ -676,7 +679,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             onClick={() => setIsAddingManufacturer(true)}
             className="px-4 py-2 bg-blue-950/80 hover:bg-blue-900 border border-blue-800/40 text-cyan-400 hover:text-cyan-300 text-xs font-bold rounded-xl cursor-pointer transition shadow-sm font-mono flex items-center gap-1.5"
           >
-            <span>+ Yeni Üretici Ekle</span>
+            <span>{v.addManufacturerButton}</span>
           </button>
         </div>
       </div>
@@ -685,29 +688,29 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
       <div className="flex flex-col md:flex-row md:items-center justify-between bg-[#0B1221] border border-blue-900/30 px-6 py-4 rounded-2xl shadow-xl gap-4">
         <div className="space-y-1 flex-1">
           <h3 className="text-[10px] font-black tracking-widest text-cyan-400 font-mono uppercase leading-none">
-            Spesifikasyon Detayları
+            {v.specDetails}
           </h3>
           
           {/* Active Manufacturer Name with Edit Mode */}
           {!isEditingManufacturerName ? (
             <div className="flex items-center gap-2 mt-1">
               <span className="text-sm font-black text-white font-display">
-                {manufacturers.find(m => m.id === selectedManufacturerId)?.name || "Henüz üretici seçilmedi"}
+                {manufacturers.find(m => m.id === selectedManufacturerId)?.name || v.noManufacturerSelected}
               </span>
               <button
                 disabled={!selectedManufacturerId} onClick={handleStartEditManufacturerName}
                 className="text-[9px] font-bold text-slate-400 hover:text-cyan-400 transition cursor-pointer font-mono px-2 py-0.5 bg-slate-900 border border-slate-800 rounded-md"
               >
-                İsmi Düzenle
+                {v.editName}
               </button>
               {selectedManufacturerId && (
                 <button
                   onClick={() => setIsConfirmingDelete(true)}
                   className="text-[9px] font-bold text-red-400 hover:text-red-305 transition cursor-pointer font-mono px-2 py-0.5 bg-slate-900 border border-slate-800 rounded-md flex items-center gap-1"
-                  title="Üreticiyi Sil"
+                  title={v.deleteManufacturer}
                 >
                   <Trash2 className="h-3 w-3" />
-                  <span>Üreticiyi Sil</span>
+                  <span>{v.deleteManufacturer}</span>
                 </button>
               )}
             </div>
@@ -723,13 +726,13 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                 onClick={handleSaveManufacturerName}
                 className="px-2 py-1 bg-teal-500 hover:bg-teal-650 text-slate-955 text-[10px] font-bold rounded-lg cursor-pointer transition font-mono"
               >
-                Kaydet
+                {v.save}
               </button>
               <button
                 onClick={handleCancelEditManufacturerName}
                 className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold rounded-lg cursor-pointer transition border border-slate-750 font-mono"
               >
-                İptal
+                {v.cancel}
               </button>
             </div>
           )}
@@ -741,7 +744,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
               disabled={!selectedManufacturerId} onClick={handleStartEdit}
               className="px-4 py-2 bg-blue-650 hover:bg-blue-700 text-white text-xs font-bold rounded-xl cursor-pointer transition shadow-sm font-mono uppercase"
             >
-              Düzenle
+              {v.edit}
             </button>
           ) : (
             <>
@@ -749,14 +752,14 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                 onClick={handleCancelEdit}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl cursor-pointer transition border border-slate-750 font-mono uppercase"
               >
-                İptal
+                {v.cancel}
               </button>
               <button
                 onClick={handleSaveDetails}
                 disabled={savingDetails}
                 className="px-4 py-2 bg-teal-500 hover:bg-teal-650 disabled:opacity-50 text-slate-955 text-xs font-bold rounded-xl cursor-pointer transition shadow-sm font-mono uppercase"
               >
-                {savingDetails ? "Kaydediliyor..." : "Kaydet"}
+                {savingDetails ? v.saving : v.save}
               </button>
             </>
           )}
@@ -772,13 +775,13 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             <div className="flex items-center justify-between pb-3 border-b border-blue-900/20">
               <h4 className="text-xs font-bold text-white tracking-wide font-mono uppercase flex items-center gap-2">
                 <Coins className="h-4 w-4 text-white" />
-                Fiyatlandırma & Kapasite
+                {v.sections.pricing}
               </h4>
             </div>
             {isEditing && editedDetails ? (
               <div className="space-y-3 mt-4 text-xs">
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">EXW Fiyat Listesi (Drive Linki):</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.exwPriceListLink}</label>
                   <input
                     type="text"
                     value={editedDetails.pricingCapacity.exwPriceList}
@@ -786,12 +789,12 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                       ...editedDetails,
                       pricingCapacity: { ...editedDetails.pricingCapacity, exwPriceList: e.target.value }
                     })}
-                    placeholder="Google Drive linki..."
+                    placeholder={f.driveLinkPlaceholder}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-teal-500 font-mono"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Minimum Sipariş Hacmi (MOQ):</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.moq}</label>
                   <input
                     type="text"
                     value={editedDetails.pricingCapacity.moq}
@@ -803,7 +806,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Aylık Üretim Kapasitesi:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.monthlyCapacity}</label>
                   <input
                     type="text"
                     value={editedDetails.pricingCapacity.monthlyCapacity}
@@ -818,21 +821,21 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             ) : (
               <div className="space-y-4 mt-4 text-xs">
                 <div>
-                  <span className="text-slate-300 block font-semibold">EXW Fiyat Listesi:</span>
+                  <span className="text-slate-300 block font-semibold">{f.exwPriceList}</span>
                   {details.pricingCapacity.exwPriceList && details.pricingCapacity.exwPriceList.startsWith("http") ? (
                     <a href={details.pricingCapacity.exwPriceList} target="_blank" rel="noopener noreferrer" className="text-cyan-400 font-bold hover:underline block mt-1 font-mono truncate">
-                      Fiyat Listesini Görüntüle ↗
+                      {f.viewPriceList}
                     </a>
                   ) : (
                     <span className="text-white font-bold block mt-1 font-mono">{shown(details.pricingCapacity.exwPriceList)}</span>
                   )}
                 </div>
                 <div>
-                  <span className="text-slate-300 block font-semibold">Minimum Sipariş Hacmi (MOQ):</span>
+                  <span className="text-slate-300 block font-semibold">{f.moq}</span>
                   <span className="text-white font-bold block mt-1">{shown(details.pricingCapacity.moq)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-300 block font-semibold">Aylık Üretim Kapasitesi:</span>
+                  <span className="text-slate-300 block font-semibold">{f.monthlyCapacity}</span>
                   <span className="text-cyan-400 font-bold block mt-1">{shown(details.pricingCapacity.monthlyCapacity)}</span>
                 </div>
               </div>
@@ -846,13 +849,13 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             <div className="flex items-center justify-between pb-3 border-b border-blue-900/20">
               <h4 className="text-xs font-bold text-white tracking-wide font-mono uppercase flex items-center gap-2">
                 <Clock className="h-4 w-4 text-white" />
-                Üretim & Lojistik Süreler
+                {v.sections.production}
               </h4>
             </div>
             {isEditing && editedDetails ? (
               <div className="space-y-3 mt-4 text-xs">
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">İlk Sipariş Üretim Süresi:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.firstOrder}</label>
                   <input
                     type="text"
                     value={editedDetails.productionTransit.productionFirstOrder}
@@ -864,7 +867,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Tekrar Siparişleri:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.repeatOrder}</label>
                   <input
                     type="text"
                     value={editedDetails.productionTransit.productionRepeatOrder}
@@ -876,7 +879,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Lojistik Transit Süresi:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.transit}</label>
                   <input
                     type="text"
                     value={editedDetails.productionTransit.shipmentTransitTime}
@@ -891,15 +894,15 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             ) : (
               <div className="space-y-4 mt-4 text-xs">
                 <div>
-                  <span className="text-slate-300 block font-semibold">İlk Sipariş Üretim Süresi:</span>
+                  <span className="text-slate-300 block font-semibold">{f.firstOrder}</span>
                   <span className="text-white font-bold block mt-1">{shown(details.productionTransit.productionFirstOrder)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-300 block font-semibold">Tekrar Siparişleri:</span>
+                  <span className="text-slate-300 block font-semibold">{f.repeatOrder}</span>
                   <span className="text-white font-bold block mt-1">{shown(details.productionTransit.productionRepeatOrder)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-300 block font-semibold">Lojistik Transit Süresi:</span>
+                  <span className="text-slate-300 block font-semibold">{f.transit}</span>
                   <span className="text-cyan-400 font-bold block mt-1 font-mono">{shown(details.productionTransit.shipmentTransitTime)}</span>
                 </div>
               </div>
@@ -913,13 +916,13 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             <div className="flex items-center justify-between pb-3 border-b border-blue-900/20">
               <h4 className="text-xs font-bold text-white tracking-wide font-mono uppercase flex items-center gap-2">
                 <Thermometer className="h-4 w-4 text-white" />
-                Depolama & Raf Ömrü
+                {v.sections.storage}
               </h4>
             </div>
             {isEditing && editedDetails ? (
               <div className="space-y-3 mt-4 text-xs">
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Donuk Ürünler:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.frozen}</label>
                   <input
                     type="text"
                     value={editedDetails.storageShelfLife.frozenProducts}
@@ -931,7 +934,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Ortam Sıcaklığı Ürünleri:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.ambient}</label>
                   <input
                     type="text"
                     value={editedDetails.storageShelfLife.ambientProducts}
@@ -946,11 +949,11 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             ) : (
               <div className="space-y-4 mt-4 text-xs">
                 <div>
-                  <span className="text-slate-300 block font-semibold">Donuk Ürünler:</span>
+                  <span className="text-slate-300 block font-semibold">{f.frozen}</span>
                   <span className="text-cyan-400 font-bold block mt-1 font-mono">{shown(details.storageShelfLife.frozenProducts)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-300 block font-semibold">Ortam Sıcaklığı Ürünleri:</span>
+                  <span className="text-slate-300 block font-semibold">{f.ambient}</span>
                   <span className="text-white font-bold block mt-1 font-mono">{shown(details.storageShelfLife.ambientProducts)}</span>
                 </div>
               </div>
@@ -964,13 +967,13 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             <div className="flex items-center justify-between pb-3 border-b border-blue-900/20">
               <h4 className="text-xs font-bold text-white tracking-wide font-mono uppercase flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-white" />
-                Sertifikalar & Analizler
+                {v.sections.certifications}
               </h4>
             </div>
             {isEditing && editedDetails ? (
               <div className="space-y-3 mt-4 text-xs">
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">CoA (Certificate of Analysis):</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.coa}</label>
                   <input
                     type="text"
                     value={editedDetails.certifications.coa}
@@ -982,7 +985,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Ürün Kalite Sertifikaları:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.certificates}</label>
                   <input
                     type="text"
                     value={editedDetails.certifications.certificates.join(", ")}
@@ -993,7 +996,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                         certifications: { ...editedDetails.certifications, certificates: list }
                       });
                     }}
-                    placeholder="Virgülle ayırın (Örn: Vegan, BRC, Helal)"
+                    placeholder={f.certificatesPlaceholder}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-teal-500"
                   />
                   <div className="flex flex-wrap gap-1 mt-1.5">
@@ -1008,11 +1011,11 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             ) : (
               <div className="space-y-4 mt-4 text-xs">
                 <div>
-                  <span className="text-slate-300 block font-semibold">CoA (Certificate of Analysis):</span>
+                  <span className="text-slate-300 block font-semibold">{f.coa}</span>
                   <span className="text-white font-bold block mt-1 font-mono">{shown(details.certifications.coa)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-300 block font-semibold">Ürün Kalite Sertifikaları:</span>
+                  <span className="text-slate-300 block font-semibold">{f.certificates}</span>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {details.certifications.certificates && details.certifications.certificates.length > 0 ? (
                       details.certifications.certificates.map((cert, index) => (
@@ -1021,7 +1024,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                         </span>
                       ))
                     ) : (
-                      <span className="text-slate-500 italic">Sertifika tanımlanmadı.</span>
+                      <span className="text-slate-500 italic">{f.noCertificates}</span>
                     )}
                   </div>
                 </div>
@@ -1036,7 +1039,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             <div className="flex items-center justify-between pb-3 border-b border-blue-900/20">
               <h4 className="text-xs font-bold text-white tracking-wide font-mono uppercase flex items-center gap-2">
                 <Layers className="h-4 w-4 text-white" />
-                Ürün ve Paketleme Konfigürasyonu
+                {v.sections.packaging}
               </h4>
               <div className="flex items-center gap-2">
                 {isEditingPackaging ? (
@@ -1044,14 +1047,14 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                     <button
                       onClick={handleSavePackagingConfig}
                       className="p-1 text-teal-400 hover:text-teal-300 rounded hover:bg-slate-800 transition cursor-pointer"
-                      title="Kaydet"
+                      title={v.save}
                     >
                       <Check className="h-4 w-4" />
                     </button>
                     <button
                       onClick={handleCancelPackagingEdit}
                       className="p-1 text-red-400 hover:text-red-300 rounded hover:bg-slate-800 transition cursor-pointer"
-                      title="İptal"
+                      title={v.cancel}
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -1060,7 +1063,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   <button
                     disabled={!selectedManufacturerId} onClick={handleStartPackagingEdit}
                     className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition cursor-pointer"
-                    title="Düzenle"
+                    title={v.edit}
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
@@ -1070,7 +1073,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             {isEditingPackaging ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 text-[11px]">
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Ürün adı / Varyant:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.productVariant}</label>
                   <input
                     type="text"
                     value={editedPackagingConfig.productVariant || ""}
@@ -1079,7 +1082,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Tekli Ürün Ağırlığı:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.singleWeight}</label>
                   <input
                     type="number"
                     step="0.001"
@@ -1089,7 +1092,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Paketleme biçimi:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.packagingStyle}</label>
                   <input
                     type="text"
                     value={editedPackagingConfig.packagingStyle || ""}
@@ -1098,7 +1101,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Küçük içindeki ürün adeti:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.innerBoxCount}</label>
                   <input
                     type="number"
                     value={editedPackagingConfig.innerBoxCount === undefined ? "" : editedPackagingConfig.innerBoxCount}
@@ -1107,7 +1110,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Büyük koli içindeki paket adeti:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.masterCartonCount}</label>
                   <input
                     type="number"
                     value={editedPackagingConfig.masterCartonCount === undefined ? "" : editedPackagingConfig.masterCartonCount}
@@ -1116,7 +1119,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Palet içindeki koli adeti:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.palletCartonCount}</label>
                   <input
                     type="number"
                     value={editedPackagingConfig.palletCartonCount === undefined ? "" : editedPackagingConfig.palletCartonCount}
@@ -1125,7 +1128,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Koli net ağırlığı:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.cartonNetWeight}</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1135,7 +1138,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Koli bürüt ağırlığı:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.cartonGrossWeight}</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1145,7 +1148,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Koli ölçüleri:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.cartonDimensions}</label>
                   <input
                     type="text"
                     value={editedPackagingConfig.cartonDimensions || ""}
@@ -1154,7 +1157,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Toplam gross ürün ağırlığı:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.totalGrossWeight}</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1167,57 +1170,57 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3.5 mt-4 text-[11px]">
                 <div>
-                  <span className="text-slate-400 block font-medium">Ürün adı / Varyant:</span>
-                  <span className="text-white font-semibold block mt-0.5">{packagingConfig.productVariant || "Belirtilmedi"}</span>
+                  <span className="text-slate-400 block font-medium">{f.productVariant}</span>
+                  <span className="text-white font-semibold block mt-0.5">{packagingConfig.productVariant || v.notSpecified}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block font-medium">Tekli Ürün Ağırlığı:</span>
+                  <span className="text-slate-400 block font-medium">{f.singleWeight}</span>
                   <span className="text-white font-semibold block mt-0.5 font-mono">
-                    {packagingConfig.singleWeight !== undefined && packagingConfig.singleWeight !== 0 ? `${packagingConfig.singleWeight} kg` : "Belirtilmedi"}
+                    {packagingConfig.singleWeight !== undefined && packagingConfig.singleWeight !== 0 ? `${packagingConfig.singleWeight} ${v.units.kg}` : v.notSpecified}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block font-medium">Paketleme biçimi:</span>
-                  <span className="text-white font-semibold block mt-0.5">{packagingConfig.packagingStyle || "Belirtilmedi"}</span>
+                  <span className="text-slate-400 block font-medium">{f.packagingStyle}</span>
+                  <span className="text-white font-semibold block mt-0.5">{packagingConfig.packagingStyle || v.notSpecified}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block font-medium">Küçük içindeki ürün adeti:</span>
+                  <span className="text-slate-400 block font-medium">{f.innerBoxCount}</span>
                   <span className="text-white font-semibold block mt-0.5 font-mono">
-                    {packagingConfig.innerBoxCount !== undefined && packagingConfig.innerBoxCount !== 0 ? `${packagingConfig.innerBoxCount} adet` : "Belirtilmedi"}
+                    {packagingConfig.innerBoxCount !== undefined && packagingConfig.innerBoxCount !== 0 ? `${packagingConfig.innerBoxCount} ${v.units.pieces}` : v.notSpecified}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block font-medium">Büyük koli içindeki paket adeti:</span>
+                  <span className="text-slate-400 block font-medium">{f.masterCartonCount}</span>
                   <span className="text-white font-semibold block mt-0.5 font-mono">
-                    {packagingConfig.masterCartonCount !== undefined && packagingConfig.masterCartonCount !== 0 ? `${packagingConfig.masterCartonCount} adet` : "Belirtilmedi"}
+                    {packagingConfig.masterCartonCount !== undefined && packagingConfig.masterCartonCount !== 0 ? `${packagingConfig.masterCartonCount} ${v.units.pieces}` : v.notSpecified}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block font-medium">Palet içindeki koli adeti:</span>
+                  <span className="text-slate-400 block font-medium">{f.palletCartonCount}</span>
                   <span className="text-white font-semibold block mt-0.5 font-mono">
-                    {packagingConfig.palletCartonCount !== undefined && packagingConfig.palletCartonCount !== 0 ? `${packagingConfig.palletCartonCount} koli` : "Belirtilmedi"}
+                    {packagingConfig.palletCartonCount !== undefined && packagingConfig.palletCartonCount !== 0 ? `${packagingConfig.palletCartonCount} ${v.units.cartons}` : v.notSpecified}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block font-medium">Koli net ağırlığı:</span>
+                  <span className="text-slate-400 block font-medium">{f.cartonNetWeight}</span>
                   <span className="text-white font-semibold block mt-0.5 font-mono">
-                    {packagingConfig.cartonNetWeight !== undefined && packagingConfig.cartonNetWeight !== 0 ? `${packagingConfig.cartonNetWeight} kg` : "Belirtilmedi"}
+                    {packagingConfig.cartonNetWeight !== undefined && packagingConfig.cartonNetWeight !== 0 ? `${packagingConfig.cartonNetWeight} ${v.units.kg}` : v.notSpecified}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block font-medium">Koli bürüt ağırlığı:</span>
+                  <span className="text-slate-400 block font-medium">{f.cartonGrossWeight}</span>
                   <span className="text-white font-semibold block mt-0.5 font-mono">
-                    {packagingConfig.cartonGrossWeight !== undefined && packagingConfig.cartonGrossWeight !== 0 ? `${packagingConfig.cartonGrossWeight} kg` : "Belirtilmedi"}
+                    {packagingConfig.cartonGrossWeight !== undefined && packagingConfig.cartonGrossWeight !== 0 ? `${packagingConfig.cartonGrossWeight} ${v.units.kg}` : v.notSpecified}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block font-medium">Koli ölçüleri:</span>
-                  <span className="text-white font-semibold block mt-0.5 font-mono">{packagingConfig.cartonDimensions || "Belirtilmedi"}</span>
+                  <span className="text-slate-400 block font-medium">{f.cartonDimensions}</span>
+                  <span className="text-white font-semibold block mt-0.5 font-mono">{packagingConfig.cartonDimensions || v.notSpecified}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block font-medium">Toplam gross ürün ağırlığı:</span>
+                  <span className="text-slate-400 block font-medium">{f.totalGrossWeight}</span>
                   <span className="text-white font-semibold block mt-0.5 font-mono">
-                    {packagingConfig.totalGrossWeight !== undefined && packagingConfig.totalGrossWeight !== 0 ? `${packagingConfig.totalGrossWeight} kg` : "Belirtilmedi"}
+                    {packagingConfig.totalGrossWeight !== undefined && packagingConfig.totalGrossWeight !== 0 ? `${packagingConfig.totalGrossWeight} ${v.units.kg}` : v.notSpecified}
                   </span>
                 </div>
               </div>
@@ -1231,13 +1234,13 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             <div className="flex items-center justify-between pb-3 border-b border-blue-900/20">
               <h4 className="text-xs font-bold text-white tracking-wide font-mono uppercase flex items-center gap-2">
                 <FileText className="h-4 w-4 text-white" />
-                Ürün & Pazarlama Detayları
+                {v.sections.marketing}
               </h4>
             </div>
             {isEditing && editedDetails ? (
               <div className="space-y-3 mt-4 text-xs">
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Aktif Ürün Çeşitleri:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.variations}</label>
                   <textarea
                     value={editedDetails.variations.join("\n")}
                     onChange={(e) => {
@@ -1247,26 +1250,26 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                         variations: list
                       });
                     }}
-                    placeholder="Her satıra bir ürün çeşidi yazın..."
+                    placeholder={f.variationsPlaceholder}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-teal-500 h-20 resize-none font-sans"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Pazarlama & Numune Süreci:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.marketingSamples}</label>
                   <textarea
                     value={editedDetails.marketingSamples}
                     onChange={(e) => setEditedDetails({
                       ...editedDetails,
                       marketingSamples: e.target.value
                     })}
-                    placeholder="Pazarlama ve numune detayları..."
+                    placeholder={f.marketingPlaceholder}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-teal-500 h-20 resize-none font-sans"
                   />
                 </div>
                 
                 {/* Product claims under global edit mode */}
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">Ürün İddiaları (Product Claims):</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase">{f.claims}</label>
                   <div className="flex flex-wrap gap-1.5 p-2 bg-slate-800 border border-slate-700 rounded-xl min-h-[40px]">
                     {(editedDetails.productClaims || []).map((claim, index) => (
                       <span key={index} className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold font-mono bg-teal-500/10 border border-teal-500/25 text-teal-400 rounded-md uppercase">
@@ -1288,7 +1291,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                     ))}
                     <input
                       type="text"
-                      placeholder="Yeni iddia ekle ve Enter'a bas..."
+                      placeholder={f.claimPlaceholder}
                       value={newClaimInput}
                       onChange={(e) => setNewClaimInput(e.target.value)}
                       onKeyDown={(e) => {
@@ -1312,31 +1315,31 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             ) : (
               <div className="space-y-4 mt-4 text-xs">
                 <div>
-                  <span className="text-slate-300 block font-semibold">Aktif Ürün Çeşitleri:</span>
+                  <span className="text-slate-300 block font-semibold">{f.variations}</span>
                   <div className="space-y-1 mt-1">
                     {details.variations && details.variations.length > 0 ? (
                       details.variations.map((v, index) => (
                         <div key={index} className="text-white font-semibold">• {v}</div>
                       ))
                     ) : (
-                      <span className="text-slate-500 italic">Ürün çeşidi girilmedi.</span>
+                      <span className="text-slate-500 italic">{f.noVariations}</span>
                     )}
                   </div>
                 </div>
                 <div>
-                  <span className="text-slate-300 block font-semibold">Pazarlama & Numune Süreci:</span>
+                  <span className="text-slate-300 block font-semibold">{f.marketingSamples}</span>
                   <span className="text-white font-bold block mt-1 leading-relaxed">{shown(details.marketingSamples)}</span>
                 </div>
                 
                 {/* Product Claims View & Local Inline Edit Area */}
                 <div className="pt-3 border-t border-blue-900/20">
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-300 font-semibold block">Ürün İddiaları (Product Claims):</span>
+                    <span className="text-slate-300 font-semibold block">{f.claims}</span>
                     {!isEditingClaims && (
                       <button
                         disabled={!selectedManufacturerId} onClick={handleStartEditClaims}
                         className="text-slate-400 hover:text-cyan-400 transition p-1 cursor-pointer"
-                        title="İddiaları Düzenle"
+                        title={f.editClaims}
                       >
                         <Pencil className="h-3 w-3" />
                       </button>
@@ -1360,7 +1363,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                         ))}
                         <input
                           type="text"
-                          placeholder="Yeni iddia ekle ve Enter'a bas..."
+                          placeholder={f.claimPlaceholder}
                           value={newClaimInput}
                           onChange={(e) => setNewClaimInput(e.target.value)}
                           onKeyDown={handleClaimInputKeyDown}
@@ -1372,7 +1375,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                           type="button"
                           onClick={() => setIsEditingClaims(false)}
                           className="p-1 bg-slate-800 hover:bg-slate-750 text-slate-300 rounded-lg border border-slate-700 transition cursor-pointer"
-                          title="İptal"
+                          title={v.cancel}
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -1380,7 +1383,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                           type="button"
                           onClick={handleSaveClaims}
                           className="p-1 bg-teal-500 hover:bg-teal-650 text-slate-955 rounded-lg transition cursor-pointer"
-                          title="Kaydet"
+                          title={v.save}
                         >
                           <Check className="h-3.5 w-3.5" />
                         </button>
@@ -1395,7 +1398,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                           </span>
                         ))
                       ) : (
-                        <span className="text-slate-500 italic">İddia belirtilmedi.</span>
+                        <span className="text-slate-500 italic">{f.noClaims}</span>
                       )}
                     </div>
                   )}
@@ -1416,17 +1419,17 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             <div className="flex items-center justify-between pb-3 border-b border-blue-900/20">
               <h4 className="text-xs font-bold text-white tracking-wide font-mono uppercase flex items-center gap-2">
                 <HeartPulse className="h-4 w-4 text-white animate-pulse" />
-                Besin Değerleri (100g)
+                {v.sections.nutrition}
               </h4>
               <span className="text-[10px] text-blue-100 font-mono font-bold uppercase bg-blue-950 px-2 py-0.5 rounded-lg border border-blue-900/30">
-                100g Değerleri
+                {v.sections.nutritionBadge}
               </span>
             </div>
 
             {isEditing && editedDetails ? (
               <div className="grid grid-cols-2 gap-4 mt-4 text-xs">
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase block">Enerji:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase block">{f.energyLabel}</label>
                   <input
                     type="text"
                     value={editedDetails.nutritionalValues.energy}
@@ -1438,11 +1441,11 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase block">Yağ / Doymuş Yağ:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase block">{f.fatSaturated}</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="Yağ"
+                      placeholder={f.fatPlaceholder}
                       value={editedDetails.nutritionalValues.fat}
                       onChange={(e) => setEditedDetails({
                         ...editedDetails,
@@ -1452,7 +1455,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                     />
                     <input
                       type="text"
-                      placeholder="Doymuş"
+                      placeholder={f.saturatedPlaceholder}
                       value={editedDetails.nutritionalValues.fatSaturated}
                       onChange={(e) => setEditedDetails({
                         ...editedDetails,
@@ -1463,11 +1466,11 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase block">Karb. / Şeker:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase block">{f.carbsSugar}</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="Karb."
+                      placeholder={f.carbsPlaceholder}
                       value={editedDetails.nutritionalValues.carbohydrates}
                       onChange={(e) => setEditedDetails({
                         ...editedDetails,
@@ -1477,7 +1480,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                     />
                     <input
                       type="text"
-                      placeholder="Şeker"
+                      placeholder={f.sugarPlaceholder}
                       value={editedDetails.nutritionalValues.sugar}
                       onChange={(e) => setEditedDetails({
                         ...editedDetails,
@@ -1488,7 +1491,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase block">Protein:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase block">{f.proteinLabel}</label>
                   <input
                     type="text"
                     value={editedDetails.nutritionalValues.protein}
@@ -1500,11 +1503,11 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   />
                 </div>
                 <div className="col-span-2 space-y-1">
-                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase block">Lif / Tuz:</label>
+                  <label className="text-slate-400 font-bold font-mono text-[9px] uppercase block">{f.fiberSalt}</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="Lif"
+                      placeholder={f.fiberPlaceholder}
                       value={editedDetails.nutritionalValues.fiber}
                       onChange={(e) => setEditedDetails({
                         ...editedDetails,
@@ -1514,7 +1517,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                     />
                     <input
                       type="text"
-                      placeholder="Tuz"
+                      placeholder={f.saltPlaceholder}
                       value={editedDetails.nutritionalValues.salt}
                       onChange={(e) => setEditedDetails({
                         ...editedDetails,
@@ -1528,27 +1531,27 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             ) : (
               <div className="grid grid-cols-2 gap-4 mt-4 text-xs">
                 <div className="bg-blue-950/50 p-3 rounded-xl border border-blue-900/30 flex flex-col justify-between">
-                  <span className="text-slate-300 font-semibold">Enerji</span>
+                  <span className="text-slate-300 font-semibold">{f.energy}</span>
                   <strong className="text-white font-mono text-sm mt-1">{shown(details.nutritionalValues.energy)}</strong>
                 </div>
                 <div className="bg-blue-950/50 p-3 rounded-xl border border-blue-900/30 flex flex-col justify-between">
-                  <span className="text-slate-300 font-semibold">Yağ (Doymuş: {shown(details.nutritionalValues.fatSaturated)})</span>
+                  <span className="text-slate-300 font-semibold">{f.fatView(shown(details.nutritionalValues.fatSaturated))}</span>
                   <strong className="text-white font-mono text-sm mt-1">{shown(details.nutritionalValues.fat)}</strong>
                 </div>
                 <div className="bg-blue-950/50 p-3 rounded-xl border border-blue-900/30 flex flex-col justify-between">
-                  <span className="text-slate-300 font-semibold">Karbonhidrat (Şeker: {shown(details.nutritionalValues.sugar)})</span>
+                  <span className="text-slate-300 font-semibold">{f.carbsView(shown(details.nutritionalValues.sugar))}</span>
                   <strong className="text-white font-mono text-sm mt-1">{shown(details.nutritionalValues.carbohydrates)}</strong>
                 </div>
                 <div className="bg-blue-950/50 p-3 rounded-xl border border-blue-900/30 flex flex-col justify-between">
-                  <span className="text-slate-300 font-semibold">Protein</span>
+                  <span className="text-slate-300 font-semibold">{f.protein}</span>
                   <strong className="text-cyan-400 font-mono text-sm mt-1">{shown(details.nutritionalValues.protein)}</strong>
                 </div>
                 <div className="bg-blue-950/50 p-3 rounded-xl border border-blue-900/30 flex flex-col justify-between col-span-2 flex-row items-center">
                   <div>
-                    <span className="text-slate-300 font-semibold block">Lif / Tuz Oranı</span>
+                    <span className="text-slate-300 font-semibold block">{f.fiberSaltRatio}</span>
                     <div className="flex gap-4 mt-1 font-mono text-white text-xs">
-                      <div>Lif: <strong>{shown(details.nutritionalValues.fiber)}</strong></div>
-                      <div>Tuz: <strong>{shown(details.nutritionalValues.salt)}</strong></div>
+                      <div>{f.fiber} <strong>{shown(details.nutritionalValues.fiber)}</strong></div>
+                      <div>{f.salt} <strong>{shown(details.nutritionalValues.salt)}</strong></div>
                     </div>
                   </div>
                 </div>
@@ -1563,13 +1566,13 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             <div className="flex items-center justify-between pb-3 border-b border-blue-900/20">
               <h4 className="text-xs font-bold text-white tracking-wide font-mono uppercase flex items-center gap-2">
                 <Globe className="h-4 w-4 text-white animate-spin-slow" />
-                Hedef İhracat Pazarları ({details.exportMarkets ? details.exportMarkets.length : 0} Ülke)
+                {v.sections.markets(details.exportMarkets ? details.exportMarkets.length : 0)}
               </h4>
             </div>
 
             {isEditing && editedDetails ? (
               <div className="space-y-2 mt-4 text-xs">
-                <label className="text-slate-400 font-bold font-mono text-[9px] uppercase block">Hedef İhracat Pazarları:</label>
+                <label className="text-slate-400 font-bold font-mono text-[9px] uppercase block">{f.exportMarkets}</label>
                 <input
                   type="text"
                   value={editedDetails.exportMarkets.map(m => m.name).join(", ")}
@@ -1583,7 +1586,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                       exportMarkets: list
                     });
                   }}
-                  placeholder="Virgülle ayırın (Örn: Almanya, Hollanda, Fransa)"
+                  placeholder={f.marketsPlaceholder}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-teal-500"
                 />
                 <div className="flex flex-wrap gap-1.5 mt-2">
@@ -1608,7 +1611,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                     </span>
                   ))
                 ) : (
-                  <span className="text-slate-500 italic text-xs">Pazar tanımlanmadı.</span>
+                  <span className="text-slate-500 italic text-xs">{f.noMarkets}</span>
                 )}
               </div>
             )}
@@ -1623,10 +1626,10 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
           <div className="space-y-1">
             <h4 className="text-xs font-bold text-white tracking-wide font-mono uppercase flex items-center gap-2">
               <Database className="h-4 w-4 text-white" />
-              Proje Doküman Listesi & Google Drive Senkronizasyonu
+              {v.documents.title}
             </h4>
             <p className="text-[10px] text-slate-300 font-mono">
-              Sözleşmeler, gümrük belgeleri ve laboratuvar analiz dokümanları.
+              {v.documents.subtitle}
             </p>
           </div>
 
@@ -1650,7 +1653,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                 ) : (
                   <Upload className="h-3.5 w-3.5" />
                 )}
-                <span>{isUploading ? "Belge Yükleniyor..." : "Yeni Belge Ekle"}</span>
+                <span>{isUploading ? v.documents.uploading : v.documents.add}</span>
               </button>
             </div>
           )}
@@ -1658,7 +1661,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
 
         {uploadError && (
           <div className="bg-red-500/10 border border-red-500/20 text-red-100 text-[10px] font-mono p-3 rounded-xl mt-3">
-            ⚠️ Yükleme hatası: {uploadError}
+            {v.documents.uploadError(uploadError)}
           </div>
         )}
 
@@ -1667,15 +1670,15 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
           {loadingFiles ? (
             <div className="flex items-center justify-center gap-2 text-slate-300 py-6 text-xs font-mono">
               <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
-              <span>Veritabanı dökümanları yükleniyor...</span>
+              <span>{v.documents.loading}</span>
             </div>
           ) : files.length === 0 ? (
             <div className="text-center py-8 border border-dashed border-blue-900/20 rounded-xl">
               <FileText className="h-8 w-8 text-slate-600 mx-auto opacity-40" />
-              <span className="block text-slate-300 text-xs mt-2 font-semibold">Kasada henüz taranmış resmi bir belge yok.</span>
+              <span className="block text-slate-300 text-xs mt-2 font-semibold">{v.documents.empty}</span>
               {!authState.accessToken && (
                 <span className="block text-blue-100 text-[10px] mt-1 font-mono">
-                  Belge eklemek için lütfen yukarıdan Google Drive bağlantısı kurun.
+                  {v.documents.connectHint}
                 </span>
               )}
             </div>
@@ -1707,7 +1710,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                         target="_blank"
                         rel="noreferrer"
                         className="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition"
-                        title="İndir / Görüntüle"
+                        title={v.documents.open}
                       >
                         <Download className="h-3.5 w-3.5" />
                       </a>
@@ -1715,7 +1718,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                     <button 
                       onClick={() => handleDeleteFile(file)}
                       className="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-500 hover:text-red-400 transition cursor-pointer"
-                      title="Kayıt Sil"
+                      title={v.documents.remove}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -1732,22 +1735,22 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
           <div className="w-full max-w-sm bg-slate-900 border border-slate-850 rounded-2xl p-6 shadow-2xl space-y-4">
             <div className="space-y-1.5">
               <h3 className="text-sm font-black text-white font-mono uppercase tracking-wide">
-                Yeni Üretici Ekle
+                {v.addModal.title}
               </h3>
               <p className="text-[10px] text-slate-455 font-sans">
-                Lütfen projeye atamak istediğiniz yeni üreticinin/fabrikanın adını girin.
+                {v.addModal.text}
               </p>
             </div>
             
             <form onSubmit={handleAddManufacturer} className="space-y-4">
               <div className="space-y-1">
                 <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  Üretici / Fabrika Adı *
+                  {v.addModal.name}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Örn: Bakker"
+                  placeholder={v.addModal.placeholder}
                   value={newManufacturerName}
                   onChange={(e) => setNewManufacturerName(e.target.value)}
                   className="w-full px-3 py-2.5 bg-slate-955 border border-slate-800 rounded-xl text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-teal-500 transition"
@@ -1764,13 +1767,13 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                   }}
                   className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-350 text-xs font-bold rounded-xl transition cursor-pointer border border-slate-750"
                 >
-                  İptal
+                  {v.cancel}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-teal-500 hover:bg-teal-650 text-slate-955 text-xs font-bold rounded-xl transition cursor-pointer"
                 >
-                  Üretici Ekle
+                  {v.addModal.submit}
                 </button>
               </div>
             </form>
@@ -1785,10 +1788,10 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
             <div className="space-y-1.5">
               <h3 className="text-sm font-black text-red-500 font-mono uppercase tracking-wide flex items-center gap-1.5 leading-none">
                 <Trash2 className="h-4 w-4" />
-                Üreticiyi Sil
+                {v.deleteManufacturer}
               </h3>
               <p className="text-xs text-slate-300 leading-relaxed font-sans">
-                Bu üreticiyi ve ona ait tüm spesifikasyon verilerini silmek istediğinize emin misiniz? <strong>Bu işlem geri alınamaz.</strong>
+                {v.deleteModal.text} <strong>{v.deleteModal.irreversible}</strong>
               </p>
             </div>
             
@@ -1798,13 +1801,13 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                 onClick={() => setIsConfirmingDelete(false)}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-350 text-xs font-bold rounded-xl transition cursor-pointer border border-slate-750 font-mono"
               >
-                Vazgeç
+                {v.deleteModal.cancel}
               </button>
               <button
                 onClick={handleDeleteManufacturer}
                 className="px-4 py-2 bg-red-650 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition cursor-pointer font-mono"
               >
-                Evet, Sil
+                {v.deleteModal.confirm}
               </button>
             </div>
           </div>

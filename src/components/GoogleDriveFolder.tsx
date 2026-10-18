@@ -10,6 +10,7 @@ import { parseCSVToDriveFiles, DriveFile, DRIVE_MAPPING_CSV_RAW, PROJECT_NAMES }
 import { subscribeDriveAuth, setDriveAuth } from "../lib/driveAuth";
 import { db, auth } from "../lib/firebase";
 import { onSnapshot, collection, query, where, doc, setDoc, deleteDoc, getDocs } from "firebase/firestore";
+import { useI18n } from "../i18n";
 
 interface GoogleDriveFolderProps {
   stepId: string;
@@ -28,6 +29,7 @@ export default function GoogleDriveFolder({
   onStatusChange,
   onFileUploadedNotify
 }: GoogleDriveFolderProps) {
+  const g = useI18n().t.drive;
   const [files, setFiles] = useState<DriveFile[]>([]);
 
   const getProjectName = (projectId: string) => {
@@ -83,18 +85,18 @@ export default function GoogleDriveFolder({
       );
 
       if (!popup) {
-        alert("⚠️ Açılır pencere engelleyici algılandı! Lütfen Google Drive'a bağlanmak için açılır pencerelere izin verin.");
+        alert(g.popupBlocked);
       }
     } catch (err: any) {
       console.error("Auth trigger failed:", err);
-      alert(`⚠️ Kimlik doğrulama hatası: ${err.message || err}`);
+      alert(g.authError(String(err.message || err)));
     }
   };
 
   // Perform physical Google Drive multi-tier mapping upload via server proxy
   const handlePhysicalFileUpload = async (rawFile: File) => {
     if (!authState.accessToken) {
-      alert("⚠️ Google Drive erişim anahtarının süresi doldu. Lütfen bağlanın veya Google Drive yetkilendirmesi yapın!");
+      alert(g.tokenExpired);
       return;
     }
 
@@ -163,7 +165,7 @@ export default function GoogleDriveFolder({
     } catch (err: any) {
       console.error("Physical upload error:", err);
       setUploadError(err.message || "Failed to complete physical upload");
-      alert(`⚠️ Google Drive yüklemesi başarısız oldu: ${err.message || "Arka plan sır (secrets) yapılandırmanız eksik mi?"}`);
+      alert(g.uploadFailed(err.message || g.uploadFailedHint));
     } finally {
       setIsUploading(false);
     }
@@ -205,7 +207,7 @@ export default function GoogleDriveFolder({
       if (stepId.startsWith("freelance_step_")) conditions.push(where("assignedTo", "==", auth.currentUser?.uid || ""));
       const snapshot = await getDocs(query(collection(db,"driveFiles"),...conditions));
       setFiles(snapshot.docs.map(item=>({...item.data(),documentId:item.id} as DriveFile)));
-    } catch { setUploadError("Belge listesi yenilenemedi."); } finally { setIsSyncing(false); }
+    } catch { setUploadError(g.listRefreshFailed); } finally { setIsSyncing(false); }
   };
 
   // Filter files by folder location AND B2B Project security permissions
@@ -234,7 +236,7 @@ export default function GoogleDriveFolder({
 
   // File Upload Handlers (Simulate secure upload directly to Google Drive folder API endpoint)
   const handleAddFile = (..._unused: unknown[]) => {
-    setUploadError("Yalnızca gerçek dosya yüklenebilir. Dosya seçme düğmesini kullanın.");
+    setUploadError(g.realFileOnly);
     fileInputRef.current?.click();
   };
 
@@ -299,11 +301,11 @@ export default function GoogleDriveFolder({
         <div className="flex items-center gap-2">
           <div className={`h-2 w-2 rounded-full ${authState.accessToken ? "bg-emerald-500 animate-pulse" : "bg-amber-500 animate-pulse"}`} />
           <span className="font-mono text-[11px] font-semibold text-slate-300">
-            {authState.accessToken ? "GOOGLE-DRIVE-API v3 // BAĞLI" : "GOOGLE-DRIVE-SİMÜLATÖRÜ // ÇEVRİMDIŞI"}
+            {authState.accessToken ? g.statusConnected : g.statusOffline}
           </span>
           <span className="text-slate-700 hidden sm:inline">|</span>
           <span className="text-slate-400 text-[10px] hidden sm:inline font-mono">
-            {authState.accessToken ? `Bağlı Kullanıcı: ${authState.email}` : "Google Drive bağlı değil"}
+            {authState.accessToken ? g.connectedAs(authState.email || "") : g.notConnected}
           </span>
         </div>
 
@@ -324,9 +326,9 @@ export default function GoogleDriveFolder({
               <button
                 onClick={() => setDriveAuth(null, null, null)}
                 className="flex items-center gap-1 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 hover:text-red-400 transition cursor-pointer text-[10px] font-mono"
-                title="Google hesabı bağlantısını kes"
+                title={g.disconnect}
               >
-                <Unlink className="h-3 w-3" /> Oturumu Kapat
+                <Unlink className="h-3 w-3" /> {g.signOut}
               </button>
             </div>
           ) : (
@@ -335,7 +337,7 @@ export default function GoogleDriveFolder({
               className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-navy hover:bg-navy-light text-white transition cursor-pointer text-[10px] font-bold shadow-md shadow-navy/20"
             >
               <Link2 className="h-3.5 w-3.5 animate-bounce" />
-              Gerçek Google Drive'ı Bağla
+              {g.connect}
             </button>
           )}
 
@@ -348,7 +350,7 @@ export default function GoogleDriveFolder({
             disabled={isSyncing}
           >
             <RefreshCw className={`h-3 w-3 ${isSyncing ? "animate-spin text-teal-400" : ""}`} />
-            {isSyncing ? "Eşitleniyor..." : "Bulutu Eşitle"}
+            {isSyncing ? g.syncing : g.sync}
           </button>
         </div>
       </div>
@@ -362,10 +364,10 @@ export default function GoogleDriveFolder({
             </div>
             <div>
               <div className="text-[10px] text-slate-400 uppercase font-mono font-bold">
-                Atanmış Bulut Depolama Yolu (SOP Sütun Hedefi)
+                {g.storagePath}
               </div>
               <h4 className="text-sm font-bold text-slate-800 font-display flex items-center gap-1.5 mt-0.5">
-                {storageLocation || "SOP Default Documents Storage"}
+                {storageLocation || g.defaultStorage}
               </h4>
             </div>
           </div>
@@ -374,8 +376,8 @@ export default function GoogleDriveFolder({
             <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${authState.accessToken ? "bg-emerald-50 border border-emerald-100 text-emerald-700" : "bg-navy/10 border border-navy/20 text-navy"}`}>
               <ShieldCheck className="h-3 w-3" />
               {authState.accessToken
-                ? "Google Drive bağlantısı açık"
-                : clientMode ? "Müşteri Korumalı Alanı" : "Çevrimdışı Korumalı Alan"}
+                ? g.driveOpen
+                : clientMode ? g.clientSandbox : g.offlineSandbox}
             </span>
           </div>
         </div>
@@ -385,8 +387,8 @@ export default function GoogleDriveFolder({
           <div className="mb-4 bg-teal-50/70 border border-teal-100 rounded-xl p-3 text-xs text-teal-800 flex gap-2">
             <ShieldCheck className="h-4 w-4 text-teal-600 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold">Sınırlı Müşteri Görünüm Yetkisi: </span>
-              Seçili projenin belgelerini görüntülüyorsunuz: <strong>{currentProjectId}</strong>. Bu alanda yükleme ve silme kapalıdır.
+              <span className="font-bold">{g.clientViewTitle}</span>
+              {g.clientViewText} <strong>{currentProjectId}</strong>{g.clientViewSuffix}
             </div>
           </div>
         )}
@@ -396,8 +398,8 @@ export default function GoogleDriveFolder({
           <div className="mb-4 bg-amber-50/70 border border-amber-100 rounded-xl p-3.5 text-xs text-amber-800 flex gap-2">
             <ShieldAlert className="h-4.5 w-4.5 text-amber-600 shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <span className="font-bold">Google Drive bağlantısı gerekli. </span>
-              Belge listesi veritabanından görüntülenir. Gerçek dosya yüklemek için Google Drive hesabınızı bağlayın. Dosya yüklemeden belge kaydı oluşturulmaz.
+              <span className="font-bold">{g.driveRequiredTitle}</span>
+              {g.driveRequiredText}
 
             </div>
           </div>
@@ -407,7 +409,7 @@ export default function GoogleDriveFolder({
         <div className="mb-4">
           <input
             type="text"
-            placeholder="🔍 Bu Drive klasör yolu içindeki dosyaları arayın..."
+            placeholder={g.searchPlaceholder}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full text-xs p-2 rounded-lg border border-slate-200 bg-white placeholder-slate-400 focus:outline-none focus:border-navy"
@@ -439,16 +441,16 @@ export default function GoogleDriveFolder({
                       </div>
                       <div className="flex flex-wrap gap-2 text-[10px] text-slate-400 font-mono mt-0.5">
                         <span className="text-navy font-bold uppercase text-[9px] bg-navy/10 px-1 rounded">
-                          {file.fileId ? "CLOUD REAL" : "SANDBOX"}
+                          {file.fileId ? g.cloudReal : g.sandbox}
                         </span>
                         <span>•</span>
-                        <span>Tür: {file.fileType}</span>
+                        <span>{g.type(file.fileType)}</span>
                         <span>•</span>
-                        <span>Boyut: {file.fileSize}</span>
+                        <span>{g.size(file.fileSize)}</span>
                         <span>•</span>
-                        <span>Proje: {file.projectId}</span>
+                        <span>{g.project(file.projectId)}</span>
                         <span>•</span>
-                        <span>Eklendi: {file.dateAdded}</span>
+                        <span>{g.added(file.dateAdded)}</span>
                       </div>
                     </div>
                   </div>
@@ -459,13 +461,13 @@ export default function GoogleDriveFolder({
                         if (safeHttps(file.downloadUrl)) {
                           window.open(file.downloadUrl, "_blank", "noopener,noreferrer");
                         } else {
-                          alert(`"${file.fileName}" adlı örnek belge doğrudan güvenli yerel sunucudan indiriliyor.`);
+                          alert(g.sampleDownload(file.fileName));
                         }
                       }}
                       className="inline-flex items-center gap-1 py-1.5 px-3 rounded-lg bg-slate-150 border border-slate-200 hover:bg-slate-200 text-slate-700 hover:text-slate-900 transition font-bold text-[11px] cursor-pointer"
                     >
                       <Download className="h-3 w-3" />
-                      {file.fileId ? "Drive'da Aç" : "İndir"}
+                      {file.fileId ? g.openInDrive : g.download}
                     </button>
 
                     {/* Deletion parameters for Admin Sourcing workspace */}
@@ -473,7 +475,7 @@ export default function GoogleDriveFolder({
                       <button
                         onClick={() => handleDeleteFile(file.fileName)}
                         className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition shrink-0 cursor-pointer"
-                        title="Uzak depolamadan sil"
+                        title={g.deleteRemote}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -485,9 +487,9 @@ export default function GoogleDriveFolder({
           ) : (
             <div className="bg-white border border-slate-150 border-dashed rounded-xl p-8 text-center">
               <Database className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-              <div className="text-slate-500 text-xs font-semibold">Klasörlerle eşleşen dosya yok.</div>
+              <div className="text-slate-500 text-xs font-semibold">{g.noMatch}</div>
               <p className="text-slate-400 text-[11px] mt-1 max-w-sm mx-auto">
-                Bulut depolama dosyası bulunamadı. {clientMode ? "Bu bölmede seçtiğiniz Proje Kimliğine ait herhangi bir dosya yüklenmedi." : "Yönetici Temsilci olarak, bunları eşlemek için aşağıya belgeler yükleyebilir veya fiziksel ekler seçebilirsiniz!"}
+                {g.noFiles} {clientMode ? g.noFilesClient : g.noFilesAdmin}
               </p>
             </div>
           )}
@@ -498,7 +500,7 @@ export default function GoogleDriveFolder({
           <div className="mt-4 border-t border-slate-100 pt-4">
             <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider font-mono mb-2.5 flex items-center gap-1.5">
               <Database className="h-3.5 w-3.5 text-navy" />
-              Güvenli Tedarik Bulut Senkronizasyonu Yükleme Konsolu
+              {g.uploadConsole}
             </h5>
 
             {/* Simulated / Real Drag & Drop Zone */}
@@ -511,29 +513,29 @@ export default function GoogleDriveFolder({
               className={`border-2 border-dashed rounded-xl p-5 text-center transition cursor-pointer mb-3 ${
                 dragActive ? "border-navy bg-navy/5" : "border-slate-300 hover:border-navy hover:bg-slate-50 bg-white"
               }`}
-              title="Dosyanızı buraya sürükleyin veya tıklayın"
+              title={g.dropTitle}
             >
               <Upload className="h-8 w-8 text-slate-400 mx-auto mb-2" />
               <div className="text-xs text-slate-600">
-                <span className="font-bold text-navy text-sm">Gerçek belgeleri sürükleyip bırakın</span> veya fiziksel dosya seçmek için buraya tıklayın
+                <span className="font-bold text-navy text-sm">{g.dropStrong}</span>{g.dropRest}
               </div>
               <p className="text-[10px] text-slate-400 mt-1">
-                PDF'ler, XLS özellik tablosu sayfaları, test sertifikaları, gümrük özetleri veya fabrika kalite kontrol fotoğraf kanıtları
+                {g.dropTypes}
               </p>
               {authState.accessToken && (
                 <div className="mt-2 text-[9px] text-emerald-600 font-mono font-bold tracking-tight bg-emerald-50 inline-block px-2 py-0.5 rounded border border-emerald-100 uppercase">
-                  Google Bulut'a Bağlandı: Doğrudan Drive klasörlerine iletir
+                  {g.connectedToCloud}
                 </div>
               )}
             </div>
 
-            <button type="button" disabled={isUploading} onClick={() => authState.accessToken ? fileInputRef.current?.click() : void handleConnectGoogle()} className="rounded-lg bg-navy px-4 py-2 text-sm text-white">{isUploading ? "Yükleniyor…" : authState.accessToken ? "Gerçek belge yükle" : "Belge yüklemek için Drive'a bağlan"}</button>
+            <button type="button" disabled={isUploading} onClick={() => authState.accessToken ? fileInputRef.current?.click() : void handleConnectGoogle()} className="rounded-lg bg-navy px-4 py-2 text-sm text-white">{isUploading ? g.uploading : authState.accessToken ? g.uploadReal : g.connectToUpload}</button>
 
             {/* Real-time automated instruction */}
             <div className="bg-slate-100 border rounded-lg p-2.5 mt-2.5 text-[10px] text-slate-500 font-mono leading-relaxed flex items-start gap-1.5">
               <CheckCircle className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
               <span>
-                Dosyalar seçili proje ve adımla ilişkilendirilir. Belge yüklemek görevi otomatik tamamlamaz; tamamlanma ve onay ayrı kaydedilir. Yeni yüklemeler herkese açık paylaşılmaz.
+                {g.uploadNote}
 
               </span>
             </div>
