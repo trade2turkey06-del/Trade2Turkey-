@@ -1,3 +1,4 @@
+import { getMessages } from "../i18n";
 import { useEffect, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
 import { operationCollection } from "./operationsStore";
@@ -14,7 +15,7 @@ export function useProjectData(projectId: string, names: readonly string[]) {
     const stops = names.map(name => onSnapshot(operationCollection(projectId, name), snapshot => {
       setData(previous => ({ ...previous, [name]: snapshot.docs.map(item => ({ ...item.data(), id: item.id })) }));
       loaded.add(name); setPending(names.length - loaded.size);
-    }, () => { setError(`${name}: kayıtlar yüklenemedi.`); loaded.add(name); setPending(names.length - loaded.size); }));
+    }, () => { setError(`${name}: ${getMessages().operations.recordsLoadFailed}`); loaded.add(name); setPending(names.length - loaded.size); }));
     return () => stops.forEach(stop => stop());
   }, [projectId, key]);
   return { data, error, loading: pending > 0 };

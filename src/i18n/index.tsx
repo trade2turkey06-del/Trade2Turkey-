@@ -111,3 +111,14 @@ export function errorMessage(t: Messages, error: unknown, fallback: string) {
   if (error instanceof CodedError) { const entry = t.errors[error.code] as unknown; return typeof entry === "function" ? (entry as (params: Record<string, string>) => string)(error.params) : String(entry); }
   return error instanceof Error && error.message ? error.message : fallback;
 }
+
+// Flat message catalogs also support parameterised operational notices. Numeric
+// parameters use the same locale formatter as the rest of the interface.
+export function message<N extends keyof Messages>(namespace: N, key: keyof Messages[N], ...values: unknown[]): string {
+  const text = getMessages()[namespace][key];
+  if (typeof text !== "string") throw new Error(`Invalid message: ${String(namespace)}.${String(key)}`);
+  return text.replace(/\{(\d+)\}/g, (_, index) => {
+    const value = values[Number(index)];
+    return typeof value === "number" ? formatters(getLang()).number(value, 6) : String(value ?? "");
+  });
+}

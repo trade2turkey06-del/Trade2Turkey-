@@ -101,3 +101,17 @@ test("i18n: yüzdeler yüzde puanı olarak dile göre biçimlenir", () => {
     assert.equal(fmt.percent(12.345, 2, 2), lang === "en" ? "12.35%" : "%12,35");
   }
 });
+
+test("i18n: logistics has all 21 steps and approved terminology", async () => {
+  const { logisticsWorkflow } = await import("../src/data/logisticsWorkflow");
+  const ids = logisticsWorkflow.map(step => step.id).sort();
+  assert.equal(ids.length, 21);
+  for (const catalog of [tr, en]) assert.deepEqual(Object.keys(catalog.logistics.steps).sort(), ids);
+  assert.equal(en.logistics.groups["B.A."].title, "Production & Shipment Coordination");
+  assert.equal(en.logistics.steps["B.A.7"].name, "Quality Checkpoint – Raw Materials");
+  assert(!/packaging/i.test(en.logistics.steps["B.A.7"].kpi));
+  assert.match(en.logistics.steps["B.A.8"].kpi, /packaging materials received/);
+  assert.equal(en.logistics.steps["B.A.10"].kpi, "Balance payment completed within agreed payment terms");
+  assert.equal(en.logistics.steps["B.A.12"].kpi, "Goods released for dispatch after document and load check");
+  assert.equal(tr.logistics.steps["B.A.12"].kpi, "Belge ve yükleme kontrolünden sonra sevkiyata çıkış onayı verildi");
+});

@@ -43,10 +43,11 @@ const workflows: Record<WorkflowKey, WorkflowConfig> = {
   ] },
 };
 // Başlık, not ve grup adları: tedarik akışında seçili dilden, lojistikte (2. aşama) yapılandırmadan gelir.
-const workflowText = (config: WorkflowConfig, t: Messages) => config.translate
-  ? { title: t.sourcing.title, note: t.sourcing.note, groups: config.groups.map(group => ({ ...group, ...t.sourcing.groups[group.prefix] })) }
-  : { title: config.title.replace("İş Akışı", "iş akışı"), note: config.note, groups: config.groups };
-const stepName = (config: WorkflowConfig, t: Messages, step: Step) => (config.translate ? t.steps[step.id]?.name : undefined) || step.task;
+const workflowText = (config: WorkflowConfig, t: Messages) => {
+  const catalog = config.logistics ? t.logistics : t.sourcing;
+  return { title: catalog.title, note: catalog.note, groups: config.groups.map(group => ({ ...group, ...catalog.groups[group.prefix] })) };
+};
+const stepName = (config: WorkflowConfig, t: Messages, step: Step) => (config.logistics ? t.logistics.steps[step.id]?.name : t.steps[step.id]?.name) || step.task;
 const istanbulToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul" }).format(new Date());
 
 export default function SourcingWorkflow({ projectId, currentUser, workflow = "sourcing" }: { projectId: string; currentUser: UserTenant; workflow?: WorkflowKey }) {
@@ -112,7 +113,8 @@ function TaskEditor({ config, inventory, projectId, step, record, users, current
   const dueDateInput = useRef<HTMLInputElement>(null);
   const { t, fmt } = useI18n();
   const s = t.sourcing, d = s.details;
-  const translated = config.translate ? t.steps[step.id] : undefined;
+  const translated = config.logistics ? t.logistics.steps[step.id] : t.steps[step.id];
+  const period = step.period ? t.logistics.periods[step.period] ?? step.period : undefined;
   const days = (count: number) => s.days(count);
   const role = (name: string) => s.roles[name] ?? name;
   const dateOf = (value: any) => value?.toDate ? fmt.date(value.toDate(), { day: "numeric", month: "short", year: "numeric" }) : "—";
@@ -253,7 +255,7 @@ function TaskEditor({ config, inventory, projectId, step, record, users, current
   return <details data-testid={`task-${step.id}`} className="workflow-task group rounded-xl border border-slate-200 bg-white open:border-teal-300">
     <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 p-4 text-sm [&::-webkit-details-marker]:hidden">
       <span className="rounded-lg bg-indigo-50 px-2 py-1 font-bold text-indigo-700">{step.id}</span><span className="min-w-0 flex-1 font-semibold">{stepName(config, t, step)}</span>
-      <span className={`rounded-full px-2 py-1 text-xs ${approved ? "bg-emerald-100 text-emerald-800" : record?.approval === "pending" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}`}>{approved ? t.status.approved : record?.approval === "pending" ? t.status.pending : t.status.workflow[record?.workflowStatus || "not_started"]}</span>{overdue && <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">{t.status.overdue}</span>}<span className="text-xs text-slate-500">{step.period ?? days(step.days)}</span><ChevronDown className="task-chevron h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
+      <span className={`rounded-full px-2 py-1 text-xs ${approved ? "bg-emerald-100 text-emerald-800" : record?.approval === "pending" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}`}>{approved ? t.status.approved : record?.approval === "pending" ? t.status.pending : t.status.workflow[record?.workflowStatus || "not_started"]}</span>{overdue && <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">{t.status.overdue}</span>}<span className="text-xs text-slate-500">{period ?? days(step.days)}</span><ChevronDown className="task-chevron h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
     </summary>
     <div className="space-y-4 border-t p-4">
       {config.logistics && inventorySteps.includes(step.id) && <InventoryStepPanel stepId={step.id} projectId={projectId} data={inventory.data} loading={inventory.loading} error={inventory.error} canPlan={isAdmin && !approved && !busy} />}
@@ -267,7 +269,7 @@ function TaskEditor({ config, inventory, projectId, step, record, users, current
       {step.id === "A.B.7" && <HighPotentialPicker manufacturers={manufacturers} value={draft.highPotentialManufacturerId} onChange={(id, name) => setDraft(previous => ({ ...previous, highPotentialManufacturerId: id, highPotentialManufacturerName: name }))} disabled={!isAdmin || busy || approved} />}
       {step.id === "A.B.8" && <SpecLinkPanel projectId={projectId} isAdmin={isAdmin} preparedBy={currentUser.displayName || currentUser.name || currentUser.companyName || ""} manufacturers={manufacturers} specs={specs} ab7={records["A.B.7"]} draft={draft} onChange={patch => setDraft(previous => ({ ...previous, ...patch }))} disabled={busy || approved} />}
       {step.id === "A.B.9" && <RecipeCostPreview spec={specs.find(spec => spec.id === records["A.B.8"]?.approvedSpecId && spec.status === "approved")} lines={draft.recipeCostLines} source={draft.recipeCostSource} canImport={isAdmin && !approved && !busy} onImport={(lines, source) => setDraft(previous => ({ ...previous, recipeCostLines: lines, recipeCostSource: source }))} />}
-      <div className="grid gap-4 text-sm text-slate-600 sm:grid-cols-2"><p><strong>{d.kpi}</strong> {translated?.kpi || step.metric}</p><p><strong>{d.output}</strong> {translated?.output || step.outputs}</p><p><strong>{d.prerequisite}</strong> {dependencies[step.id]?.join(", ") || d.none}</p><p><strong>{d.returnTo}</strong> {step.returnTo || d.sameStep}</p>{config.logistics && <><p><strong>{d.duration}</strong> {step.period ?? days(step.days)}{step.approvalDays !== null && d.approvalDays(step.approvalDays)}</p><p><strong>{d.roles}</strong> {d.roleLine(role(step.requester), role(step.owner), role(step.approver))}</p></>}</div>
+      <div className="grid gap-4 text-sm text-slate-600 sm:grid-cols-2"><p><strong>{d.kpi}</strong> {translated?.kpi || step.metric}</p><p><strong>{d.output}</strong> {translated?.output || step.outputs}</p><p><strong>{d.prerequisite}</strong> {dependencies[step.id]?.join(", ") || d.none}</p><p><strong>{d.returnTo}</strong> {step.returnTo || d.sameStep}</p>{config.logistics && <><p><strong>{d.duration}</strong> {period ?? days(step.days)}{step.approvalDays !== null && d.approvalDays(step.approvalDays)}</p><p><strong>{d.roles}</strong> {d.roleLine(role(step.requester), role(step.owner), role(step.approver))}</p></>}</div>
       {blocked.length > 0 && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{d.waiting(blocked.join(", "))}</p>}
       {record?.rejectionReason && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{d.returnReason(record.rejectionReason)}</p>}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -286,7 +288,7 @@ function TaskEditor({ config, inventory, projectId, step, record, users, current
       {(record?.cycleHistory?.length ?? 0) > 0 && <details><summary className="cursor-pointer text-sm font-semibold">{d.cycles(record!.cycleHistory.length)}</summary><ul className="mt-2 space-y-2 text-xs text-slate-600">{[...record!.cycleHistory].reverse().map((entry: any) => <li key={entry.cycle} className="rounded-lg bg-slate-50 p-2"><strong>{d.cycle(entry.cycle)}</strong> · {d.approvedOn(dateOf(entry.approvedAt))}{entry.evidenceUrl && <> · <a className="text-teal-700 hover:underline" href={entry.evidenceUrl} target="_blank" rel="noreferrer">{entry.evidenceName || t.common.document}</a></>}{entry.notes && <p className="mt-1 text-slate-500">{entry.notes}</p>}</li>)}</ul></details>}
       {step.period && (record?.periodHistory?.length ?? 0) > 0 && <details><summary className="cursor-pointer text-sm font-semibold">{d.periods(record!.periodHistory.length)}</summary><ul className="mt-2 space-y-2 text-xs text-slate-600">{[...record!.periodHistory].reverse().map((entry: any) => <li key={entry.period} className="rounded-lg bg-slate-50 p-2"><strong>{d.period(entry.period)}</strong> · {d.approvedOn(dateOf(entry.approvedAt))}{entry.dueDate && ` · ${d.target(entry.dueDate)}`} · {users.find(user => user.id === entry.completedBy)?.email || entry.completedBy || "—"}{entry.evidenceUrl && <> · <a className="text-teal-700 hover:underline" href={entry.evidenceUrl} target="_blank" rel="noreferrer">{entry.evidenceName || t.common.document}</a></>}{entry.notes && <p className="mt-1 text-slate-500">{entry.notes}</p>}</li>)}</ul></details>}
       <details><summary className="cursor-pointer text-sm font-semibold">{d.history(events.length)}</summary><ul className="mt-2 space-y-2 text-xs text-slate-600">{[...events].sort((a,b) => (b.at?.seconds || 0) - (a.at?.seconds || 0)).map(event => <li key={event.id}>{event.at?.toDate ? fmt.dateTime(event.at.toDate()) : d.historySaving} · {users.find(user => user.id === event.actorUid)?.email || event.actorUid} · {eventText(t, event)}</li>)}</ul></details>
-      <details><summary className="cursor-pointer text-sm font-semibold">{d.documents}</summary><GoogleDriveFolder stepId={step.id} storageLocation={step.outputs} currentProjectId={projectId} clientMode={!isAdmin} /></details>
+      <details><summary className="cursor-pointer text-sm font-semibold">{d.documents}</summary><GoogleDriveFolder stepId={step.id} storageLocation={translated?.output || step.outputs} currentProjectId={projectId} clientMode={!isAdmin} /></details>
     </div>
   </details>;
 }
