@@ -1,3 +1,4 @@
+import { actionCenter } from "./actionCenter";
 import { logistics } from "./logistics";
 import { operations } from "./operations";
 // English: must satisfy the Turkish Messages type exactly, so a missing key fails type-checking.
@@ -10,4 +11,4 @@ import { productSpec } from "./productSpec";
 import { errors } from "./errors";
 import { countries } from "./countries";
 
-export const en: Messages = { logistics, operations, common, language, shell, login, status, steps, sourcing, editors, rfqMatrix, drive, vault, productSpec, errors, countries };
+export const en: Messages = { actionCenter, logistics, operations, common, language, shell, login, status, steps, sourcing, editors, rfqMatrix, drive, vault, productSpec, errors, countries };

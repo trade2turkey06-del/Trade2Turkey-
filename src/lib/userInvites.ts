@@ -1,3 +1,4 @@
+import { message as msg } from "../i18n";
 import { initializeApp, deleteApp } from "firebase/app";
 import { createUserWithEmailAndPassword, deleteUser, getAuth, sendPasswordResetEmail, signOut } from "firebase/auth";
 import { collection, doc, getDocs, query, setDoc, where } from "firebase/firestore";
@@ -5,11 +6,11 @@ import config from "../../firebase-applet-config.json";
 import { auth, db } from "./firebase";
 
 export async function inviteUser(input: { email: string; companyName: string; projectId: string; role: "client" | "freelancer" }) {
-  if (!auth.currentUser) throw new Error("Önce giriş yapın.");
+  if (!auth.currentUser) throw new Error(msg("actionCenter", "signInFirst"));
   const email = input.email.trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !input.companyName.trim() || !input.projectId) throw new Error("Geçerli e-posta, isim ve proje seçin.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !input.companyName.trim() || !input.projectId) throw new Error(msg("actionCenter", "enterAValidEmailAndNameAndSelectA"));
   const existing = await getDocs(query(collection(db, "users"), where("email", "==", email)));
-  if (existing.docs.some(item => item.data().uid === item.id && !item.data().legacyAccount)) throw new Error("Bu e-posta zaten kayıtlı. Mevcut kullanıcı üzerinden proje atayın.");
+  if (existing.docs.some(item => item.data().uid === item.id && !item.data().legacyAccount)) throw new Error(msg("actionCenter", "thisEmailIsAlreadyRegisteredAssignProjectsThroughThe"));
   const secondary = initializeApp(config, `invite-${crypto.randomUUID()}`);
   const secondaryAuth = getAuth(secondary);
   try {
@@ -29,12 +30,12 @@ export async function inviteUser(input: { email: string; companyName: string; pr
     }
     try {
       await sendPasswordResetEmail(secondaryAuth, email);
-      return "Hesap ve proje erişimi oluşturuldu. Şifre belirleme e-postası gönderildi; kullanıcı spam klasörünü de kontrol etmeli.";
+      return msg("actionCenter", "accountAndProjectAccessCreatedAPasswordSetupEmail");
     } catch {
-      return "Hesap ve proje erişimi oluşturuldu; şifre e-postası gönderilemedi. Kullanıcı giriş ekranındaki ‘Şifremi unuttum’ seçeneğini kullanabilir.";
+      return msg("actionCenter", "accountAndProjectAccessCreatedButThePasswordEmail");
     }
   } catch (error: any) {
-    if (error.code === "auth/email-already-in-use") throw new Error("Bu e-posta Authentication içinde zaten var. Yönetici mevcut hesabın UID'siyle profilini eşleştirmeli.");
+    if (error.code === "auth/email-already-in-use") throw new Error(msg("actionCenter", "thisEmailAlreadyExistsInAuthenticationAnAdministratorMust"));
     throw error;
   } finally { await signOut(secondaryAuth).catch(() => {}); await deleteApp(secondary); }
 }

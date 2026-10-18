@@ -1,0 +1,72 @@
+{
+  "project": "planar-folio-h6m9v",
+  "database": "ai-studio-dc5b1b9e-d9cc-4460-9a0c-a0260ae0cfa7",
+  "readOnly": true,
+  "scannedAt": "2026-10-18T18:10:33.377Z",
+  "users": {
+    "documents": 9,
+    "fields": {
+      "status": [
+        {
+          "value": "<missing>",
+          "count": 6,
+          "canonical": null,
+          "unknown": false
+        },
+        {
+          "value": "active",
+          "count": 2,
+          "canonical": "active",
+          "unknown": false
+        },
+        {
+          "value": "Aktif",
+          "count": 1,
+          "canonical": "active",
+          "unknown": false
+        }
+      ]
+    }
+  },
+  "leads": {
+    "documents": 3,
+    "fields": {
+      "status": [
+        {
+          "value": "Devam Ediyor",
+          "count": 3,
+          "canonical": "in_progress",
+          "unknown": false
+        }
+      ],
+      "companyType": [
+        {
+          "value": "<missing>",
+          "count": 2,
+          "canonical": null,
+          "unknown": false
+        },
+        {
+          "value": "Distribütör",
+          "count": 1,
+          "canonical": "distributor",
+          "unknown": false
+        }
+      ],
+      "urgency": [
+        {
+          "value": "<missing>",
+          "count": 2,
+          "canonical": null,
+          "unknown": false
+        },
+        {
+          "value": "1-3 Ay İçinde",
+          "count": 1,
+          "canonical": "within_1_3_months",
+          "unknown": false
+        }
+      ]
+    }
+  }
+}

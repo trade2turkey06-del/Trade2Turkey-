@@ -1,3 +1,4 @@
+import { actionCenter } from "./actionCenter";
 import { logistics } from "./logistics";
 import { operations } from "./operations";
 // Türkçe: tek kaynak. Messages tipi buradan türetilir; en/ aynı tipi eksiksiz karşılamak zorundadır.
@@ -10,5 +11,5 @@ import { productSpec } from "./productSpec";
 import { errors } from "./errors";
 import { countries } from "./countries";
 
-export const tr = { logistics, operations, common, language, shell, login, status, steps, sourcing, editors, rfqMatrix, drive, vault, productSpec, errors, countries };
+export const tr = { actionCenter, logistics, operations, common, language, shell, login, status, steps, sourcing, editors, rfqMatrix, drive, vault, productSpec, errors, countries };
 export type Messages = typeof tr;
