@@ -101,7 +101,21 @@ service cloud.firestore {
         data.approval in ['none','pending','approved','rejected'] && (!(data.approval in ['pending','approved']) || data.workflowStatus == 'completed') &&
         str(data.get('notes',''),3000) && str(data.get('rejectionReason',''),1500) && str(data.get('evidenceUrl',''),2000) && str(data.get('evidenceName',''),250) &&
         (!(data.workflowStatus in ['in_progress','completed']) || (data.workflow == 'sourcing' ? prerequisites(data.projectId,data.stepId) : logisticsPrerequisites(data.projectId,data.stepId))) &&
+        str(data.get('highPotentialManufacturerId',''),100) && str(data.get('approvedSpecId',''),100) && str(data.get('specManufacturerId',''),100) &&
+        (data.workflow != 'sourcing' || data.approval != 'pending' || ((data.stepId != 'A.B.7' || highPotentialChosen(data)) && (data.stepId != 'A.B.8' || specApproved(data)))) &&
         (data.workflowStatus != 'completed' || (text(data.assigneeUid,128) && text(data.approverUid,128) && data.assigneeUid != data.approverUid && get(/databases/$(database)/documents/users/$(data.approverUid)).data.role in ['admin','owner'] && data.dueDate.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}') && https(data.evidenceUrl) && text(data.evidenceName,250)));
+    }
+    // Product specification lock (A.B.7 → A.B.8). Only new submissions (approval 'pending') are checked, so records approved
+    // or already pending before this rule existed keep working. A.B.8 must link the approved spec of the manufacturer chosen
+    // in A.B.7; if A.B.7 was approved without that choice, the one-time fallback stored on A.B.8 (specManufacturerId) is used.
+    function highPotentialChosen(data) {
+      return text(data.get('highPotentialManufacturerId',''),100) && exists(/databases/$(database)/documents/projects/$(data.projectId)/manufacturers/$(data.highPotentialManufacturerId));
+    }
+    function specApproved(data) { return text(data.get('approvedSpecId',''),100) && linkedSpec(data); }
+    function linkedSpec(data) {
+      let spec = getAfter(/databases/$(database)/documents/projects/$(data.projectId)/productSpecs/$(data.approvedSpecId)).data;
+      let chosen = getAfter(/databases/$(database)/documents/sopSteps/$(data.projectId + '_sourcing-A.B.7')).data.get('highPotentialManufacturerId','');
+      return spec.status == 'approved' && ((chosen != '' && spec.manufacturerId == chosen) || (chosen == '' && text(data.get('specManufacturerId',''),100) && spec.manufacturerId == data.specManufacturerId));
     }
     function submission(data) { return data.approval != 'pending' || data.completedBy == request.auth.uid; }
     function legacyTask(data) { return !(data.get('workflow','legacy') in ['sourcing','logistics']) && text(data.projectId,100) && data.size() <= 60 && text(data.get('task',''),300) && data.get('section','') in ['A','B']; }
@@ -122,6 +136,25 @@ service cloud.firestore {
         (active() && resource.data.get('assigneeUid','') == request.auth.uid && assigned(resource.data.projectId) && resource.data.get('approval','none') != 'approved' && submission(request.resource.data) && request.resource.data.approval in ['none','pending'] && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes','dueDate','evidenceName','evidenceUrl','workflowStatus','status','approval','completedBy','rejectionReason','updatedAt','lastEventId']))
       );
       allow delete: if false;
+    }
+
+    function validSpec(data, projectId, specId) {
+      return data.size() <= 40 && data.id == specId && data.projectId == projectId && text(data.lineageId,100) && text(data.manufacturerId,100) && str(data.manufacturerName,200) &&
+        data.version is string && data.version.matches('v[0-9]+[.][0-9]+') && str(data.previousVersionId,100) && data.status in ['draft','review','approved'] &&
+        data.general is map && data.formulation is list && data.formulation.size() <= 200 && data.packaging is list && data.packaging.size() <= 50 &&
+        data.approval is map && (data.approval.get('signedDocUrl','') == '' || https(data.approval.signedDocUrl));
+    }
+    function signedSpec(data) {
+      return text(data.general.get('productName',''),300) &&
+        text(data.approval.trade2turkey.get('name',''),200) && data.approval.trade2turkey.get('date','').matches('[0-9]{4}-[0-9]{2}-[0-9]{2}') &&
+        text(data.approval.manufacturer.get('name',''),200) && data.approval.manufacturer.get('date','').matches('[0-9]{4}-[0-9]{2}-[0-9]{2}');
+    }
+    // İddia eşikleri (pazar bazında): herkes okur, yalnızca yönetici yazar.
+    match /claimThresholds/{marketId} {
+      allow read: if active();
+      allow create, update: if admin() && request.resource.data.size() <= 20 && request.resource.data.id == marketId && text(request.resource.data.market,100) &&
+        request.resource.data.levels is map && request.resource.data.claims is list && request.resource.data.claims.size() <= 100;
+      allow delete: if admin();
     }
 
     match /projects/{projectId} {
@@ -187,6 +220,16 @@ service cloud.firestore {
         allow read: if projectReader(projectId);
         allow create: if admin() && base(projectId) && text(request.resource.data.tracking,200) && text(request.resource.data.carrier,200) && https(request.resource.data.labelUrl) && https(request.resource.data.proofUrl) && integer(request.resource.data.quantity) && request.resource.data.quantity > 0 && ((request.resource.data.status == 'in_transit' && request.resource.data.platformSync == 'manual_pending') || recovery()) && existsAfter(/databases/$(database)/documents/projects/$(projectId)/salesOrders/$(request.resource.data.orderId));
         allow update: if admin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','deliveredAt','platformSync','syncConfirmedBy','syncConfirmedAt']) && request.resource.data.status in ['in_transit','delivered'] && request.resource.data.platformSync in ['manual_pending','manual_confirmed'];
+        allow delete: if false;
+      }
+      // Ürün reçetesi versiyonları: yalnızca admin yazar; onaylanan versiyon değiştirilemez ve silinemez (yeni versiyon açılır).
+      match /productSpecs/{specId} {
+        allow read: if projectReader(projectId);
+        allow create: if admin() && validSpec(request.resource.data, projectId, specId) && request.resource.data.status in ['draft','review'];
+        allow update: if admin() && resource.data.status != 'approved' && validSpec(request.resource.data, projectId, specId) &&
+          request.resource.data.lineageId == resource.data.lineageId && request.resource.data.manufacturerId == resource.data.manufacturerId &&
+          request.resource.data.version == resource.data.version && request.resource.data.previousVersionId == resource.data.previousVersionId &&
+          (request.resource.data.status != 'approved' || signedSpec(request.resource.data));
         allow delete: if false;
       }
       match /{name}/{id} {

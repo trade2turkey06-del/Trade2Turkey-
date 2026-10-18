@@ -11,3 +11,8 @@ test-results/
 !.env.example
 node_modules/
 dist/
+
+# Local caches and scratch output
+.npm-cache/
+scratch/
+tmp/

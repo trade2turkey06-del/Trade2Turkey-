@@ -11,52 +11,14 @@ import { subscribeDriveAuth, setDriveAuth } from "../lib/driveAuth";
 import { db, auth } from "../lib/firebase";
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
 import { DriveFile, PROJECT_NAMES } from "../data/driveData";
+import { emptyVaultDetails, normalizeVaultDetails, shown, type ProjectVaultDetails } from "../domain/vaultDetails";
 
 interface ProjectDocumentVaultProps {
   currentProjectId: string;
   readOnly?: boolean;
 }
 
-// Structured Type for Project Details
-export interface ProjectVaultDetails {
-  pricingCapacity: {
-    exwPriceList: string;
-    moq: string;
-    monthlyCapacity: string;
-  };
-  productionTransit: {
-    productionFirstOrder: string;
-    productionRepeatOrder: string;
-    shipmentTransitTime: string;
-  };
-  storageShelfLife: {
-    frozenProducts: string;
-    ambientProducts: string;
-  };
-  certifications: {
-    coa: string;
-    certificates: string[];
-  };
-  palletContainerConfig: {
-    boxDimensions: string;
-    palletConfig: string;
-    containerCapacity40HC: string;
-  };
-  nutritionalValues: {
-    energy: string;
-    fat: string;
-    fatSaturated: string;
-    carbohydrates: string;
-    sugar: string;
-    protein: string;
-    fiber: string;
-    salt: string;
-  };
-  variations: string[];
-  marketingSamples: string;
-  exportMarkets: { name: string; flag: string }[];
-  productClaims?: string[];
-}
+export type { ProjectVaultDetails } from "../domain/vaultDetails";
 
 // Starting (default) state data for PROJE-UNLU MAMÜLLER
 const DEFAULT_VAULT_DETAILS: Record<string, ProjectVaultDetails> = {
@@ -206,7 +168,8 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
       if (snapshot.exists()) {
         const data = snapshot.data();
         if (data.vaultDetails) {
-          setVaultDetails(data.vaultDetails as ProjectVaultDetails);
+          // Eksik bölümlü eski kayıtlar ekranı çökertmesin diye güvenli varsayılanlarla tamamlanır.
+          setVaultDetails(normalizeVaultDetails(data.vaultDetails));
         } else {
           setVaultDetails(null);
         }
@@ -260,18 +223,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
     }
   };
 
-  const details: ProjectVaultDetails = vaultDetails || {
-    pricingCapacity: { exwPriceList: "", moq: "", monthlyCapacity: "" },
-    productionTransit: { productionFirstOrder: "", productionRepeatOrder: "", shipmentTransitTime: "" },
-    storageShelfLife: { frozenProducts: "", ambientProducts: "" },
-    certifications: { coa: "", certificates: [] },
-    palletContainerConfig: { boxDimensions: "", palletConfig: "", containerCapacity40HC: "" },
-    nutritionalValues: { energy: "", fat: "", fatSaturated: "", carbohydrates: "", sugar: "", protein: "", fiber: "", salt: "" },
-    variations: [],
-    marketingSamples: "",
-    exportMarkets: [],
-    productClaims: []
-  };
+  const details: ProjectVaultDetails = vaultDetails || emptyVaultDetails();
 
   const handleStartEdit = () => {
     setEditedDetails({
@@ -872,16 +824,16 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                       Fiyat Listesini Görüntüle ↗
                     </a>
                   ) : (
-                    <span className="text-white font-bold block mt-1 font-mono">{details.pricingCapacity.exwPriceList || "N/A"}</span>
+                    <span className="text-white font-bold block mt-1 font-mono">{shown(details.pricingCapacity.exwPriceList)}</span>
                   )}
                 </div>
                 <div>
                   <span className="text-slate-300 block font-semibold">Minimum Sipariş Hacmi (MOQ):</span>
-                  <span className="text-white font-bold block mt-1">{details.pricingCapacity.moq || "N/A"}</span>
+                  <span className="text-white font-bold block mt-1">{shown(details.pricingCapacity.moq)}</span>
                 </div>
                 <div>
                   <span className="text-slate-300 block font-semibold">Aylık Üretim Kapasitesi:</span>
-                  <span className="text-cyan-400 font-bold block mt-1">{details.pricingCapacity.monthlyCapacity || "N/A"}</span>
+                  <span className="text-cyan-400 font-bold block mt-1">{shown(details.pricingCapacity.monthlyCapacity)}</span>
                 </div>
               </div>
             )}
@@ -940,15 +892,15 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
               <div className="space-y-4 mt-4 text-xs">
                 <div>
                   <span className="text-slate-300 block font-semibold">İlk Sipariş Üretim Süresi:</span>
-                  <span className="text-white font-bold block mt-1">{details.productionTransit.productionFirstOrder || "N/A"}</span>
+                  <span className="text-white font-bold block mt-1">{shown(details.productionTransit.productionFirstOrder)}</span>
                 </div>
                 <div>
                   <span className="text-slate-300 block font-semibold">Tekrar Siparişleri:</span>
-                  <span className="text-white font-bold block mt-1">{details.productionTransit.productionRepeatOrder || "N/A"}</span>
+                  <span className="text-white font-bold block mt-1">{shown(details.productionTransit.productionRepeatOrder)}</span>
                 </div>
                 <div>
                   <span className="text-slate-300 block font-semibold">Lojistik Transit Süresi:</span>
-                  <span className="text-cyan-400 font-bold block mt-1 font-mono">{details.productionTransit.shipmentTransitTime || "N/A"}</span>
+                  <span className="text-cyan-400 font-bold block mt-1 font-mono">{shown(details.productionTransit.shipmentTransitTime)}</span>
                 </div>
               </div>
             )}
@@ -995,11 +947,11 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
               <div className="space-y-4 mt-4 text-xs">
                 <div>
                   <span className="text-slate-300 block font-semibold">Donuk Ürünler:</span>
-                  <span className="text-cyan-400 font-bold block mt-1 font-mono">{details.storageShelfLife.frozenProducts || "N/A"}</span>
+                  <span className="text-cyan-400 font-bold block mt-1 font-mono">{shown(details.storageShelfLife.frozenProducts)}</span>
                 </div>
                 <div>
                   <span className="text-slate-300 block font-semibold">Ortam Sıcaklığı Ürünleri:</span>
-                  <span className="text-white font-bold block mt-1 font-mono">{details.storageShelfLife.ambientProducts || "N/A"}</span>
+                  <span className="text-white font-bold block mt-1 font-mono">{shown(details.storageShelfLife.ambientProducts)}</span>
                 </div>
               </div>
             )}
@@ -1057,7 +1009,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
               <div className="space-y-4 mt-4 text-xs">
                 <div>
                   <span className="text-slate-300 block font-semibold">CoA (Certificate of Analysis):</span>
-                  <span className="text-white font-bold block mt-1 font-mono">{details.certifications.coa || "N/A"}</span>
+                  <span className="text-white font-bold block mt-1 font-mono">{shown(details.certifications.coa)}</span>
                 </div>
                 <div>
                   <span className="text-slate-300 block font-semibold">Ürün Kalite Sertifikaları:</span>
@@ -1373,7 +1325,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                 </div>
                 <div>
                   <span className="text-slate-300 block font-semibold">Pazarlama & Numune Süreci:</span>
-                  <span className="text-white font-bold block mt-1 leading-relaxed">{details.marketingSamples || "N/A"}</span>
+                  <span className="text-white font-bold block mt-1 leading-relaxed">{shown(details.marketingSamples)}</span>
                 </div>
                 
                 {/* Product Claims View & Local Inline Edit Area */}
@@ -1577,26 +1529,26 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
               <div className="grid grid-cols-2 gap-4 mt-4 text-xs">
                 <div className="bg-blue-950/50 p-3 rounded-xl border border-blue-900/30 flex flex-col justify-between">
                   <span className="text-slate-300 font-semibold">Enerji</span>
-                  <strong className="text-white font-mono text-sm mt-1">{details.nutritionalValues.energy || "N/A"}</strong>
+                  <strong className="text-white font-mono text-sm mt-1">{shown(details.nutritionalValues.energy)}</strong>
                 </div>
                 <div className="bg-blue-950/50 p-3 rounded-xl border border-blue-900/30 flex flex-col justify-between">
-                  <span className="text-slate-300 font-semibold">Yağ (Doymuş: {details.nutritionalValues.fatSaturated || "N/A"})</span>
-                  <strong className="text-white font-mono text-sm mt-1">{details.nutritionalValues.fat || "N/A"}</strong>
+                  <span className="text-slate-300 font-semibold">Yağ (Doymuş: {shown(details.nutritionalValues.fatSaturated)})</span>
+                  <strong className="text-white font-mono text-sm mt-1">{shown(details.nutritionalValues.fat)}</strong>
                 </div>
                 <div className="bg-blue-950/50 p-3 rounded-xl border border-blue-900/30 flex flex-col justify-between">
-                  <span className="text-slate-300 font-semibold">Karbonhidrat (Şeker: {details.nutritionalValues.sugar || "N/A"})</span>
-                  <strong className="text-white font-mono text-sm mt-1">{details.nutritionalValues.carbohydrates || "N/A"}</strong>
+                  <span className="text-slate-300 font-semibold">Karbonhidrat (Şeker: {shown(details.nutritionalValues.sugar)})</span>
+                  <strong className="text-white font-mono text-sm mt-1">{shown(details.nutritionalValues.carbohydrates)}</strong>
                 </div>
                 <div className="bg-blue-950/50 p-3 rounded-xl border border-blue-900/30 flex flex-col justify-between">
                   <span className="text-slate-300 font-semibold">Protein</span>
-                  <strong className="text-cyan-400 font-mono text-sm mt-1">{details.nutritionalValues.protein || "N/A"}</strong>
+                  <strong className="text-cyan-400 font-mono text-sm mt-1">{shown(details.nutritionalValues.protein)}</strong>
                 </div>
                 <div className="bg-blue-950/50 p-3 rounded-xl border border-blue-900/30 flex flex-col justify-between col-span-2 flex-row items-center">
                   <div>
                     <span className="text-slate-300 font-semibold block">Lif / Tuz Oranı</span>
                     <div className="flex gap-4 mt-1 font-mono text-white text-xs">
-                      <div>Lif: <strong>{details.nutritionalValues.fiber || "N/A"}</strong></div>
-                      <div>Tuz: <strong>{details.nutritionalValues.salt || "N/A"}</strong></div>
+                      <div>Lif: <strong>{shown(details.nutritionalValues.fiber)}</strong></div>
+                      <div>Tuz: <strong>{shown(details.nutritionalValues.salt)}</strong></div>
                     </div>
                   </div>
                 </div>
