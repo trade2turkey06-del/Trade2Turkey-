@@ -1,5 +1,5 @@
 import React from "react";
-import { Globe, Shield, FileText, Menu, X, Clock, LogOut, Compass, FolderOpen, Layers } from "lucide-react";
+import { Globe, Shield, FileText, Menu, X, Clock, LogOut, Compass, FolderOpen, LayoutDashboard, ChartNoAxesCombined, Truck, Plus, ChevronRight, Layers } from "lucide-react";
 import { UserTenant } from "../data/usersData";
 import BrandLogo from "./BrandLogo";
 
@@ -34,16 +34,16 @@ const Navbar = React.memo(function Navbar({
   // Standard navigation links
   const navItems = [
     { id: "sourcing", label: "Tedarik", icon: Globe },
-    { id: "logistics", label: "Üretim, Lojistik & Envanter", icon: FileText },
+    { id: "logistics", label: "Üretim, Lojistik & Envanter", icon: Truck },
 
   ];
 
   if (currentUser?.role === "admin") {
     navItems.push({ id: "client-discovery", label: "Müşteri Keşfi", icon: Compass });
-    navItems.unshift({ id: "overview", label: "Aksiyon Merkezi", icon: Shield });
+    navItems.unshift({ id: "overview", label: "Aksiyon Merkezi", icon: LayoutDashboard });
     navItems.push({ id: "sectors", label: "Sectors", icon: Layers });
     navItems.push({ id: "report", label: "Raporlar", icon: FileText });
-    navItems.push({ id: "market-insights", label: "Pazar Araştırması Yönetimi", icon: Shield });
+    navItems.push({ id: "market-insights", label: "Pazar Araştırması", icon: ChartNoAxesCombined });
   }
 
 
@@ -53,37 +53,19 @@ const Navbar = React.memo(function Navbar({
     setMobileMenuOpen(false);
   };
 
-  return (
-    <header className="workspace-header sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-4 px-4 py-4 sm:px-8">
-        <div className="flex items-center gap-3">
-          <BrandLogo size="sm" layout="icon" theme="light" />
-          <div><h1 className="font-display text-lg font-bold tracking-tight text-navy">Trade<span className="text-teal-500">2</span>Turkey</h1><p className="text-[10px] font-medium tracking-[.16em] text-slate-500 uppercase">Sourcing & operations</p></div>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="hidden rounded-full bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700 sm:block">{currentUser?.role === "admin" ? "Yönetici çalışma alanı" : "Müşteri çalışma alanı"}</span>
-          {currentUser && <div className="hidden items-center gap-3 border-l border-slate-200 pl-4 md:flex"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-navy text-sm font-semibold text-white">{currentUser.companyName?.slice(0, 2).toUpperCase()}</div><div><div id="user-display-name" className="text-sm font-semibold text-slate-800">{currentUser.companyName}</div><div id="user-display-email" className="text-xs text-slate-500">{currentUser.email}</div></div></div>}
-          <button id="header-logout-btn" onClick={onLogout} title="Çıkış yap" aria-label="Çıkış yap" className="rounded-xl border border-slate-200 p-2.5 text-slate-500 transition hover:bg-red-50 hover:text-red-600"><LogOut className="h-4 w-4" /></button>
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label="Gezinme menüsü" aria-expanded={mobileMenuOpen} aria-controls="workspace-navigation" className="rounded-xl p-2 text-slate-600 lg:hidden">{mobileMenuOpen ? <X /> : <Menu />}</button>
-        </div>
-      </div>
-      <div className="border-t border-slate-100">
-        <div className="mx-auto max-w-screen-2xl px-4 sm:px-8">
-          <nav id="workspace-navigation" aria-label="Ana gezinme" className={`${mobileMenuOpen ? "flex" : "hidden"} flex-col gap-1 py-2 lg:flex lg:flex-row lg:overflow-x-auto`}>
-            {navItems.map(({ id, label, icon: Icon }) => <button key={id} id={`nav-${id}`} onClick={() => navigate(id)} aria-current={currentTab === id ? "page" : undefined} className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-3 text-xs font-semibold transition ${currentTab === id ? "bg-navy text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-navy"}`}><Icon className="h-4 w-4" />{label}</button>)}
-          </nav>
-        </div>
-      </div>
-      <div className="border-t border-slate-100 bg-slate-50/80">
-        <div className="mx-auto flex max-w-screen-2xl flex-wrap items-center gap-3 px-4 py-2.5 sm:px-8">
-          <FolderOpen className="h-4 w-4 text-teal-600" /><label htmlFor="active-project" className="text-xs font-medium text-slate-500">Aktif proje</label>
-          <select id="active-project" value={activeProjectId} onChange={e => setActiveProjectId(e.target.value)} className="min-w-0 max-w-full flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-navy sm:max-w-80">{!projects.length && <option value="">Proje bulunamadı</option>}{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-          {onOpenNewProjectModal && <button onClick={onOpenNewProjectModal} className="rounded-lg bg-teal-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-teal-800">+ Yeni proje</button>}
-          <span className="ml-auto hidden items-center gap-1.5 text-xs text-slate-500 sm:flex"><Clock className="h-3.5 w-3.5" /> İstanbul · GMT+3</span>
-        </div>
-      </div>
-    </header>
-  );
+  const activeLabel = navItems.find(item => item.id === currentTab)?.label || "Çalışma alanı";
+  return <>
+    <a href="#workspace-content" className="skip-link">İçeriğe geç</a>
+    <aside className={`workspace-sidebar ${mobileMenuOpen ? "is-open" : ""}`} aria-label="Çalışma alanı menüsü">
+      <div className="sidebar-brand"><BrandLogo size="sm" layout="icon" theme="light" /><div><h1 className="font-display text-lg font-bold tracking-tight text-navy">Trade<span className="text-teal-500">2</span>Turkey</h1><p className="text-[9px] tracking-[.17em] text-slate-500">DIGITAL SOURCING</p></div><button className="ml-auto p-2 lg:hidden" onClick={() => setMobileMenuOpen(false)} aria-label="Menüyü kapat"><X className="h-5 w-5" /></button></div>
+      <div className="sidebar-project"><label htmlFor="active-project" className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-slate-500">Çalışma alanınız</label><div className="flex items-center gap-2"><FolderOpen className="h-4 w-4 shrink-0 text-teal-700" /><select id="active-project" value={activeProjectId} onChange={e => setActiveProjectId(e.target.value)} className="w-full min-w-0 bg-transparent text-xs font-semibold text-navy">{!projects.length && <option value="">Proje bulunamadı</option>}{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div></div>
+      <p className="px-6 pb-3 pt-6 text-[10px] font-semibold uppercase tracking-[.15em] text-slate-400">Proje yönetimi</p>
+      <nav id="workspace-navigation" aria-label="Ana gezinme" className="space-y-1 px-3">{navItems.map(({ id, label, icon: Icon }) => <button key={id} id={`nav-${id}`} onClick={() => navigate(id)} aria-current={currentTab === id ? "page" : undefined} className={`sidebar-nav ${currentTab === id ? "is-active" : ""}`}><Icon className="h-[18px] w-[18px] shrink-0" /><span>{label}</span>{currentTab === id && <ChevronRight className="ml-auto h-4 w-4" />}</button>)}</nav>
+      <div className="mt-auto px-4 pb-5 pt-8">{onOpenNewProjectModal && <button onClick={() => { onOpenNewProjectModal(); setMobileMenuOpen(false); }} className="mb-5 flex w-full items-center justify-center gap-2 rounded-xl bg-navy px-4 py-3 text-xs font-semibold text-white hover:bg-navy-light"><Plus className="h-4 w-4" /> Yeni proje oluştur</button>}<div className="rounded-xl border border-teal-100 bg-teal-50/60 p-4"><p className="flex items-center gap-2 text-xs font-semibold text-teal-800"><Shield className="h-4 w-4" /> Projenize özel erişim</p><p className="mt-2 text-[11px] leading-5 text-slate-500">Belgeleriniz ve operasyonlarınız tek bir çalışma alanında.</p></div><div className="mt-5 flex items-center gap-2 px-1 text-[10px] text-slate-400"><Clock className="h-3 w-3" /> İstanbul · GMT+3<span className="ml-auto">T2T / Workspace</span></div></div>
+    </aside>
+    {mobileMenuOpen && <button className="sidebar-backdrop" aria-label="Menüyü kapat" onClick={() => setMobileMenuOpen(false)} />}
+    <header className="workspace-header"><div className="flex min-w-0 items-center gap-3"><button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label="Gezinme menüsü" aria-expanded={mobileMenuOpen} aria-controls="workspace-navigation" className="rounded-lg p-2 text-slate-600 lg:hidden"><Menu className="h-5 w-5" /></button><span className="hidden text-xs text-slate-400 sm:inline">Çalışma alanı</span><ChevronRight className="hidden h-3 w-3 text-slate-300 sm:block" /><span className="truncate text-xs font-semibold text-navy">{activeLabel}</span></div><div className="flex items-center gap-3"><span className="hidden rounded-full border border-slate-200 px-2.5 py-1 text-[10px] font-medium text-slate-500 sm:block">{currentUser?.role === "admin" ? "Yönetici" : "Müşteri"}</span>{currentUser && <div className="flex items-center gap-2.5"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-navy/10 text-[11px] font-bold text-navy">{currentUser.companyName?.slice(0, 2).toUpperCase()}</div><div className="hidden md:block"><div id="user-display-name" className="text-xs font-semibold text-navy">{currentUser.companyName}</div><div id="user-display-email" className="mt-0.5 text-[10px] text-slate-400">{currentUser.email}</div></div></div>}<button id="header-logout-btn" onClick={onLogout} title="Çıkış yap" aria-label="Çıkış yap" className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"><LogOut className="h-4 w-4" /></button></div></header>
+  </>;
 });
 
 export default Navbar;

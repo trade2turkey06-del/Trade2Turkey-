@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { collection, doc, onSnapshot, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, Search, CheckCheck, Clock3, CircleDot, Layers3, ChevronDown } from "lucide-react";
 import { auth, db } from "../lib/firebase";
 import { sourcingWorkflow, type WorkflowStep } from "../data/sourcingWorkflow";
 import { logisticsWorkflow } from "../data/logisticsWorkflow";
@@ -49,6 +49,8 @@ export default function SourcingWorkflow({ projectId, currentUser, workflow = "s
   const [events, setEvents] = useState<any[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
   useEffect(() => {
     setLoading(true); setRecords({}); setError("");
     // Live snapshots keep approvals consistent across open sessions.
@@ -64,15 +66,30 @@ export default function SourcingWorkflow({ projectId, currentUser, workflow = "s
     return () => { stop(); stopUsers(); stopEvents(); };
   }, [projectId, currentUser.id, currentUser.role, config.key]);
 
-  return <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6" aria-labelledby={`${config.key}-workflow-title`}>
-    <h2 id={`${config.key}-workflow-title`} className="flex items-center gap-3 text-xl font-bold"><ClipboardList />{config.title}</h2>
-    <p className="mt-2 text-sm text-slate-600">Sorumlu atayın, belge ekleyin ve tamamlanan işi onaya gönderin. Ön koşulları onaylanmayan adımlara başlanamaz.</p>
-    <div className="my-4 flex flex-wrap gap-3 text-sm"><span className="rounded-full bg-indigo-50 px-3 py-1">{config.steps.filter(step => records[step.id]?.approval === "approved" && records[step.id]?.workflowStatus === "completed").length} / {config.steps.length} onaylandı</span><span className="rounded-full bg-amber-50 px-3 py-1">{config.steps.filter(step => records[step.id]?.approval === "pending").length} onay bekliyor</span></div>
-    {error && <p role="alert" className="my-3 text-red-700">{error}</p>}
-    {loading ? <p>Yükleniyor…</p> : config.groups.map(({ prefix, label }) => <div key={prefix} className="mt-6">
-      <h3 className="mb-3 font-bold">{label}</h3>
-      <div className="space-y-3">{config.steps.filter(step => step.id.startsWith(prefix)).map(step => <TaskEditor key={`${projectId}:${step.id}`} config={config} inventory={inventory} projectId={projectId} step={step} record={records[step.id]} users={users} currentUser={currentUser} records={records} events={events.filter(event => event.entityId === step.id)} />)}</div>
-    </div>)}
+  const approvedCount = config.steps.filter(step => records[step.id]?.approval === "approved" && records[step.id]?.workflowStatus === "completed").length;
+  const pendingCount = config.steps.filter(step => records[step.id]?.approval === "pending").length;
+  const activeCount = config.steps.filter(step => records[step.id]?.workflowStatus === "in_progress").length;
+  const matches = config.steps.filter(step => {
+    const record = records[step.id];
+    const text = `${step.id} ${step.task} ${INITIAL_SOP_STEPS.find(item => item.id === step.id)?.task || ""}`.toLocaleLowerCase("tr-TR");
+    return text.includes(search.toLocaleLowerCase("tr-TR")) && (filter === "all" || filter === "pending" && record?.approval === "pending" || filter === "approved" && record?.approval === "approved" || filter === "in_progress" && record?.workflowStatus === "in_progress");
+  });
+  return <section className="workflow-section space-y-6" aria-labelledby={`${config.key}-workflow-title`}>
+    <div className="workflow-metrics" aria-busy={loading}>
+      {[{ label: "Toplam adım", count: config.steps.length, icon: Layers3, tone: "slate", note: config.note }, { label: "Devam eden", count: activeCount, icon: CircleDot, tone: "blue", note: "Üzerinde çalışılan görevler" }, { label: "Onay bekleyen", count: pendingCount, icon: Clock3, tone: "amber", note: "Değerlendirme bekleyen işler" }, { label: "Tamamlanan", count: approvedCount, icon: CheckCheck, tone: "teal", note: "Tamamlandı ve onaylandı" }].map(({ label, count, icon: Icon, tone, note }) => <div key={label} className={`metric-card metric-${tone}`}><div className="flex items-center justify-between"><p className="text-xs font-medium text-slate-500">{label}</p><span className="metric-icon"><Icon className="h-[18px] w-[18px]" /></span></div><p className="mt-3 text-3xl font-semibold tracking-tight text-navy">{loading || error ? "—" : count}</p><p className="mt-2 text-[11px] text-slate-400">{note}</p></div>)}
+    </div>
+    <div className="workflow-board">
+      <div className="flex flex-wrap items-start justify-between gap-5 p-5 sm:p-6"><div><h2 id={`${config.key}-workflow-title`} className="text-lg font-semibold text-navy">{config.title.replace("İş Akışı", "iş akışı")}</h2><p className="mt-1.5 text-xs leading-5 text-slate-500">Her aşamada net sorumluluk, izlenebilir ilerleme.</p></div><div className="w-44"><div className="mb-2 flex justify-between text-[10px] font-medium text-slate-500"><span>Proje ilerlemesi</span><span>{loading || error ? "—" : `${Math.round(approvedCount / config.steps.length * 100)}%`}</span></div><div role="progressbar" aria-label={`Onaylanan adımlar: ${config.title}`} aria-valuemin={0} aria-valuemax={config.steps.length} aria-valuenow={approvedCount} className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-teal-600 transition-all" style={{ width: `${approvedCount / config.steps.length * 100}%` }} /></div></div></div>
+      <div className="workflow-toolbar"><div className="workflow-filters" role="group" aria-label="Görev durumuna göre filtrele">{[["all", "Tüm adımlar"], ["in_progress", "Devam eden"], ["pending", "Onay bekleyen"], ["approved", "Tamamlanan"]].map(([id, label]) => <button key={id} aria-pressed={filter === id} onClick={() => setFilter(id)} className={filter === id ? "is-selected" : ""}>{label}</button>)}</div><label className="workflow-search"><Search className="h-4 w-4 text-slate-400" /><input type="search" aria-label={`${config.title} adımı ara`} placeholder="Adım adı veya kodu ara…" value={search} onChange={e => setSearch(e.target.value)} /></label></div>
+      {error && <p role="alert" className="m-5 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {loading ? <div role="status" className="space-y-3 p-6">{[1,2,3].map(id => <div key={id} className="h-16 animate-pulse rounded-xl bg-slate-100" />)}<p className="text-xs text-slate-500">İş akışı yükleniyor…</p></div> : <div className="p-4 sm:p-6">{config.groups.map(({ prefix, title, subtitle }, index) => {
+        const steps = matches.filter(step => step.id.startsWith(prefix));
+        if (!steps.length) return null;
+        const total = config.steps.filter(step => step.id.startsWith(prefix)).length;
+        return <div key={prefix} className="workflow-phase"><div className="phase-heading"><span className="phase-number">0{index + 1}</span><div><h3 className="text-sm font-semibold text-navy">{title}</h3><p className="mt-0.5 text-[10px] text-slate-400">{subtitle}</p></div><span className="ml-auto text-[11px] text-slate-400">{steps.length} / {total} adım</span></div><div className="space-y-2">{steps.map(step => <TaskEditor key={`${projectId}:${step.id}`} config={config} inventory={inventory} projectId={projectId} step={step} record={records[step.id]} users={users} currentUser={currentUser} records={records} events={events.filter(event => event.entityId === step.id)} />)}</div></div>;
+      })}{!matches.length && <div className="py-12 text-center"><Search className="mx-auto mb-3 h-7 w-7 text-slate-300" /><p className="text-sm font-semibold text-navy">Eşleşen adım bulunamadı</p><p className="mt-2 text-xs text-slate-500">Başka bir arama deneyin veya filtreleri temizleyin.</p><button onClick={() => { setFilter("all"); setSearch(""); }} className="mt-4 rounded-lg bg-navy px-4 py-2 text-xs font-semibold text-white">Tüm adımları göster</button></div>}</div>}
+      <div className="flex items-center gap-2 border-t border-slate-100 px-6 py-4 text-[11px] text-slate-400"><ClipboardList className="h-3.5 w-3.5" /> Ön koşulları onaylanan adımlar için çalışmaya başlayabilirsiniz.</div>
+    </div>
   </section>;
 }
 
@@ -205,10 +222,10 @@ function TaskEditor({ config, inventory, projectId, step, record, users, current
     } catch (error) { setMessage(error instanceof Error ? error.message : "Kısa listeye eklenemedi."); }
     finally { setBusy(false); }
   };
-  return <details data-testid={`task-${step.id}`} className="group rounded-2xl border border-slate-200 bg-white open:border-indigo-300">
+  return <details data-testid={`task-${step.id}`} className="workflow-task group rounded-xl border border-slate-200 bg-white open:border-teal-300">
     <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 p-4 text-sm [&::-webkit-details-marker]:hidden">
       <span className="rounded-lg bg-indigo-50 px-2 py-1 font-bold text-indigo-700">{step.id}</span><span className="min-w-0 flex-1 font-semibold">{translated?.task || step.task}</span>
-      <span className={`rounded-full px-2 py-1 text-xs ${approved ? "bg-emerald-100 text-emerald-800" : record?.approval === "pending" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}`}>{approved ? "Onaylandı" : record?.approval === "pending" ? "Onay bekliyor" : workflowStatuses[record?.workflowStatus || "not_started"]}</span>{overdue && <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">Gecikti</span>}<span className="text-xs text-slate-500">{step.period ?? `${step.days} gün`}</span><span className="text-indigo-600">Ayrıntılar ↕</span>
+      <span className={`rounded-full px-2 py-1 text-xs ${approved ? "bg-emerald-100 text-emerald-800" : record?.approval === "pending" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}`}>{approved ? "Onaylandı" : record?.approval === "pending" ? "Onay bekliyor" : workflowStatuses[record?.workflowStatus || "not_started"]}</span>{overdue && <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">Gecikti</span>}<span className="text-xs text-slate-500">{step.period ?? `${step.days} gün`}</span><ChevronDown className="task-chevron h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
     </summary>
     <div className="space-y-4 border-t p-4">
       {config.logistics && inventorySteps.includes(step.id) && <InventoryStepPanel stepId={step.id} projectId={projectId} data={inventory.data} loading={inventory.loading} error={inventory.error} canPlan={isAdmin && !approved && !busy} />}

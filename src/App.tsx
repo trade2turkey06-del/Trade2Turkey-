@@ -373,7 +373,7 @@ export default function App() {
   }, []);
 
   // 3. Render login portal screen if un-authenticated
-  if (!authReady) return <div className="p-12 text-center">Oturum doğrulanıyor…</div>;
+  if (!authReady) return <div role="status" className="flex min-h-screen flex-col items-center justify-center gap-5 bg-slate-50"><div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-teal-600" /><p className="text-sm font-medium text-slate-500">Çalışma alanınız hazırlanıyor…</p></div>;
   if (!currentUser) {
     return <LoginScreen initialError={appError} onLoginSuccess={() => {}} />;
   }
@@ -407,37 +407,14 @@ export default function App() {
       />
 
       {/* Primary Context area wrapper container layout */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main id="workspace-content" tabIndex={-1} className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
-        {/* Trade2Turkey Welcome Hero Billboard Jumbotron */}
-        <div className="workspace-hero bg-navy rounded-3xl p-6 md:p-8 text-white shadow-xl shadow-navy/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
-          {/* Subtle geometric lines */}
-          <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-white/5 skew-x-12 transform origin-top-right pointer-events-none" />
-          
-          <div className="space-y-2 max-w-2xl">
-            <span className="bg-black/40 text-sky-200 text-[10px] font-extrabold uppercase font-mono px-3 py-1 rounded-full tracking-wider border border-white/10 flex items-center gap-1.5 w-fit">
-              <ShieldCheck className="h-3 w-3 text-sky-300" />
-              {currentUser.role === 'admin' ? "Trade2Turkey Yönetici Masası" : `${currentUser.companyName} Güvenli Çalışma Alanı`}
-            </span>
-            <h2 className="text-2xl md:text-3xl font-black font-display tracking-tight leading-tight">
-              {currentUser.role === "admin" 
-                ? "Tedarikten teslimata, her adım kontrolünüzde."
-                : `${currentUser.companyName} Belge Kasası`}
-            </h2>
-            <p className="text-xs md:text-sm text-slate-300 leading-relaxed font-normal">
-              {currentUser.role === "admin"
-                ? "Projelerinizi yönetin, tedarikçileri değerlendirin ve operasyonlarınızı tek bir çalışma alanından takip edin."
-                : `İzole edilmiş güvenli portalınıza hoş geldiniz. Şu Proje Kimliğine atanan özel Google Drive klasörlerine, sevkiyat takip haritalarına ve şeffaf bileşen maliyet sayfalarına erişiyorsunuz: ${activeProjectId}`}
-            </p>
+        <div className="page-intro">
+          <div><p className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.18em] text-teal-700"><span className="h-1.5 w-1.5 rounded-full bg-teal-600" /> {projects.find(project => project.id === activeProjectId)?.name || "Trade2Turkey Workspace"}</p>
+            <h2 className="font-display text-3xl font-semibold tracking-tight text-navy sm:text-4xl">{{ sourcing: "İyi bir tedarik, net bir süreçle başlar.", overview: "Büyük resmi görün. Sıradaki adımı belirleyin.", logistics: "Üretimden teslimata, birlikte ilerleyin.", sectors: "Sektör bazında üretici rehberiniz.", report: "Verilerinizden daha net kararlar alın.", "client-discovery": "Yeni bağlantılar. Yeni fırsatlar.", "market-insights": "Pazarı anlayın. Fırsatları keşfedin." }[currentTab] || "Çalışma alanınıza hoş geldiniz."}</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">{{ sourcing: "Keşiften onaya kadar her görevi, sorumluyu ve belgeyi tek bir yerde takip edin.", overview: "Projenizin önceliklerini, bekleyen onaylarını ve operasyonel durumunu inceleyin.", logistics: "Ürünlerinizi, satın alma süreçlerinizi ve sevkiyatlarınızı düzenli bir akışta yönetin.", sectors: "Üreticileri sektörlere göre düzenleyin; iletişim bilgilerine tek yerden ulaşın.", report: "Projenizin güncel durumunu inceleyin, paylaşılabilir raporlar hazırlayın.", "client-discovery": "Müşteri ilişkilerinizi ve proje çalışma alanlarınızı yönetin.", "market-insights": "Araştırmalarınızı bir araya getirin ve bir sonraki adımınızı planlayın." }[currentTab]}</p>
           </div>
-
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
-            {/* Aktif Çalışma Alanı Status */}
-            <div className="bg-white/10 backdrop-blur-sm border border-white/10 px-4 py-3 rounded-2xl text-center min-w-[130px] font-mono">
-              <span className="block text-[10px] uppercase font-bold text-sky-300">Aktif Çalışma Alanı</span>
-              <strong className="text-sm font-extrabold">{activeProjectId}</strong>
-            </div>
-          </div>
+          <div className="intro-date"><span className="text-[10px] uppercase tracking-widest text-slate-400">Bugün</span><span className="mt-1 block text-xs font-semibold text-slate-600">{new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Istanbul" }).format(new Date())}</span></div>
         </div>
 
         {/* ADMIN-ONLY: CORPORATE TENANT MANAGEMENT DESK */}

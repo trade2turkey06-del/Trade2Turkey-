@@ -81,3 +81,78 @@
   .workspace-app { background: white; }
   .workspace-app main { max-width: none; padding: 0; }
 }
+
+/* Workspace: quiet surfaces, purposeful navigation, readable operations. */
+.workspace-app { background: #f6f8fb; }
+.workspace-sidebar { display: flex; flex-direction: column; position: fixed; z-index: 70; inset: 0 auto 0 0; width: 240px; background: #fff; border-right: 1px solid #e5eaf1; overflow-y: auto; }
+.sidebar-brand { height: 86px; display: flex; align-items: center; gap: 10px; padding: 0 22px; }
+.sidebar-project { margin: 8px 16px 0; padding: 14px 12px; background: #f6f8fb; border: 1px solid #e8edf3; border-radius: 12px; }
+.sidebar-nav { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 14px; border-radius: 9px; font-size: 12px; font-weight: 500; text-align: left; color: #6a788c; transition: background .18s, color .18s; }
+.sidebar-nav:hover { background: #f5f7fa; color: #1b3058; }
+.sidebar-nav.is-active { background: #edf5f4; color: #0f766e; font-weight: 600; }
+.workspace-header { position: sticky; top: 0; z-index: 50; height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 32px; background: #ffffffeb; backdrop-filter: blur(16px); border-bottom: 1px solid #e5eaf1; }
+.workspace-app > main { padding: 36px 36px 48px; max-width: 1520px; }
+.page-intro { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; padding: 4px 0 0; }
+.page-intro h2 { max-width: 750px; line-height: 1.2; }
+.intro-date { flex-shrink: 0; text-align: right; padding-top: 5px; }
+.workflow-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.metric-card { background: white; border: 1px solid #e5eaf1; border-radius: 14px; padding: 18px 20px; box-shadow: 0 2px 4px #172c4802; }
+.metric-icon { display: inline-flex; padding: 9px; border-radius: 10px; background: #f2f5f8; color: #64748b; }
+.metric-blue .metric-icon { color: #3b6eae; background: #eff5fc; }
+.metric-amber .metric-icon { color: #b47c25; background: #fff7e9; }
+.metric-teal .metric-icon { color: #0f8576; background: #eaf7f3; }
+.workflow-board { border: 1px solid #e5eaf1; border-radius: 16px; background: #fff; overflow: hidden; box-shadow: 0 3px 12px #172c4803; }
+.workflow-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; border-block: 1px solid #edf0f5; padding: 12px 24px; }
+.workflow-filters { display: flex; gap: 4px; flex-wrap: wrap; }
+.workflow-filters button { padding: 8px 10px; border-radius: 7px; font-size: 11px; font-weight: 500; color: #7b8797; }
+.workflow-filters button:hover { background: #f7f9fb; }
+.workflow-filters button.is-selected { color: #1b3058; background: #eef2f7; font-weight: 600; }
+.workflow-search { display: flex; align-items: center; gap: 8px; border: 1px solid #e5eaf1; border-radius: 8px; padding: 0 10px; }
+.workspace-app main .workflow-search input { border: none; background: transparent; min-height: 34px; width: 180px; font-size: 11px; box-shadow: none; }
+.phase-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.phase-number { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid #e5eaf1; border-radius: 8px; background: #f8fafc; color: #697c93; font-size: 11px; font-weight: 600; }
+.workflow-phase + .workflow-phase { margin-top: 30px; padding-top: 26px; border-top: 1px solid #edf0f5; }
+.workspace-app main .workflow-task { border-color: #e8edf2; box-shadow: none; }
+.workflow-task summary { padding: 16px; font-size: 12px; }
+.workflow-task summary > span:first-child { font-family: var(--font-mono); background: #f4f6f9; color: #7c8ba0; font-weight: 500; font-size: 10px; padding: 6px 8px; }
+.workflow-task summary:hover { background: #fafcfd; border-radius: 12px; }
+.workflow-task[open] { background: #fcfefe; box-shadow: 0 3px 16px #0f766e06; }
+.workspace-app > footer { background: transparent; margin-top: auto; border-color: #e5eaf1; }
+.skip-link { position: fixed; z-index: 100; top: -100px; left: 260px; padding: 12px 18px; border-radius: 8px; color: white; background: #1b3058; }
+.skip-link:focus { top: 12px; }
+.sidebar-backdrop { display: none; }
+@media (min-width: 1024px) {
+  .workspace-app { padding-left: 240px; }
+}
+@media (max-width: 1199px) {
+  .workflow-metrics { gap: 10px; }
+  .metric-card { padding: 16px; }
+  .intro-date { display: none; }
+}
+@media (max-width: 1023px) {
+  .workspace-sidebar { transform: translateX(-100%); transition: transform .2s; width: 264px; }
+  .workspace-sidebar.is-open { transform: translateX(0); }
+  .sidebar-backdrop { display: block; position: fixed; z-index: 60; inset: 0; background: #142c4a70; backdrop-filter: blur(3px); }
+  .workspace-header { padding-inline: 20px; }
+  .workspace-app > main { padding: 28px 24px; }
+}
+@media (max-width: 639px) {
+  .workspace-app > main { padding: 24px 16px; }
+  .page-intro h2 { font-size: 28px; }
+  .workflow-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric-card { padding: 14px; }
+  .metric-card p:last-child { font-size: 10px; }
+  .metric-icon { padding: 6px; }
+  .workflow-toolbar { padding: 12px 16px; }
+  .workflow-search { width: 100%; }
+  .workspace-app main .workflow-search input { width: 100%; }
+  .workflow-task summary { gap: 8px; padding: 12px; }
+  .workflow-task summary > span:nth-child(2) { flex-basis: calc(100% - 75px); }
+  .workflow-task summary > span:nth-child(3) { margin-left: 0; }
+  .task-chevron { margin-left: auto; }
+  .skip-link { left: 16px; }
+}
+@media print {
+  .workspace-sidebar, .sidebar-backdrop, .workflow-toolbar { display: none; }
+  .workspace-app { padding-left: 0; }
+}
