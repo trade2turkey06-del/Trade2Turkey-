@@ -1,3 +1,4 @@
+import { reports } from "./reports";
 import { actionCenter } from "./actionCenter";
 import { logistics } from "./logistics";
 import { operations } from "./operations";
@@ -11,4 +12,4 @@ import { productSpec } from "./productSpec";
 import { errors } from "./errors";
 import { countries } from "./countries";
 
-export const en: Messages = { actionCenter, logistics, operations, common, language, shell, login, status, steps, sourcing, editors, rfqMatrix, drive, vault, productSpec, errors, countries };
+export const en: Messages = { reports, actionCenter, logistics, operations, common, language, shell, login, status, steps, sourcing, editors, rfqMatrix, drive, vault, productSpec, errors, countries };

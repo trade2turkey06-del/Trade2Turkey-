@@ -115,3 +115,10 @@ test("i18n: logistics has all 21 steps and approved terminology", async () => {
   assert.equal(en.logistics.steps["B.A.12"].kpi, "Goods released for dispatch after document and load check");
   assert.equal(tr.logistics.steps["B.A.12"].kpi, "Belge ve yükleme kontrolünden sonra sevkiyata çıkış onayı verildi");
 });
+
+test("i18n: report exports have matching placeholders and English content", () => {
+  for (const key of Object.keys(tr.reports)) {
+    assert.deepEqual(en.reports[key].match(/\{\d+\}/g), tr.reports[key].match(/\{\d+\}/g));
+    assert(!/[çğıöşüÇĞİÖŞÜ]/.test(en.reports[key]));
+  }
+});

@@ -11,3 +11,7 @@ The production workflow uses the approved B.A group title and revised TR/EN KPIs
 | Action Center | Summary, user access controls and backup/restore controls opened in English | `Yerel Test Projesi` (project name); fixture account names (user data) | TypeScript, 44 unit tests, 25 rules tests and build passed |
 
 Read-only live enum scan is retained in `I18N_PHASE2_STATUS_SCAN.json`. Missing fields are reported separately from unknown populated values. No migration writes were performed. The local UI seed can be rerun after destructive emulator rule tests.
+
+| Reports | English report summary and print/PDF, text download and email-draft controls inspected | Project name only (user data) | TypeScript, 45 unit tests, 25 rules tests and build passed |
+
+Report display, text download and email draft share the same localised summary. Browser download-event capture timed out; no downloaded-file verification is claimed. Print/PDF uses the same rendered report; the operating-system print dialog is not translated by the application.
