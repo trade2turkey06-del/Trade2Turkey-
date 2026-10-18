@@ -803,11 +803,11 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                 <div>
                   <span className="text-slate-300 block font-semibold">{f.exwPriceList}</span>
                   {details.pricingCapacity.exwPriceList && details.pricingCapacity.exwPriceList.startsWith("http") ? (
-                    <a href={details.pricingCapacity.exwPriceList} target="_blank" rel="noopener noreferrer" className="text-cyan-400 font-bold hover:underline block mt-1 font-mono truncate">
+                    <a href={details.pricingCapacity.exwPriceList} target="_blank" rel="noopener noreferrer" className="text-cyan-400 font-bold hover:underline block mt-1 font-mono whitespace-normal [overflow-wrap:anywhere]">
                       {f.viewPriceList}
                     </a>
                   ) : (
-                    <span className="text-white font-bold block mt-1 font-mono">{shown(details.pricingCapacity.exwPriceList)}</span>
+                    <span className="text-white font-bold block mt-1 font-mono whitespace-normal [overflow-wrap:anywhere]">{shown(details.pricingCapacity.exwPriceList)}</span>
                   )}
                 </div>
                 <div>
@@ -992,7 +992,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
               <div className="space-y-4 mt-4 text-xs">
                 <div>
                   <span className="text-slate-300 block font-semibold">{f.coa}</span>
-                  <span className="text-white font-bold block mt-1 font-mono">{shown(details.certifications.coa)}</span>
+                  <span className="text-white font-bold block mt-1 font-mono whitespace-normal [overflow-wrap:anywhere]">{shown(details.certifications.coa)}</span>
                 </div>
                 <div>
                   <span className="text-slate-300 block font-semibold">{f.certificates}</span>
@@ -1674,7 +1674,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
                       <FileText className="h-4 w-4 text-cyan-400" />
                     </div>
                     <div className="text-left min-w-0">
-                      <span className="block text-xs font-bold text-white truncate pr-2" title={file.fileName}>
+                      <span className="block text-xs font-bold text-white whitespace-normal [overflow-wrap:anywhere] pr-2" title={file.fileName}>
                         {file.fileName}
                       </span>
                       <span className="block text-[9px] text-slate-300 font-mono mt-0.5 uppercase tracking-wider">
