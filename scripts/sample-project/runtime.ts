@@ -4,6 +4,8 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { Firestore } from '@google-cloud/firestore';
+import { OAuth2Client } from 'google-auth-library';
 import { emulatorTarget } from '../../tests/seed-guard.mjs';
 import { PROJECT, MARKER } from './data';
 
@@ -28,8 +30,11 @@ export async function runtime() {
   if(crypto.createHash('sha256').update(raw).digest('hex')!==hash || parsed.project!==CLOUD_PROJECT || parsed.database!==DATABASE || !Array.isArray(parsed.records) || !parsed.records.length || !parsed.rules || !Number.isFinite(createdAt) || Date.now()-createdAt>3600000 || createdAt>Date.now())throw new Error('Backup must be checksum verified, complete with rules, for the exact database and less than one hour old.');
   const config=JSON.parse(await fs.readFile(path.join(os.homedir(),'.config/configstore/firebase-tools.json'),'utf8'));
   if(!config.tokens?.access_token || !Number.isFinite(config.tokens.expires_at) || config.tokens.expires_at<Date.now()+60000)throw new Error('Refresh the Firebase CLI login with a read-only database inspection before running.');
-  const app=initializeApp({projectId:CLOUD_PROJECT,credential:{getAccessToken:async()=>({access_token:config.tokens.access_token,expires_in:Math.floor((config.tokens.expires_at-Date.now())/1000)})}});
-  const db=getFirestore(app,DATABASE);
+  // The Admin SDK accepts only service-account/ADC credentials for Firestore.
+  // Use the underlying Cloud client with the already-authorized CLI OAuth session.
+  const authClient=new OAuth2Client();
+  authClient.setCredentials({access_token:config.tokens.access_token,expiry_date:config.tokens.expires_at});
+  const db=new Firestore({projectId:CLOUD_PROJECT,databaseId:DATABASE,authClient});
   const owner=(await db.doc(`users/${ownerUid}`).get()).data();
   if(!owner || !['admin','owner'].includes(owner.role) || ['suspended','Askıya Alındı'].includes(owner.status))throw new Error('Owner must be an existing active administrator.');
   return {db,ownerUid,live};
