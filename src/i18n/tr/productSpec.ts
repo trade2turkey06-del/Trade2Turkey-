@@ -1,3 +1,4 @@
+import { percent } from "../percent";
 // Ürün Reçetesi (Product Specification) ekranı ve PDF çıktısı.
 export const productSpec = {
   title: "Ürün Reçetesi (Product Specification)",
@@ -73,7 +74,7 @@ export const productSpec = {
     note: "Not",
     sources: { manufacturer: "Üretici beyanı", estimated: "Tahmini (tersine mühendislik)" } as Record<string, string>,
     total: "Toplam",
-    totalWarning: (total: string) => `Oranların toplamı %${total}; %100 olmalı. Taslak kaydedilebilir, ancak toplam %100 olmadan reçete onaylanamaz.`,
+    totalWarning: (total: string) => `Oranların toplamı ${percent(Number(String(total).replace(",", ".")), "tr")}; %100 olmalı. Taslak kaydedilebilir, ancak toplam %100 olmadan reçete onaylanamaz.`,
     empty: "Henüz malzeme yok.",
   },
 
@@ -251,7 +252,7 @@ export const productSpec = {
     ab8NoApproved: "Bu üreticinin onaylı reçetesi yok. Reçete \"Onaylandı\" olmadan A.B.8 onaya gönderilemez.",
     ab8Required: "A.B.8'i onaya göndermek için seçili üreticinin onaylı reçetesini bağlayın.",
     ab9Heading: "Reçeteden maliyet satırları",
-    ab9Help: "Onaylı reçetedeki formülasyon ve ambalaj BOM satırları birim fiyat, para birimi ve kur boş olarak gelir. Maliyet editörü sonraki adımda eklenecek.",
+    ab9Help: "Onaylı reçetedeki formülasyon ve ambalaj BOM satırlarını fiyat bilgileriyle birlikte inceleyin.",
     ab9Import: "Onaylı reçeteden satırları getir",
     ab9NoSpec: "A.B.8'e bağlı onaylı reçete yok.",
     ab9Source: (product: string, version: string, manufacturer: string) => `Kaynak: ${product} ${version} — ${manufacturer}`,

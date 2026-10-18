@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n";
 import React, { useState, useEffect, useMemo } from "react";
 import SourcingWorkflow from "./SourcingWorkflow";
 import { 
@@ -85,6 +86,7 @@ export const freelanceSOPData = [
 ];
 
 export default function FreelancerDashboard({ currentUser, onLogout, auditMode = false, auditEmail }: FreelancerDashboardProps) {
+  const { percent: formatPercent } = useI18n().fmt;
   const [leads, setLeads] = useState<ClientLead[]>([]);
   const [loadingLeads, setLoadingLeads] = useState(true);
   const [activeTab, setActiveTab] = useState<"leads" | "insights">("leads");
@@ -1010,7 +1012,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                                           📊 Client KPI Summary (Critical Stages)
                                         </span>
                                         <span className="text-xs font-bold text-teal-400 font-mono">
-                                          Critical Success Steps: {completedCriticalCount} / {criticalSteps.length} (%{progressPercent})
+                                          Critical Success Steps: {completedCriticalCount} / {criticalSteps.length} ({formatPercent(progressPercent)})
                                         </span>
                                       </div>
                                       

@@ -1,3 +1,4 @@
+import { percent } from "../percent";
 // Tedarik adımlarının editörleri (A.A.2, A.A.3/A.A.5, A.A.4, A.A.6, A.B.2, A.B.6) ve Drive belge klasörü.
 // Şablondaki bölüm/kriter/parametre adları veri olarak saklanır ve çevrilmez; burada yalnızca arayüz metinleri var.
 export const editors = {
@@ -154,7 +155,7 @@ export const rfqMatrix = {
   recommended: "Önerilen",
   best: "En iyi",
   scoreToSee: "Öneriyi görmek için kriterleri puanlayın.",
-  weightsInvalid: (total: string) => `Bölüm ağırlıklarının toplamı %${total}. Adımın kaydedilebilmesi için toplam %100 olmalı.`,
+  weightsInvalid: (total: string) => `Bölüm ağırlıklarının toplamı ${percent(Number(String(total).replace(",", ".")), "tr")}. Adımın kaydedilebilmesi için toplam %100 olmalı.`,
   criteria: "Kriterler",
   weight: "Ağırlık (%)",
   weightShort: "Ağırlık",
@@ -182,9 +183,9 @@ export const rfqMatrix = {
   evaluationNotes: "Değerlendirme notları",
   notesFor: (manufacturer: string) => `${manufacturer} değerlendirme notları`,
   addItem: "Kalem ekle",
-  impact: (title: string, weight: number) => `${title} etkisi (%${weight})`,
+  impact: (title: string, weight: number) => `${title} etkisi (${percent(weight, "tr")})`,
   total: "TOPLAM PUAN (/100)",
-  weightsTotal: (total: string) => `· ağırlık toplamı %${total}`,
+  weightsTotal: (total: string) => `· ağırlık toplamı ${percent(Number(String(total).replace(",", ".")), "tr")}`,
 };
 
 export const drive = {

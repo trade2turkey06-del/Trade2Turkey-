@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n";
 import React, { useState } from "react";
 import { 
   ShieldCheck, Award, Star, Mail, MapPin, Check, Plus, Trash2, 
@@ -11,6 +12,7 @@ interface SupplierScoringProps {
 }
 
 const SupplierScoring = React.memo(function SupplierScoring({ suppliers, setSuppliers }: SupplierScoringProps) {
+  const { percent: formatPercent } = useI18n().fmt;
   
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>(suppliers[0]?.id || "");
   const [editingScores, setEditingScores] = useState<any>(null);
@@ -159,7 +161,7 @@ const SupplierScoring = React.memo(function SupplierScoring({ suppliers, setSupp
                       <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
                         cmp >= 90 ? "bg-green-100 text-green-800" : cmp >= 80 ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-700"
                       }`}>
-                        Bileşik: {cmp}%
+                        Bileşik: {formatPercent(cmp)}
                       </span>
                     </div>
 
@@ -245,7 +247,7 @@ const SupplierScoring = React.memo(function SupplierScoring({ suppliers, setSupp
                   <Award className="h-6 w-6 text-orange-500 shrink-0" />
                   <div>
                     <div className="text-[9px] text-slate-400 uppercase font-mono font-bold">Ağırlıklı Puan</div>
-                    <div className="text-xl font-black font-mono text-slate-900">{finalScore}%</div>
+                    <div className="text-xl font-black font-mono text-slate-900">{formatPercent(finalScore)}</div>
                   </div>
                 </div>
               </div>
@@ -371,7 +373,7 @@ const SupplierScoring = React.memo(function SupplierScoring({ suppliers, setSupp
                 >
                   <Star className="h-5 w-5 mb-1.5" />
                   <span className="text-xs font-bold">3. Fabrika Denetlendi</span>
-                  <span className="text-[9px] mt-0.5">{currentSupplier.siteAuditCompleted ? `✓ KAYDEDİLDİ (${currentSupplier.auditScorePercent}%)` : "✕ DENETİM YOK"}</span>
+                  <span className="text-[9px] mt-0.5">{currentSupplier.siteAuditCompleted ? `✓ KAYDEDİLDİ (${formatPercent(currentSupplier.auditScorePercent)})` : "✕ DENETİM YOK"}</span>
                 </button>
               </div>
 

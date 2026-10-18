@@ -85,3 +85,19 @@ test("kullanıcı verisi dili ve sayfa başlığı", async () => {
   assert.equal(tr.shell.documentTitle, "Trade2Turkey Dijital Tedarik ve Lojistik Portalı");
   assert.equal(en.shell.documentTitle, "Trade2Turkey | Digital Sourcing & Logistics Portal");
 });
+
+test("i18n: yüzdeler yüzde puanı olarak dile göre biçimlenir", () => {
+  assert.equal(formatters("en").percent(30.4, 1), "30.4%");
+  assert.equal(formatters("tr").percent(30.4, 1), "%30,4");
+  assert.match(en.productSpec.formulation.totalWarning("99.5"), /99\.5%/);
+  assert.match(tr.productSpec.formulation.totalWarning("99,5"), /%99,5/);
+  assert.equal(en.rfqMatrix.impact("Cost", 12.5), "Cost Impact (12.5%)");
+  assert.equal(tr.rfqMatrix.impact("Maliyet", 12.5), "Maliyet etkisi (%12,5)");
+  for (const lang of ["tr", "en"] as const) {
+    const fmt = formatters(lang);
+    assert.equal(fmt.percent(0), lang === "en" ? "0%" : "%0");
+    assert.equal(fmt.percent(100), lang === "en" ? "100%" : "%100");
+    assert.equal(fmt.percent(null), ""); assert.equal(fmt.percent(NaN), "");
+    assert.equal(fmt.percent(12.345, 2, 2), lang === "en" ? "12.35%" : "%12,35");
+  }
+});

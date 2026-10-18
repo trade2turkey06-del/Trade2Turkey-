@@ -1,3 +1,4 @@
+import { percent } from "../percent";
 import type { Messages } from "../tr";
 
 export const editors: Messages["editors"] = {
@@ -154,7 +155,7 @@ export const rfqMatrix: Messages["rfqMatrix"] = {
   recommended: "Recommended",
   best: "Best",
   scoreToSee: "Score the criteria to see a recommendation.",
-  weightsInvalid: (total: string) => `Section weights add up to ${total}%. They must total 100% before the step can be saved.`,
+  weightsInvalid: (total: string) => `Section weights add up to ${percent(Number(String(total).replace(",", ".")), "en")}. They must total 100% before the step can be saved.`,
   criteria: "Criteria",
   weight: "Weight (%)",
   weightShort: "Weight",
@@ -182,9 +183,9 @@ export const rfqMatrix: Messages["rfqMatrix"] = {
   evaluationNotes: "Evaluation Notes",
   notesFor: (manufacturer: string) => `${manufacturer} evaluation notes`,
   addItem: "Add Item",
-  impact: (title: string, weight: number) => `${title} Impact (${weight}%)`,
+  impact: (title: string, weight: number) => `${title} Impact (${percent(weight, "en")})`,
   total: "TOTAL SCORE (/100)",
-  weightsTotal: (total: string) => `· weights total ${total}%`,
+  weightsTotal: (total: string) => `· weights total ${percent(Number(String(total).replace(",", ".")), "en")}`,
 };
 
 export const drive: Messages["drive"] = {

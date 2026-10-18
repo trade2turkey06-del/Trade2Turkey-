@@ -64,7 +64,7 @@ export function SpecLinkPanel({ projectId, isAdmin, preparedBy, manufacturers, s
   </div>;
 }
 
-// A.B.9: onaylı reçeteden maliyet satırları (fiyat alanları boş). Bu aşamada yalnızca önizleme; maliyet editörü sonraki adım.
+// A.B.9: preview the imported specification lines and any saved pricing information.
 export function RecipeCostPreview({ spec, lines, source, onImport, canImport }: { spec?: ProductSpec; lines?: RecipeCostLine[]; source?: RecipeCostSource | null; onImport: (lines: RecipeCostLine[], source: RecipeCostSource) => void; canImport: boolean }) {
   const t = useI18n().t.productSpec;
   const [message, setMessage] = useState("");

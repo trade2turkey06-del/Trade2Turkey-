@@ -1,3 +1,4 @@
+import { formatPercent, useI18n } from "../i18n";
 import { apiFetch } from "../lib/api";
 import React, { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
@@ -29,10 +30,10 @@ const calculatePriceAdvantageText = (shelfPrice: number, t2tPrice: number): stri
 
   if (sPrice > tPrice) {
     const pct = ((sPrice - tPrice) / sPrice) * 100;
-    return `%${pct.toFixed(0)} Daha Ucuz`;
+    return `${formatPercent(pct, 0)} Daha Ucuz`;
   } else if (sPrice < tPrice) {
     const pct = ((tPrice - sPrice) / sPrice) * 100;
-    return `%${pct.toFixed(0)} Daha Pahalı`;
+    return `${formatPercent(pct, 0)} Daha Pahalı`;
   }
   return "Eşit Fiyat";
 };
@@ -49,6 +50,7 @@ const calculatePricePerGram = (shelfPrice: number, weight: number): number => {
 // 1. ADMIN PANEL: CRUD MANAGEMENT BİLİŞENİ (FMCG)
 // ----------------------------------------------------
 export function MarketInsightsManagement({ currentProjectId }: { currentProjectId: string }) {
+  useI18n(); // Refresh module-level comparison formatting when the language changes.
   const [insights, setInsights] = useState<MarketInsight[]>([]);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -1495,6 +1497,7 @@ export function MarketInsightsManagement({ currentProjectId }: { currentProjectI
 // 2. FREELANCER PORTAL: READ ONLY VIEW BİLİŞENİ (FMCG)
 // ----------------------------------------------------
 export function MarketInsightsView({ currentProjectId }: { currentProjectId: string }) {
+  useI18n(); // Refresh module-level comparison formatting when the language changes.
   const [insights, setInsights] = useState<MarketInsight[]>([]);
   const [loading, setLoading] = useState(true);
   const [manufacturers, setManufacturers] = useState<any[]>([]);

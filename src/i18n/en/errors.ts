@@ -1,3 +1,4 @@
+import { percent } from "../percent";
 import type { Messages } from "../tr";
 type P = Record<string, string>;
 
@@ -10,7 +11,7 @@ export const errors: Messages["errors"] = {
   meetingsOpenTopics: (p: P) => `${p.name}: these topics have not been discussed yet: ${p.topics}`,
   matrixManufacturers: (p: P) => `The matrix needs ${p.min}–${p.max} manufacturers.`,
   matrixNames: "Every manufacturer needs a name.",
-  matrixWeights: (p: P) => `Section weights must add up to 100% (currently ${p.total}%).`,
+  matrixWeights: (p: P) => `Section weights must add up to 100% (currently ${percent(Number(String(p.total).replace(",", ".")), "en")}).`,
   matrixCriterionWeights: "Criterion weights must be 0 or more.",
   matrixScores: "Scores must be whole numbers from 1 to 5.",
   rfqTooLarge: "The RFQ forms are too large. Please add long answers as document links.",

@@ -1,3 +1,4 @@
+import { formatPercent } from "../../i18n";
 import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
@@ -27,7 +28,7 @@ export default function ClaimCheckSection({ spec, onChange, disabled, isAdmin, c
     <Notice>{t.claims.disclaimer}</Notice>
     <div className="grid gap-4 sm:grid-cols-3">
       <Labeled label={t.claims.market}><select className={input} value={market?.id ?? ""} disabled={disabled} onChange={event => onChange({ ...spec, general: { ...spec.general, claimMarket: event.target.value } })}>{markets.map(item => <option key={item.id} value={item.id}>{item.id} — {marketName(t, item)}</option>)}</select></Labeled>
-      <div className="rounded-lg bg-slate-50 p-3 sm:col-span-2"><p className="text-xs text-slate-500">{t.claims.proteinEnergy} <span className="font-mono">{t.claims.proteinEnergyFormula}</span></p><p className="mt-1 text-lg font-semibold text-navy">{proteinPct === null ? <span className="text-sm font-normal text-slate-500">{t.claims.proteinEnergyMissing}</span> : `%${formatNumber(proteinPct, 1)}`}</p><p className="text-[11px] text-slate-400">{t.claims.basis}</p></div>
+      <div className="rounded-lg bg-slate-50 p-3 sm:col-span-2"><p className="text-xs text-slate-500">{t.claims.proteinEnergy} <span className="font-mono">{t.claims.proteinEnergyFormula}</span></p><p className="mt-1 text-lg font-semibold text-navy">{proteinPct === null ? <span className="text-sm font-normal text-slate-500">{t.claims.proteinEnergyMissing}</span> : formatPercent(proteinPct, 1)}</p><p className="text-[11px] text-slate-400">{t.claims.basis}</p></div>
     </div>
     <div><p className="mb-2 text-xs font-semibold text-slate-600">{t.claims.levelsHeading}</p><div className="flex flex-wrap gap-2">{LEVEL_NUTRIENTS.map(key => {
       const value = effective(spec.nutrition[key]), result = level(value, market?.levels[key]);

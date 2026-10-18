@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n";
 import { apiFetch } from "../lib/api";
 import React, { useState } from "react";
 import { 
@@ -38,6 +39,7 @@ const MinorSheets = React.memo(function MinorSheets({
   setRecipes,
   onClose
 }: MinorSheetsProps) {
+  const { percent: formatPercent } = useI18n().fmt;
   
   // Internal selection trackers
   const [selectedSpecId, setSelectedSpecId] = useState<string>(targetSpecs[0]?.id || "");
@@ -875,7 +877,7 @@ const MinorSheets = React.memo(function MinorSheets({
                   {/* EU Import duty charges */}
                   <div>
                     <div className="flex justify-between text-xs mb-1">
-                      <span className="text-slate-300">4. Avrupa Liman İthalat Vergileri ({currentCost.importCustomsDuty}%)</span>
+                      <span className="text-slate-300">4. Avrupa Liman İthalat Vergileri ({formatPercent(currentCost.importCustomsDuty)})</span>
                       <strong className="font-mono">${landedResult.breakdown.importDuty.toFixed(2)} / adet</strong>
                     </div>
                     <div className="w-full bg-slate-800 h-2 rounded overflow-hidden">
@@ -1174,10 +1176,10 @@ const MinorSheets = React.memo(function MinorSheets({
                         else if (row.category === "comm") finalImpact = commImpactScore;
                         else if (row.category === "company") finalImpact = companyImpactScore;
 
-                        const impactPercentLabel = row.category === "cost" ? "50.00%" 
-                                                  : row.category === "tech" ? "20%"
-                                                  : row.category === "comm" ? "20%" 
-                                                  : "10,00%";
+                        const impactPercentLabel = row.category === "cost" ? formatPercent(50, 2, 2)
+                                                  : row.category === "tech" ? formatPercent(20)
+                                                  : row.category === "comm" ? formatPercent(20)
+                                                  : formatPercent(10, 2, 2);
 
                         return (
                           <tr key={row.key} className="bg-sky-50 font-bold text-slate-900 border-t border-b border-sky-100">
@@ -1199,7 +1201,7 @@ const MinorSheets = React.memo(function MinorSheets({
                       const responseValue = responses[row.key] || "";
                       const rawScore = getRowScore(row.key);
                       const evalScore = getRowEvaluationScore(row.key, row.percentage);
-                      const displayPercentage = (row.percentage * 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
+                      const displayPercentage = formatPercent(row.percentage * 100, 2, 2);
 
                       return (
                         <tr key={row.key} className="hover:bg-slate-50 transition text-slate-700">
@@ -1358,7 +1360,7 @@ const MinorSheets = React.memo(function MinorSheets({
                         <td className="p-3 font-mono">{mat.qtyRequired} {mat.unit === "meters" ? "metre" : mat.unit === "liters" ? "litre" : mat.unit === "pcs" ? "adet" : mat.unit === "coils" ? "rulo" : mat.unit}</td>
                         <td className="p-3 font-mono">${mat.unitCostUsd.toFixed(3)}</td>
                         <td className="p-3 font-mono">${baseRaw.toFixed(2)}</td>
-                        <td className="p-3 font-mono text-red-500 font-bold">+{mat.scrapRatePercent}%</td>
+                        <td className="p-3 font-mono text-red-500 font-bold">+{formatPercent(mat.scrapRatePercent)}</td>
                         <td className="p-3 font-mono text-slate-500">${waste.toFixed(2)}</td>
                         <td className="p-3 font-mono text-right font-bold text-slate-950">${adjusted.toFixed(2)}</td>
                         <td className="p-3 text-center">

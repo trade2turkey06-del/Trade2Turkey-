@@ -1,3 +1,4 @@
+import { formatPercent } from "../i18n";
 import { useState, type ReactNode } from "react";
 import { Award, Download, MoreHorizontal, Plus, Printer, Trash2, Wand2 } from "lucide-react";
 import { createDemoMatrix } from "../data/rfqMatrixDemo";
@@ -76,7 +77,7 @@ export default function RfqComparisonMatrix({ matrix: stored, onChange, disabled
     const suggested = suggestedScores(item, m), outliers = item.kind === "unitPrice" ? priceOutliers(item, m) : [];
     return <tr key={item.id} className="odd:bg-white even:bg-slate-50">
       <td className="rfq-c1 bg-inherit"><input aria-label={r.criterion} className={`${cellInput} font-medium`} maxLength={120} value={item.label} onChange={e => setCriterion(item.id, () => ({ label: e.target.value }))} /><Printed className="font-medium" text={item.label} /></td>
-      <td className="rfq-c2 bg-inherit"><div className="flex items-center gap-1"><input aria-label={`${item.label} ${r.relativeWeight}`} title={r.relativeWeight} className={numberInput} type="number" min={0} step={0.1} value={item.weight} onChange={e => setCriterion(item.id, () => ({ weight: Math.max(0, Number(e.target.value) || 0) }))} /><Printed text={`×${item.weight}`} /><span className="whitespace-nowrap text-[10px] text-slate-500">{criterionShare(criteria, item, weight).toFixed(1)}%</span></div></td>
+      <td className="rfq-c2 bg-inherit"><div className="flex items-center gap-1"><input aria-label={`${item.label} ${r.relativeWeight}`} title={r.relativeWeight} className={numberInput} type="number" min={0} step={0.1} value={item.weight} onChange={e => setCriterion(item.id, () => ({ weight: Math.max(0, Number(e.target.value) || 0) }))} /><Printed text={`×${item.weight}`} /><span className="whitespace-nowrap text-[10px] text-slate-500">{formatPercent(criterionShare(criteria, item, weight), 1, 1)}</span></div></td>
       {m.map(manufacturer => {
         const score = item.scores[manufacturer.id], hint = suggested[manufacturer.id];
         return [
@@ -95,7 +96,7 @@ export default function RfqComparisonMatrix({ matrix: stored, onChange, disabled
   </tr>;
   const sectionHeader = (section: Section, index: number) => <tr style={{ backgroundColor: "#e3eee9" }}>
     <td colSpan={columns}><div className="rfq-sticky-inline items-center gap-3 whitespace-nowrap text-sm font-bold" style={{ color: green }}>{index + 1}) {section.title}
-      <label className="flex items-center gap-1 text-xs font-medium text-slate-600">{r.weightShort}<input aria-label={r.sectionWeight(section.title)} className={numberInput} type="number" min={0} max={100} step={1} value={section.weight} onChange={e => setSection(section.id, { weight: Math.max(0, Number(e.target.value) || 0) })} /><Printed className="inline" text={section.weight} />%</label></div></td>
+      <label className="flex items-center gap-1 text-xs font-medium text-slate-600">{r.weight}<input aria-label={r.sectionWeight(section.title)} className={numberInput} type="number" min={0} max={100} step={1} value={section.weight} onChange={e => setSection(section.id, { weight: Math.max(0, Number(e.target.value) || 0) })} /><Printed className="inline" text={formatPercent(section.weight)} /></label></div></td>
   </tr>;
   const impactRow = (section: Section) => summaryRow(r.impact(section.title, section.weight), id => `${result.rows.find(row => row.id === id)!.impacts[section.id].toFixed(1)} / ${section.weight}`);
 

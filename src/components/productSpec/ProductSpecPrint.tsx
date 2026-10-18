@@ -1,3 +1,4 @@
+import { formatPercent } from "../../i18n";
 import type { ReactNode } from "react";
 import { allergensFrom, claimStatus, effective, formulationTotal, LEVEL_NUTRIENTS, level, NUTRIENTS, proteinEnergyPct, type ProductSpec } from "../../domain/productSpec";
 import { useI18n } from "../../i18n";
@@ -47,14 +48,14 @@ export default function ProductSpecPrint({ spec, claims, market }: { spec: Produ
     <h2>{t.formulation.heading}</h2>
     <Table head={[t.formulation.name, t.formulation.ratio, t.formulation.function, t.formulation.supplier, t.formulation.allergen, t.formulation.halal, t.formulation.vegan, t.formulation.ratioSource, t.formulation.note]}
       rows={[...spec.formulation.map(row => [row.name, num(row.ratio), dash(row.function), dash(row.supplier), row.allergen ? `${t.yes}${row.allergenName ? ` (${row.allergenName})` : ""}` : t.no, row.halal ? t.yes : t.no, row.vegan ? t.yes : t.no, t.formulation.sources[row.ratioSource], dash(row.note)]),
-        [<strong>{t.formulation.total}</strong>, <strong>%{formatNumber(formulationTotal(spec.formulation), 2)}</strong>, "", "", "", "", "", "", ""]]} />
+        [<strong>{t.formulation.total}</strong>, <strong>{formatPercent(formulationTotal(spec.formulation), 2)}</strong>, "", "", "", "", "", "", ""]]} />
 
     <h2>{t.nutrition.heading}</h2>
     <Table head={[t.nutrition.nutrient, t.nutrition.target, t.nutrition.actual, t.nutrition.tolerance]} rows={NUTRIENTS.map(key => [t.nutrition.labels[key], num(spec.nutrition[key].target), num(spec.nutrition[key].actual), num(spec.nutrition[key].tolerance)])} />
 
     <h2>{t.claims.heading}</h2>
     <p className="muted" style={{ margin: "0 0 4px" }}>{t.claims.disclaimer} {market && `(${market.id} — ${marketName(t, market)})`}</p>
-    <Field label={t.claims.proteinEnergy}>{protein === null ? "—" : `%${formatNumber(protein, 1)}`}</Field>
+    <Field label={t.claims.proteinEnergy}>{protein === null ? "—" : formatPercent(protein, 1)}</Field>
     <Field label={t.claims.levelsHeading}>{LEVEL_NUTRIENTS.map(key => `${t.claims.levelNutrients[key]}: ${t.claims.levels[level(effective(spec.nutrition[key]), market?.levels[key])]}`).join(" · ")}</Field>
     {claims.length > 0 && <Table head={[t.claims.ruleLabel, t.nutrition.check, t.formulation.note]} rows={claims.map(claim => { const result = claimStatus(claim, spec, market); return [claim, t.claims.statuses[result.status], reasonText(t, result.reason)]; })} />}
 

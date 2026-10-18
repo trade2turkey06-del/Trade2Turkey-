@@ -1,3 +1,4 @@
+import { percent } from "../percent";
 import type { Messages } from "../tr";
 
 export const productSpec: Messages["productSpec"] = {
@@ -74,7 +75,7 @@ export const productSpec: Messages["productSpec"] = {
     note: "Note",
     sources: { manufacturer: "Manufacturer declaration", estimated: "Estimated (reverse engineering)" },
     total: "Total",
-    totalWarning: (total: string) => `Ratios add up to ${total}%; they must total 100%. The draft can be saved, but the specification cannot be approved until the total is 100%.`,
+    totalWarning: (total: string) => `Ratios add up to ${percent(Number(String(total).replace(",", ".")), "en")}; they must total 100%. The draft can be saved, but the specification cannot be approved until the total is 100%.`,
     empty: "No ingredients yet.",
   },
 
@@ -250,7 +251,7 @@ export const productSpec: Messages["productSpec"] = {
     ab8NoApproved: "This manufacturer has no approved specification. A.B.8 cannot be submitted until the specification is \"Approved\".",
     ab8Required: "Link the selected manufacturer's approved specification to submit A.B.8 for approval.",
     ab9Heading: "Cost lines from the specification",
-    ab9Help: "Formulation and packaging BOM lines from the approved specification arrive with unit price, currency and FX rate left empty. The costing editor will be added in a later step.",
+    ab9Help: "Review the formulation and packaging BOM lines from the approved specification together with their pricing information.",
     ab9Import: "Import lines from the approved specification",
     ab9NoSpec: "No approved specification is linked to A.B.8.",
     ab9Source: (product: string, version: string, manufacturer: string) => `Source: ${product} ${version} — ${manufacturer}`,

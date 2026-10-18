@@ -15,10 +15,10 @@ export function sampleRecords(ownerUid: string) {
   const at = (day: number, hour = 10) => new Date(Date.UTC(2026, 8, day, hour));
   add(`projects/${PROJECT}`, {id:PROJECT, name:'DEMO – High-Protein Tortilla (Sample Project)', description:'Fictional sample project for presentation purposes. All companies, approvals, documents and commercial values are simulated.', status:'active', ownerUid, visibility:'administrators', createdAt:at(1), packaging_config:{productVariant:'High-Protein Tortilla',singleWeight:0.4,packagingStyle:'Resealable food-grade PP pouch',innerBoxCount:0,masterCartonCount:12,palletCartonCount:72,cartonNetWeight:4.8,cartonGrossWeight:5.2,cartonDimensions:'52 x 30 x 20 cm',totalGrossWeight:9360}});
   manufacturers.forEach((m,i) => add(`projects/${PROJECT}/manufacturers/${m.id}`, { ...m, projectId:PROJECT, vaultDetails:{
-    pricingCapacity:{exwPriceList:`sample_${m.id}_exw_price_list.pdf`,moq:`${12000+i*6000} packs per SKU`,monthlyCapacity:`${600000-i*100000} packs per month`},
+    pricingCapacity:{exwPriceList:`${m.id.replace(/^sample-/, "sample_")}_exw_price_list.pdf`,moq:`${12000+i*6000} packs per SKU`,monthlyCapacity:`${600000-i*100000} packs per month`},
     productionTransit:{productionFirstOrder:`${28+i*7} days after artwork approval`,productionRepeatOrder:`${14+i*7} days`,shipmentTransitTime:'8-10 business days to Germany'},
     storageShelfLife:{frozenProducts:'18 months at -18 C',ambientProducts:'9 months below 25 C in a dry place'},
-    certifications:{coa:`sample_${m.id}_coa.pdf`,certificates:['BRC (simulated certificate)','Halal (simulated certificate)','Vegan (simulated certificate)']},
+    certifications:{coa:`${m.id.replace(/^sample-/, "sample_")}_coa.pdf`,certificates:['BRC (simulated certificate)','Halal (simulated certificate)','Vegan (simulated certificate)']},
     palletContainerConfig:{boxDimensions:'52 x 30 x 20 cm; 12 x 400 g packs',palletConfig:'80 x 120 cm; 72 cartons per pallet',containerCapacity40HC:'25 pallets; 1800 cartons; 21600 packs'},
     nutritionalValues:{energy:'1108 kJ / 263 kcal',fat:'5.87 g',fatSaturated:'1.1 g',carbohydrates:'32 g',sugar:'2.4 g',protein:`${20-i} g`,fiber:'3.87 g',salt:'1.96 g'},
     variations:['Original high-protein tortilla','Whole-wheat high-protein tortilla'],marketingSamples:'Fictional 400 g pack: 8 tortillas x 50 g. Evaluation samples reviewed for flexibility, taste and seal integrity. All document names are placeholders; no certification is represented as genuine.',

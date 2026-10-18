@@ -93,3 +93,16 @@ The read-only backup is a document export with a verified checksum, not a point-
 - Cleanup removed 80 records including two subsequently created linked records. The unrelated project and all five verification user profiles survived. Reseeding after cleanup succeeded.
 - Read-only live backup taken at 13:45 Istanbul time: 184 documents, 7 account identifiers and deployed rules; SHA-256 verified. Export is retained under the ignored `backups/` directory. Refresh before live mutation if older than one hour.
 - No production data writes or rules deployment performed. Git publication is separately authorized by the user; it does not authorize sample database writes.
+
+### Repair demo placeholder filenames
+
+`seed.ts --update` repairs only the EXW price-list and COA placeholder names on the three explicitly identified sample manufacturers. It verifies the demo root and manufacturer markers/project IDs, refuses unexpected user-edited names, preserves all other fields and uses a transaction. Repeating the repair makes no changes. No security rules change is required.
+
+After taking the fresh backup and setting the same live runtime environment variables described above:
+
+```bash
+npx tsx scripts/sample-project/seed.ts --live --update --dry-run
+npx tsx scripts/sample-project/seed.ts --live --update
+```
+
+The dry run validates the same read set without writing. Normal seed execution remains create-only.

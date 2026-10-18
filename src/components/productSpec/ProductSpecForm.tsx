@@ -1,3 +1,4 @@
+import { formatPercent } from "../../i18n";
 import { useState } from "react";
 import { DatabaseZap } from "lucide-react";
 import {
@@ -55,7 +56,7 @@ export default function ProductSpecForm({ spec, onChange, disabled, isAdmin, man
         { label: t.formulation.vegan, className: "w-16 text-center", render: (row, update) => check(row.vegan, vegan => update({ vegan }), t.formulation.vegan) },
         { label: t.formulation.ratioSource, className: "min-w-40", render: (row, update) => <select aria-label={t.formulation.ratioSource} className={input} value={row.ratioSource} disabled={disabled} onChange={event => update({ ratioSource: event.target.value as FormulationRow["ratioSource"] })}>{Object.entries(t.formulation.sources).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select> },
         { label: t.formulation.note, className: "min-w-32", render: (row, update) => <TextField label={t.formulation.note} value={row.note} maxLength={500} disabled={disabled} onChange={note => update({ note })} /> },
-      ]} footer={<tfoot><tr><td className="font-semibold">{t.formulation.total}</td><td className={`font-semibold ${totalIsComplete(total) ? "text-emerald-700" : "text-red-700"}`} data-testid="formulation-total">%{formatNumber(total, 2)}</td><td colSpan={8} /></tr></tfoot>} />
+      ]} footer={<tfoot><tr><td className="font-semibold">{t.formulation.total}</td><td className={`font-semibold ${totalIsComplete(total) ? "text-emerald-700" : "text-red-700"}`} data-testid="formulation-total">{formatPercent(total, 2)}</td><td colSpan={8} /></tr></tfoot>} />
       {spec.formulation.length > 0 && !totalIsComplete(total) && <Notice>{t.formulation.totalWarning(formatNumber(total, 2))}</Notice>}
     </Section>
 

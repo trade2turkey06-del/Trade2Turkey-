@@ -1,3 +1,4 @@
+import { percent } from "../percent";
 // CodedError kodlarının metinleri (src/i18n/errors.ts). Parametreler her zaman metin olarak gelir.
 type P = Record<string, string>;
 export const errors = {
@@ -12,7 +13,7 @@ export const errors = {
   // domain/rfqMatrix.ts → validateMatrix
   matrixManufacturers: (p: P) => `Matriste ${p.min}–${p.max} üretici olmalı.`,
   matrixNames: "Her üreticinin bir adı olmalı.",
-  matrixWeights: (p: P) => `Bölüm ağırlıklarının toplamı %100 olmalı (şu an %${p.total}).`,
+  matrixWeights: (p: P) => `Bölüm ağırlıklarının toplamı %100 olmalı (şu an ${percent(Number(String(p.total).replace(",", ".")), "tr")}).`,
   matrixCriterionWeights: "Kriter ağırlıkları 0 veya daha büyük olmalı.",
   matrixScores: "Puanlar 1 ile 5 arasında tam sayı olmalı.",
   // SourcingWorkflow kayıt / onay akışı

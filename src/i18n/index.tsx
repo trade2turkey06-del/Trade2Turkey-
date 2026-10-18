@@ -2,6 +2,7 @@
 // karşılamak zorundadır, bu yüzden eksik bir anahtar derleme anında görülür. Çalışma anında boş/eksik bir İngilizce
 // metin olursa Türkçesi gösterilir ve geliştirme modunda konsola uyarı düşer.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { percent } from "./percent";
 import { tr, type Messages } from "./tr";
 import { en } from "./en";
 import { CodedError } from "./errors";
@@ -43,6 +44,7 @@ export function formatters(lang: Lang) {
   return {
     locale,
     number: (value: number | null | undefined, maximumFractionDigits = 2) => value === null || value === undefined || !Number.isFinite(value) ? "" : new Intl.NumberFormat(locale, { maximumFractionDigits, useGrouping: false }).format(value),
+    percent: (value: number | null | undefined, digits = 2, minimumDigits = 0) => percent(value, lang, digits, minimumDigits),
     currency: (value: number, currency = "USD") => new Intl.NumberFormat(locale, { style: "currency", currency, maximumFractionDigits: 2 }).format(value),
     date: (value: Date | number | string, options: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" }) => new Intl.DateTimeFormat(locale, { timeZone: "Europe/Istanbul", ...options }).format(new Date(value)),
     dateTime: (value: Date | number) => new Intl.DateTimeFormat(locale, { timeZone: "Europe/Istanbul", dateStyle: "short", timeStyle: "short" }).format(new Date(value)),
@@ -54,6 +56,7 @@ export type Formatters = ReturnType<typeof formatters>;
 // Seçili dil modül düzeyinde de tutulur: React dışındaki yardımcılar (ör. sayı biçimleme) bunu okur.
 let currentLang: Lang = "tr";
 export const getLang = () => currentLang;
+export const formatPercent = (value: number | null | undefined, digits = 2, minimumDigits = 0) => percent(value, currentLang, digits, minimumDigits);
 export const getMessages = () => catalogs[currentLang];
 
 const STORAGE_KEY = "t2t_lang";

@@ -627,7 +627,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
       <div className="bg-[#0B1221] border border-blue-900/30 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-xl">
         <div className="flex items-center gap-2">
           <Database className="h-4 w-4 text-cyan-400" />
-          <span className="text-xs font-bold text-slate-350 font-mono uppercase tracking-wider">
+          <span className="text-xs font-bold text-slate-200 font-mono uppercase tracking-wider">
             {v.manufacturers}
           </span>
         </div>

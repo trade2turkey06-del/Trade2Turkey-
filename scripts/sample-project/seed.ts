@@ -1,6 +1,12 @@
 import { runtime, linkedRoots } from './runtime';
 import { sampleRecords, PROJECT } from './data';
+import { updateFilenames } from './update';
 const {db,ownerUid,live}=await runtime();
+if(process.argv.includes('--update')) {
+  console.log(JSON.stringify(await updateFilenames(db,process.argv.includes('--dry-run')),null,2));
+  process.exit(0);
+}
+if(process.argv.includes('--dry-run'))throw new Error('--dry-run requires --update.');
 const {records}=sampleRecords(ownerUid);
 if((await linkedRoots(db)).length)throw new Error('Linked data already exists; refusing to overwrite.');
 const root=db.doc(`projects/${PROJECT}`);
