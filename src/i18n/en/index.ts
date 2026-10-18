@@ -4,7 +4,6 @@ import { workspaceAdmin } from "./workspaceAdmin";
 import { api } from "./api";
 import { discovery } from "./discovery";
 import { sectors } from "./sectors";
-import { reports } from "./reports";
 import { actionCenter } from "./actionCenter";
 import { logistics } from "./logistics";
 import { operations } from "./operations";
@@ -18,4 +17,4 @@ import { productSpec } from "./productSpec";
 import { errors } from "./errors";
 import { countries } from "./countries";
 
-export const en: Messages = { ai, market, workspaceAdmin, api, discovery, sectors, reports, actionCenter, logistics, operations, common, language, shell, login, status, steps, sourcing, editors, rfqMatrix, drive, vault, productSpec, errors, countries };
+export const en: Messages = { ai, market, workspaceAdmin, api, discovery, sectors, actionCenter, logistics, operations, common, language, shell, login, status, steps, sourcing, editors, rfqMatrix, drive, vault, productSpec, errors, countries };

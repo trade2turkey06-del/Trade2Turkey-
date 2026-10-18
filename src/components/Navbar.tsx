@@ -46,7 +46,6 @@ const Navbar = React.memo(function Navbar({
     navItems.push({ id: "client-discovery", label: n["client-discovery"], icon: Compass });
     navItems.unshift({ id: "overview", label: n.overview, icon: LayoutDashboard });
     navItems.push({ id: "sectors", label: n.sectors, icon: Layers });
-    navItems.push({ id: "report", label: n.report, icon: FileText });
     navItems.push({ id: "market-insights", label: n["market-insights"], icon: ChartNoAxesCombined });
   }
 

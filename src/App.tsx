@@ -12,7 +12,6 @@ import ProjectDocumentVault from "./components/ProjectDocumentVault";
 import SourcingWorkflow from "./components/SourcingWorkflow";
 import LogisticsSOP from "./components/LogisticsSOP";
 import ClientDiscovery from "./components/ClientDiscovery";
-import ReportGenerator from "./components/ReportGenerator";
 import { MarketInsightsManagement } from "./components/MarketInsights";
 import LoginScreen from "./components/LoginScreen";
 import FreelancerDashboard, { freelanceSOPData } from "./components/FreelancerDashboard";
@@ -620,11 +619,6 @@ export default function App() {
             />
           )}
 
-
-          {/* EXECUTIVE SOURCE REPORT CENTER */}
-          {activeProjectId && currentTab === "report" && (
-            <ReportGenerator projectId={activeProjectId} />
-          )}
 
           {/* MARKET INSIGHTS MANAGEMENT PANEL */}
           {currentTab === "market-insights" && (
