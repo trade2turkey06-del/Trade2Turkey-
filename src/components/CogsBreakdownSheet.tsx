@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowRightLeft, Download, Link2, Paperclip, Plus, Printer, Trash2, TriangleAlert } from "lucide-react";
 import { useI18n } from "../i18n";
+import CostBars from "./CostBars";
 import { downloadCsv, printSheet, sheetPrintCss } from "../lib/sheetExport";
 import { MAX_MANUFACTURERS, MIN_MANUFACTURERS, newId, type RfqMatrix } from "../domain/rfqMatrix";
 import {
@@ -151,7 +152,8 @@ export default function CogsBreakdownSheet({ sheet: stored, onChange, disabled, 
         <p><span className="block text-slate-500">{c.lowestLanded}</span><strong className="tabular-nums">{overview.lowestLanded ? `${nameOf(overview.lowestLanded.id)} · ${money(overview.lowestLanded.value)}` : "–"}</strong></p>
         <p><span className="block text-slate-500">{c.summary}</span><strong>{c.receivedCount(overview.received, overview.total)}</strong></p>
       </div>
-      <CostChart sheet={sheet} results={results} money={money} pct={pct} />
+      <CostBars title={c.chartTitle} empty={c.chartEmpty} money={money} pct={pct} legend={Object.keys(segmentColors).map(key => ({ key, label: c.segments[key], color: segmentColors[key] }))}
+        rows={m.map(item => { const r = results[item.id]; return { id: item.id, name: item.name, total: r.calculated, segments: r.base === null ? [] : [{ key: "rm", value: r.subtotals.rm }, { key: "pkg", value: r.subtotals.pkg }, { key: "conv", value: r.subtotals.conv }, { key: "waste", value: r.waste ?? 0 }, { key: "margin", value: r.margin ?? 0 }] }; })} />
       <div className="rfq-scroll overflow-x-auto rounded-lg border border-slate-200">
         <table>
           <thead>
@@ -207,28 +209,6 @@ export default function CogsBreakdownSheet({ sheet: stored, onChange, disabled, 
       </div>
     </fieldset>
   </section>;
-}
-
-// One stacked bar per manufacturer: shares of the calculated EXW cost. Exact values are in the table (the chart's table view).
-function CostChart({ sheet, results, money, pct }: { sheet: CogsSheet; results: Record<string, CogsAnalysis>; money: (value: number | null) => string; pct: (value: number | null) => string }) {
-  const c = useI18n().t.cogs;
-  const parts = (result: CogsAnalysis) => result.base === null ? [] : [["rm", result.subtotals.rm], ["pkg", result.subtotals.pkg], ["conv", result.subtotals.conv], ["waste", result.waste ?? 0], ["margin", result.margin ?? 0]] as [string, number][];
-  const any = sheet.manufacturers.some(item => results[item.id].calculated);
-  return <figure className="space-y-2 rounded-lg border border-slate-200 p-3" aria-label={c.chartTitle}>
-    <figcaption className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs"><span className="mr-2 font-semibold text-slate-700">{c.chartTitle}</span>
-      {Object.keys(segmentColors).map(key => <span key={key} className="flex items-center gap-1 text-slate-600"><span aria-hidden className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: segmentColors[key] }} />{c.segments[key]}</span>)}
-    </figcaption>
-    {!any ? <p className="text-xs text-slate-500">{c.chartEmpty}</p> : sheet.manufacturers.map(item => {
-      const result = results[item.id], total = result.calculated ?? 0;
-      return <div key={item.id} className="grid grid-cols-[minmax(0,8rem)_1fr_auto] items-center gap-2 text-xs">
-        <span className="truncate text-slate-700" title={item.name}>{item.name}</span>
-        <div className="flex h-3.5 gap-[2px]" role="img" aria-label={`${item.name}: ${parts(result).map(([key, value]) => `${c.segments[key]} ${pct(total ? value / total * 100 : null)}`).join(", ")}`}>
-          {total > 0 && parts(result).filter(([, value]) => value > 0).map(([key, value], index, list) => <span key={key} title={`${c.segments[key]}: ${pct(value / total * 100)} · ${money(value)}`} className={`${index === 0 ? "rounded-l" : ""} ${index === list.length - 1 ? "rounded-r" : ""}`} style={{ width: `${value / total * 100}%`, backgroundColor: segmentColors[key], printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" }} />)}
-        </div>
-        <span className="tabular-nums text-slate-700">{result.calculated === null ? "–" : money(result.calculated)}</span>
-      </div>;
-    })}
-  </figure>;
 }
 
 function Rows({ children }: { children: ReactNode }) { return <>{children}</>; }

@@ -11,11 +11,11 @@ import { operations } from "./operations";
 // 2. aşamada diğer sekmeler için yeni ad alanları (ör. logistics, overview) buraya eklenir.
 import { common, language, login, shell } from "./shell";
 import { sourcing, status, steps } from "./sourcing";
-import { cogs, drive, editors, rfqMatrix } from "./editors";
+import { bom, cogs, drive, editors, rfqMatrix } from "./editors";
 import { vault } from "./vault";
 import { productSpec } from "./productSpec";
 import { errors } from "./errors";
 import { countries } from "./countries";
 
-export const tr = { ai, market, workspaceAdmin, api, discovery, sectors, actionCenter, logistics, operations, common, language, shell, login, status, steps, sourcing, editors, rfqMatrix, cogs, drive, vault, productSpec, errors, countries };
+export const tr = { ai, market, workspaceAdmin, api, discovery, sectors, actionCenter, logistics, operations, common, language, shell, login, status, steps, sourcing, editors, rfqMatrix, cogs, bom, drive, vault, productSpec, errors, countries };
 export type Messages = typeof tr;

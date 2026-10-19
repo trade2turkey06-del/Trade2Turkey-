@@ -22,6 +22,7 @@ export const errors: Messages["errors"] = {
   costingTooLarge: "The costing sheet is too large. Please shorten long descriptions.",
   cogsSourceUrl: "COGS source document links must start with https://.",
   cogsTooLarge: "The COGS sheet is too large. Remove lines or shorten long texts.",
+  bomTooLarge: "The BOM sheet is too large. Remove lines or shorten long texts.",
   costLinesTooLarge: "The cost lines are too large.",
   specTooLarge: "The specification form is too large. Please add long content as document links.",
   conflict: "This step was changed in another session. Check the latest record and try again.",

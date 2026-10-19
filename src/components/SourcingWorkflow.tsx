@@ -22,6 +22,8 @@ import IntroductionMeetingEditor, { validateMeetings } from "./IntroductionMeeti
 import RfqComparisonMatrix from "./RfqComparisonMatrix";
 import { createMatrix, validateMatrix, type RfqMatrix } from "../domain/rfqMatrix";
 import CogsBreakdownSheet from "./CogsBreakdownSheet";
+import BomComparisonSheet from "./BomComparisonSheet";
+import { validateBom } from "../domain/bomComparison";
 import { incompleteManufacturers, reconcileMatrix, syncMatrixFromCogs, validateCogs, type CogsSheet, type ShortlistEntry } from "../domain/cogsBreakdown";
 import { requiredManufacturerId, specLinkValid } from "../domain/productSpec";
 import { useManufacturers, useProductSpecs } from "../lib/productSpecStore";
@@ -173,6 +175,10 @@ function TaskEditor({ config, inventory, projectId, step, record, users, current
       if (action === "save" && step.id === "A.A.6" && new TextEncoder().encode(JSON.stringify(draft.valueChainCosting ?? {})).length > 500000) throw new CodedError("costingTooLarge");
       if (action === "save" && step.id === "A.B.7" && draft.workflowStatus === "completed" && !draft.highPotentialManufacturerId) throw new CodedError("ab7Required");
       if (action === "save" && step.id === "A.B.8" && draft.workflowStatus === "completed" && !specLinkValid(specs.find(spec => spec.id === draft.approvedSpecId), requiredManufacturerId(records["A.B.7"], draft))) throw new CodedError("ab8Required");
+      if (action === "save" && step.id === "A.B.9" && isAdmin && draft.bomComparison) {
+        validateBom(draft.bomComparison);
+        if (new TextEncoder().encode(JSON.stringify(draft.bomComparison)).length > 500000) throw new CodedError("bomTooLarge");
+      }
       if (action === "save" && step.id === "A.B.9" && new TextEncoder().encode(JSON.stringify(draft.recipeCostLines ?? [])).length > 500000) throw new CodedError("costLinesTooLarge");
       if (step.id === "A.A.2" && new TextEncoder().encode(JSON.stringify(draft.targetSpecification || [])).length > 500000) throw new CodedError("specTooLarge");
       await runTransaction(db, async tx => {
@@ -213,6 +219,7 @@ function TaskEditor({ config, inventory, projectId, step, record, users, current
             ...(step.id === "A.B.7" && isAdmin ? { highPotentialManufacturerId: draft.highPotentialManufacturerId ?? "", highPotentialManufacturerName: draft.highPotentialManufacturerName ?? "" } : {}),
             ...(step.id === "A.B.8" && isAdmin ? { approvedSpecId: draft.approvedSpecId ?? "", specManufacturerId: draft.specManufacturerId ?? "", specManufacturerName: draft.specManufacturerName ?? "", specManufacturerFallback: !!draft.specManufacturerFallback } : {}),
             ...(step.id === "A.B.9" && isAdmin ? { recipeCostLines: draft.recipeCostLines ?? [], recipeCostSource: draft.recipeCostSource ?? null } : {}),
+            ...(step.id === "A.B.9" && isAdmin && draft.bomComparison ? { bomComparison: withoutUndefined(draft.bomComparison) } : {}),
           };
         } else {
           if (!current || current.approverUid !== uid || (action === "approve" && current.completedBy === uid)) throw new CodedError("onlyApprover");
@@ -312,6 +319,7 @@ function TaskEditor({ config, inventory, projectId, step, record, users, current
       {step.id === "A.B.6" && <RfqComparisonMatrix matrix={draft.rfqComparisonMatrix} onChange={matrix => setDraft(previous => ({ ...previous, rfqComparisonMatrix: matrix }))} isAdmin={isAdmin} shortlist={shortlistEntries} cogs={records["A.B.5"]?.cogsBreakdown} onGoToCogs={() => openStep("A.B.5")} disabled={!isAdmin || busy || approved} />}
       {step.id === "A.B.7" && <HighPotentialPicker manufacturers={manufacturers} value={draft.highPotentialManufacturerId} onChange={(id, name) => setDraft(previous => ({ ...previous, highPotentialManufacturerId: id, highPotentialManufacturerName: name }))} disabled={!isAdmin || busy || approved} />}
       {step.id === "A.B.8" && <SpecLinkPanel projectId={projectId} isAdmin={isAdmin} preparedBy={currentUser.displayName || currentUser.name || currentUser.companyName || ""} manufacturers={manufacturers} specs={specs} ab7={records["A.B.7"]} draft={draft} onChange={patch => setDraft(previous => ({ ...previous, ...patch }))} disabled={busy || approved} />}
+      {step.id === "A.B.9" && <BomComparisonSheet sheet={draft.bomComparison} onChange={sheet => setDraft(previous => ({ ...previous, bomComparison: sheet }))} shortlist={shortlistEntries} cogs={records["A.B.5"]?.cogsBreakdown} rfq={records["A.B.6"]?.rfqComparisonMatrix} disabled={!isAdmin || busy || approved} />}
       {step.id === "A.B.9" && <RecipeCostPreview spec={specs.find(spec => spec.id === records["A.B.8"]?.approvedSpecId && spec.status === "approved")} lines={draft.recipeCostLines} source={draft.recipeCostSource} canImport={isAdmin && !approved && !busy} onImport={(lines, source) => setDraft(previous => ({ ...previous, recipeCostLines: lines, recipeCostSource: source }))} />}
       <div className="grid gap-4 text-sm text-slate-600 sm:grid-cols-2"><p><strong>{d.kpi}</strong> {translated?.kpi || step.metric}</p><p><strong>{d.output}</strong> {translated?.output || step.outputs}</p><p><strong>{d.prerequisite}</strong> {dependencies[step.id]?.join(", ") || d.none}</p><p><strong>{d.returnTo}</strong> {step.returnTo || d.sameStep}</p>{config.logistics && <><p><strong>{d.duration}</strong> {period ?? days(step.days)}{step.approvalDays !== null && d.approvalDays(step.approvalDays)}</p><p><strong>{d.roles}</strong> {d.roleLine(role(step.requester), role(step.owner), role(step.approver))}</p></>}</div>
       {blocked.length > 0 && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{d.waiting(blocked.join(", "))}</p>}

@@ -6,6 +6,7 @@ import { collection, deleteDoc, doc, getDoc, getDocs, query, runTransaction, ser
 import { reserve } from "../src/domain/operations";
 import { createSpec } from "../src/domain/productSpec";
 import { createCogsSheet, reconcileCogs, reconcileMatrix, syncMatrixFromCogs } from "../src/domain/cogsBreakdown";
+import { createBomSheet, reconcileBom } from "../src/domain/bomComparison";
 import { createMatrix } from "../src/domain/rfqMatrix";
 import { en } from "../src/i18n/en";
 
@@ -311,4 +312,10 @@ test("COGS: A.A.5 'open-book' alanı, A.B.5 cogsBreakdown kaydı ve A.B.6'ya gö
 test("COGS: onaylı A.B.6 matrisine gönderim reddedilir",async()=>{
   await env.withSecurityRulesDisabled(async context=>{await setDoc(doc(context.firestore(),"sopSteps/a_sourcing-A.B.6"),sop("a","A.B.6"));});
   await assertFails(withEvent("A.B.6",{rfqComparisonMatrix:{brief:"x"},updatedAt:serverTimestamp()},true));
+});
+test("BOM: A.B.9 bomComparison kaydı admin için yazılabilir, müşteri değiştiremez",async()=>{
+  const bom=JSON.parse(JSON.stringify(reconcileBom(createBomSheet(cogsSheet(),en.cogs.defaults),cogsShortlist,cogsSheet(),undefined,n=>`Manufacturer ${n}`)));
+  bom.lines[0].values.s1={recipePct:"80",qty:"500",price:"0,80",origin:"TR"};
+  await assertSucceeds(withEvent("A.B.9",{id:"sourcing-A.B.9",projectId:"a",workflow:"sourcing",stepId:"A.B.9",section:"A",workflowStatus:"not_started",status:"Pending",approval:"none",notes:"",recipeCostLines:[],recipeCostSource:null,bomComparison:bom}));
+  await assertFails(updateDoc(doc(dbFor("client"),"sopSteps/a_sourcing-A.B.9"),{bomComparison:{}}));
 });

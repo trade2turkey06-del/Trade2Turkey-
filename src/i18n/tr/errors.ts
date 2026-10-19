@@ -25,6 +25,7 @@ export const errors = {
   costingTooLarge: "Maliyet tablosu çok büyük. Lütfen uzun açıklamaları kısaltın.",
   cogsSourceUrl: "COGS kaynak belge bağlantıları https:// ile başlamalı.",
   cogsTooLarge: "COGS tablosu çok büyük. Satır sayısını azaltın veya uzun metinleri kısaltın.",
+  bomTooLarge: "BOM tablosu çok büyük. Satır sayısını azaltın veya uzun metinleri kısaltın.",
   costLinesTooLarge: "Maliyet satırları çok büyük.",
   specTooLarge: "Özellik formu çok büyük. Lütfen uzun içerikleri belge bağlantısı olarak ekleyin.",
   conflict: "Bu adım başka bir oturumda değişti. Güncel kaydı kontrol edip yeniden deneyin.",
