@@ -20,7 +20,9 @@ import RfqSubmissionEditor, { createRfqForm } from "./RfqSubmissionEditor";
 import ValueChainCostingEditor, { createValueChainCosting } from "./ValueChainCostingEditor";
 import IntroductionMeetingEditor, { validateMeetings } from "./IntroductionMeetingEditor";
 import RfqComparisonMatrix from "./RfqComparisonMatrix";
-import { createMatrix, validateMatrix } from "../domain/rfqMatrix";
+import { createMatrix, validateMatrix, type RfqMatrix } from "../domain/rfqMatrix";
+import CogsBreakdownSheet from "./CogsBreakdownSheet";
+import { incompleteManufacturers, reconcileMatrix, syncMatrixFromCogs, validateCogs, type CogsSheet, type ShortlistEntry } from "../domain/cogsBreakdown";
 import { requiredManufacturerId, specLinkValid } from "../domain/productSpec";
 import { useManufacturers, useProductSpecs } from "../lib/productSpecStore";
 import { HighPotentialPicker, RecipeCostPreview, SpecLinkPanel } from "./productSpec/WorkflowPanels";
@@ -48,6 +50,16 @@ const workflowText = (config: WorkflowConfig, t: Messages) => {
   return { title: catalog.title, note: catalog.note, groups: config.groups.map(group => ({ ...group, ...catalog.groups[group.prefix] })) };
 };
 const stepName = (config: WorkflowConfig, t: Messages, step: Step) => (config.logistics ? t.logistics.steps[step.id]?.name : t.steps[step.id]?.name) || step.task;
+// Firestore rejects undefined values; optional sheet fields are simply left out.
+const withoutUndefined = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+// Opens a step card (and optionally its document panel) and scrolls to it.
+const openStep = (id: string, documents = false) => {
+  const card = document.querySelector<HTMLDetailsElement>(`[data-testid="task-${id}"]`);
+  if (!card) return;
+  card.open = true;
+  const target = documents ? card.querySelector<HTMLDetailsElement>("details[data-documents]") : card;
+  if (target) { target.open = true; target.scrollIntoView({ behavior: "smooth", block: documents ? "center" : "start" }); }
+};
 const istanbulToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul" }).format(new Date());
 
 export default function SourcingWorkflow({ projectId, currentUser, workflow = "sourcing" }: { projectId: string; currentUser: UserTenant; workflow?: WorkflowKey }) {
@@ -128,8 +140,15 @@ function TaskEditor({ config, inventory, projectId, step, record, users, current
   const { specs } = useProductSpecs(projectId, step.id === "A.B.8" || step.id === "A.B.9");
   useEffect(() => { setDraft({ stepId: step.id, workflowStatus: "not_started", ...record }); }, [record?.updatedAt?.seconds, record?.updatedAt?.nanoseconds, record?.workflowStatus, record?.approval]);
   const change = (name: string, value: string) => setDraft(previous => ({ ...previous, [name]: value }));
+  // A.A.5 shortlist: the shared manufacturer list of A.B.5 (COGS) and A.B.6 (RFQ matrix).
+  const shortlistEntries: ShortlistEntry[] = (records["A.A.5"]?.supplierShortList ?? []).filter((item: SupplierCandidate) => item.name?.trim()).map((item: SupplierCandidate) => ({ id: item.id, name: item.name, ...(item.openBookAgreed ? { openBookAgreed: true } : {}) }));
   const save = async (action: "save" | "approve" | "reject") => {
     const candidate = { ...draft, dueDate: dueDateInput.current?.value || draft.dueDate || "" };
+    // Warning only: the KPI expects every shortlisted manufacturer's breakdown, but an admin may still submit.
+    if (action === "save" && step.id === "A.B.5" && draft.workflowStatus === "completed" && draft.cogsBreakdown) {
+      const missing = incompleteManufacturers(draft.cogsBreakdown, shortlistEntries);
+      if (missing.length && !window.confirm(t.cogs.incompleteConfirm(missing.map(item => item.name).join(", ")))) return;
+    }
     setBusy(true); setMessage("");
     try {
       const uid = auth.currentUser?.uid; if (!uid) throw new CodedError("signIn");
@@ -146,6 +165,10 @@ function TaskEditor({ config, inventory, projectId, step, record, users, current
       if (action === "save" && step.id === "A.B.6" && isAdmin && draft.rfqComparisonMatrix) {
         validateMatrix(draft.rfqComparisonMatrix);
         if (new TextEncoder().encode(JSON.stringify(draft.rfqComparisonMatrix)).length > 500000) throw new CodedError("matrixTooLarge");
+      }
+      if (action === "save" && step.id === "A.B.5" && isAdmin && draft.cogsBreakdown) {
+        validateCogs(draft.cogsBreakdown);
+        if (new TextEncoder().encode(JSON.stringify(draft.cogsBreakdown)).length > 500000) throw new CodedError("cogsTooLarge");
       }
       if (action === "save" && step.id === "A.A.6" && new TextEncoder().encode(JSON.stringify(draft.valueChainCosting ?? {})).length > 500000) throw new CodedError("costingTooLarge");
       if (action === "save" && step.id === "A.B.7" && draft.workflowStatus === "completed" && !draft.highPotentialManufacturerId) throw new CodedError("ab7Required");
@@ -185,7 +208,8 @@ function TaskEditor({ config, inventory, projectId, step, record, users, current
             ...(step.id === "A.A.4" && isAdmin ? { rfqForms: draft.rfqForms ?? [createRfqForm()] } : {}),
             ...(step.id === "A.A.6" && isAdmin ? { valueChainCosting: draft.valueChainCosting ?? createValueChainCosting() } : {}),
             ...(step.id === "A.B.2" && isAdmin ? { introductionMeetings: draft.introductionMeetings ?? [] } : {}),
-            ...(step.id === "A.B.6" && isAdmin ? { rfqComparisonMatrix: draft.rfqComparisonMatrix ?? createMatrix() } : {}),
+            ...(step.id === "A.B.5" && isAdmin && draft.cogsBreakdown ? { cogsBreakdown: withoutUndefined(draft.cogsBreakdown) } : {}),
+            ...(step.id === "A.B.6" && isAdmin ? { rfqComparisonMatrix: withoutUndefined(draft.rfqComparisonMatrix ?? createMatrix()) } : {}),
             ...(step.id === "A.B.7" && isAdmin ? { highPotentialManufacturerId: draft.highPotentialManufacturerId ?? "", highPotentialManufacturerName: draft.highPotentialManufacturerName ?? "" } : {}),
             ...(step.id === "A.B.8" && isAdmin ? { approvedSpecId: draft.approvedSpecId ?? "", specManufacturerId: draft.specManufacturerId ?? "", specManufacturerName: draft.specManufacturerName ?? "", specManufacturerFallback: !!draft.specManufacturerFallback } : {}),
             ...(step.id === "A.B.9" && isAdmin ? { recipeCostLines: draft.recipeCostLines ?? [], recipeCostSource: draft.recipeCostSource ?? null } : {}),
@@ -252,6 +276,25 @@ function TaskEditor({ config, inventory, projectId, step, record, users, current
     } catch (error) { setMessage(errorMessage(t, error, s.messages.shortlistFailed)); }
     finally { setBusy(false); }
   };
+  // "Send to RFQ Matrix": writes the on-screen A.B.5 figures into the A.B.6 record without touching that step's status.
+  const sendToRfq = async (sheet: CogsSheet) => {
+    setBusy(true); setMessage("");
+    try {
+      if (!auth.currentUser?.uid) throw new CodedError("signIn");
+      await runTransaction(db, async tx => {
+        const ref = taskRef(projectId, "A.B.6"); const current = (await tx.get(ref)).data() as TaskRecord | undefined;
+        if (current?.approval === "approved" || current?.approval === "pending") throw new CodedError("rfqLocked");
+        const base: RfqMatrix = current?.rfqComparisonMatrix ?? createMatrix(sheet.brief);
+        const matrix = syncMatrixFromCogs(reconcileMatrix(base, shortlistEntries, sheet, t.rfqMatrix.defaultManufacturer), sheet, true);
+        if (new TextEncoder().encode(JSON.stringify(matrix)).length > 500000) throw new CodedError("matrixTooLarge");
+        const eventRef = doc(operationCollection(projectId, "events"));
+        tx.set(ref, { ...(current ? {} : { id: "sourcing-A.B.6", projectId, workflow: "sourcing", stepId: "A.B.6", section: "A", workflowStatus: "not_started", status: "Pending", approval: "none" }), rfqComparisonMatrix: withoutUndefined(matrix), updatedAt: serverTimestamp(), lastEventId: eventRef.id }, { merge: true });
+        tx.set(eventRef, { ...eventData("workflow_save", "A.B.6", "A.B.5 → A.B.6"), detailKey: "cogsSent", projectId });
+      });
+      setMessage(t.cogs.sent);
+    } catch (error) { setMessage(errorMessage(t, error, t.cogs.sendFailed)); }
+    finally { setBusy(false); }
+  };
   return <details data-testid={`task-${step.id}`} className="workflow-task group rounded-xl border border-slate-200 bg-white open:border-teal-300">
     <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 p-4 text-sm [&::-webkit-details-marker]:hidden">
       <span className="rounded-lg bg-indigo-50 px-2 py-1 font-bold text-indigo-700">{step.id}</span><span className="min-w-0 flex-1 font-semibold">{stepName(config, t, step)}</span>
@@ -261,11 +304,12 @@ function TaskEditor({ config, inventory, projectId, step, record, users, current
       {config.logistics && inventorySteps.includes(step.id) && <InventoryStepPanel stepId={step.id} projectId={projectId} data={inventory.data} loading={inventory.loading} error={inventory.error} canPlan={isAdmin && !approved && !busy} />}
       {step.id === "A.A.2" && <TargetSpecificationEditor sections={draft.targetSpecification ?? createTargetSpecification()} onChange={sections => setDraft(previous => ({ ...previous, targetSpecification: sections }))} disabled={!isAdmin || busy || approved} />}
       {step.id === "A.A.3" && <SupplierLongListEditor shortlistedIds={(records["A.A.5"]?.supplierShortList ?? []).map((item: SupplierCandidate) => item.id)} onShortlist={isAdmin ? company => { if (!busy) void shortlist(company); } : undefined} companies={draft.supplierLongList ?? []} onChange={companies => setDraft(previous => ({ ...previous, supplierLongList: companies }))} disabled={!isAdmin || busy || approved} />}
-      {step.id === "A.A.5" && <SupplierLongListEditor title={t.editors.suppliers.shortTitle} description={t.editors.suppliers.shortDescription} source={records["A.A.3"]?.supplierLongList ?? []} companies={draft.supplierShortList ?? []} onChange={companies => setDraft(previous => ({ ...previous, supplierShortList: companies }))} disabled={!isAdmin || busy || approved} />}
+      {step.id === "A.A.5" && <SupplierLongListEditor showOpenBook title={t.editors.suppliers.shortTitle} description={t.editors.suppliers.shortDescription} source={records["A.A.3"]?.supplierLongList ?? []} companies={draft.supplierShortList ?? []} onChange={companies => setDraft(previous => ({ ...previous, supplierShortList: companies }))} disabled={!isAdmin || busy || approved} />}
       {step.id === "A.A.4" && <RfqSubmissionEditor forms={draft.rfqForms ?? [createRfqForm()]} onChange={forms => setDraft(previous => ({ ...previous, rfqForms: forms }))} disabled={!isAdmin || busy || approved} />}
       {step.id === "A.A.6" && <ValueChainCostingEditor costing={draft.valueChainCosting ?? createValueChainCosting()} onChange={costing => setDraft(previous => ({ ...previous, valueChainCosting: costing }))} manufacturers={(records["A.A.5"]?.supplierShortList ?? []).map((item: SupplierCandidate) => item.name).filter(Boolean)} disabled={!isAdmin || busy || approved} />}
       {step.id === "A.B.2" && <IntroductionMeetingEditor meetings={draft.introductionMeetings ?? []} onChange={meetings => setDraft(previous => ({ ...previous, introductionMeetings: meetings }))} manufacturers={(records["A.A.5"]?.supplierShortList ?? []).map((item: SupplierCandidate) => item.name).filter(Boolean)} disabled={!isAdmin || busy || approved} />}
-      {step.id === "A.B.6" && <RfqComparisonMatrix matrix={draft.rfqComparisonMatrix} onChange={matrix => setDraft(previous => ({ ...previous, rfqComparisonMatrix: matrix }))} isAdmin={isAdmin} shortlist={(records["A.A.5"]?.supplierShortList ?? []).map((item: SupplierCandidate) => item.name).filter(Boolean)} disabled={!isAdmin || busy || approved} />}
+      {step.id === "A.B.5" && <CogsBreakdownSheet sheet={draft.cogsBreakdown} onChange={sheet => setDraft(previous => ({ ...previous, cogsBreakdown: sheet }))} isAdmin={isAdmin} shortlist={shortlistEntries} rfq={records["A.B.6"]?.rfqComparisonMatrix} onSend={sheet => { if (!busy) void sendToRfq(sheet); }} onOpenDocuments={() => openStep("A.B.5", true)} disabled={!isAdmin || busy || approved} />}
+      {step.id === "A.B.6" && <RfqComparisonMatrix matrix={draft.rfqComparisonMatrix} onChange={matrix => setDraft(previous => ({ ...previous, rfqComparisonMatrix: matrix }))} isAdmin={isAdmin} shortlist={shortlistEntries} cogs={records["A.B.5"]?.cogsBreakdown} onGoToCogs={() => openStep("A.B.5")} disabled={!isAdmin || busy || approved} />}
       {step.id === "A.B.7" && <HighPotentialPicker manufacturers={manufacturers} value={draft.highPotentialManufacturerId} onChange={(id, name) => setDraft(previous => ({ ...previous, highPotentialManufacturerId: id, highPotentialManufacturerName: name }))} disabled={!isAdmin || busy || approved} />}
       {step.id === "A.B.8" && <SpecLinkPanel projectId={projectId} isAdmin={isAdmin} preparedBy={currentUser.displayName || currentUser.name || currentUser.companyName || ""} manufacturers={manufacturers} specs={specs} ab7={records["A.B.7"]} draft={draft} onChange={patch => setDraft(previous => ({ ...previous, ...patch }))} disabled={busy || approved} />}
       {step.id === "A.B.9" && <RecipeCostPreview spec={specs.find(spec => spec.id === records["A.B.8"]?.approvedSpecId && spec.status === "approved")} lines={draft.recipeCostLines} source={draft.recipeCostSource} canImport={isAdmin && !approved && !busy} onImport={(lines, source) => setDraft(previous => ({ ...previous, recipeCostLines: lines, recipeCostSource: source }))} />}
@@ -288,7 +332,7 @@ function TaskEditor({ config, inventory, projectId, step, record, users, current
       {(record?.cycleHistory?.length ?? 0) > 0 && <details><summary className="cursor-pointer text-sm font-semibold">{d.cycles(record!.cycleHistory.length)}</summary><ul className="mt-2 space-y-2 text-xs text-slate-600">{[...record!.cycleHistory].reverse().map((entry: any) => <li key={entry.cycle} className="rounded-lg bg-slate-50 p-2"><strong>{d.cycle(entry.cycle)}</strong> · {d.approvedOn(dateOf(entry.approvedAt))}{entry.evidenceUrl && <> · <a className="text-teal-700 hover:underline" href={entry.evidenceUrl} target="_blank" rel="noreferrer">{entry.evidenceName || t.common.document}</a></>}{entry.notes && <p className="mt-1 text-slate-500">{entry.notes}</p>}</li>)}</ul></details>}
       {step.period && (record?.periodHistory?.length ?? 0) > 0 && <details><summary className="cursor-pointer text-sm font-semibold">{d.periods(record!.periodHistory.length)}</summary><ul className="mt-2 space-y-2 text-xs text-slate-600">{[...record!.periodHistory].reverse().map((entry: any) => <li key={entry.period} className="rounded-lg bg-slate-50 p-2"><strong>{d.period(entry.period)}</strong> · {d.approvedOn(dateOf(entry.approvedAt))}{entry.dueDate && ` · ${d.target(fmt.date(entry.dueDate))}`} · {users.find(user => user.id === entry.completedBy)?.email || entry.completedBy || "—"}{entry.evidenceUrl && <> · <a className="text-teal-700 hover:underline" href={entry.evidenceUrl} target="_blank" rel="noreferrer">{entry.evidenceName || t.common.document}</a></>}{entry.notes && <p className="mt-1 text-slate-500">{entry.notes}</p>}</li>)}</ul></details>}
       <details><summary className="cursor-pointer text-sm font-semibold">{d.history(events.length)}</summary><ul className="mt-2 space-y-2 text-xs text-slate-600">{[...events].sort((a,b) => (b.at?.seconds || 0) - (a.at?.seconds || 0)).map(event => <li key={event.id}>{event.at?.toDate ? fmt.dateTime(event.at.toDate()) : d.historySaving} · {users.find(user => user.id === event.actorUid)?.email || event.actorUid} · {eventText(t, event)}</li>)}</ul></details>
-      <details><summary className="cursor-pointer text-sm font-semibold">{d.documents}</summary><GoogleDriveFolder stepId={step.id} storageLocation={translated?.output || step.outputs} currentProjectId={projectId} clientMode={!isAdmin} /></details>
+      <details data-documents><summary className="cursor-pointer text-sm font-semibold">{d.documents}</summary><GoogleDriveFolder stepId={step.id} storageLocation={translated?.output || step.outputs} currentProjectId={projectId} clientMode={!isAdmin} /></details>
     </div>
   </details>;
 }

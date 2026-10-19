@@ -11,10 +11,10 @@ import { operations } from "./operations";
 import type { Messages } from "../tr";
 import { common, language, login, shell } from "./shell";
 import { sourcing, status, steps } from "./sourcing";
-import { drive, editors, rfqMatrix } from "./editors";
+import { cogs, drive, editors, rfqMatrix } from "./editors";
 import { vault } from "./vault";
 import { productSpec } from "./productSpec";
 import { errors } from "./errors";
 import { countries } from "./countries";
 
-export const en: Messages = { ai, market, workspaceAdmin, api, discovery, sectors, actionCenter, logistics, operations, common, language, shell, login, status, steps, sourcing, editors, rfqMatrix, drive, vault, productSpec, errors, countries };
+export const en: Messages = { ai, market, workspaceAdmin, api, discovery, sectors, actionCenter, logistics, operations, common, language, shell, login, status, steps, sourcing, editors, rfqMatrix, cogs, drive, vault, productSpec, errors, countries };

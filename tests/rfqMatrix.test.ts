@@ -87,9 +87,11 @@ test("RFQ: price outlier when more than 15% above the average of the other offer
 test("RFQ: removing a manufacturer drops its values, scores and notes", () => {
   const matrix = createDemoMatrix(), id = matrix.manufacturers[1].id;
   const next = removeManufacturer(matrix, id);
-  const text = JSON.stringify(next);
+  // The id is only kept in removedIds, so the shared A.B.5/A.B.6 list does not bring the manufacturer back.
+  const { removedIds, ...rest } = next;
   assert.equal(next.manufacturers.length, 2);
-  assert.ok(!text.includes(id));
+  assert.ok(!JSON.stringify(rest).includes(id));
+  assert.deepEqual(removedIds, [id]);
 });
 
 test("RFQ demo: valid, flagged, fictional names, all three scored and a recommendation", () => {

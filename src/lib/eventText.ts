@@ -20,6 +20,7 @@ export function eventText(t: Messages, event: WorkflowEvent) {
   };
   if (event.detailKey && operational[event.detailKey]) return operational[event.detailKey]();
   if (event.detailKey === "shortlisted") return t.sourcing.events.shortlisted(event.detailParams?.name ?? "");
+  if (event.detailKey === "cogsSent") return t.sourcing.events.cogsSent();
   if (event.detailKey === "periodClosed") return t.sourcing.events.periodClosed(Number(event.detailParams?.period ?? 0));
   if (event.statusKey === "approved") return t.status.approved;
   if (event.statusKey) return t.status.workflow[event.statusKey] ?? event.statusKey;

@@ -1,34 +1,21 @@
 import { formatPercent } from "../i18n";
-import { useState, type ReactNode } from "react";
-import { Award, Download, MoreHorizontal, Plus, Printer, Trash2, Wand2 } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Award, Download, Info, MoreHorizontal, Plus, Printer, Trash2, Wand2 } from "lucide-react";
 import { createDemoMatrix } from "../data/rfqMatrixDemo";
+import { downloadCsv, printSheet, sheetPrintCss } from "../lib/sheetExport";
 import { useI18n } from "../i18n";
 import {
-  applySuggestions, createMatrix, createOfferItem, criterionPoints, criterionShare, MAX_MANUFACTURERS, MIN_MANUFACTURERS, newId, priceOutliers,
+  createMatrix, createOfferItem, criterionPoints, criterionShare, MAX_MANUFACTURERS, MIN_MANUFACTURERS, newId, priceOutliers,
   removeManufacturer, sectionPoints, suggestedScores, toCsv, totals, weightTotal, weightsValid, type Criterion, type RfqMatrix, type Section,
 } from "../domain/rfqMatrix";
+import { applyCogsSuggestions, cogsFigures, cogsSuggestions, fromCogs, hasCogsData, reconcileMatrix, syncMatrixFromCogs, varianceAlerts, type CogsSheet, type ShortlistEntry } from "../domain/cogsBreakdown";
 
 const green = "#2f5d50";
 const field = "rounded border border-slate-300 bg-white px-1.5 py-1 text-xs text-slate-900 disabled:bg-transparent disabled:border-transparent";
 const cellInput = `${field} w-full`;
 const numberInput = `${field} w-12`;
 const points = (value: number | null) => value === null ? "–" : value.toFixed(2);
-// Print only the matrix, landscape; the rest of the page is hidden while printing.
-const printCss = `@media print {
-  body.rfq-printing * { visibility: hidden !important; }
-  body.rfq-printing #rfq-matrix, body.rfq-printing #rfq-matrix * { visibility: visible !important; }
-  body.rfq-printing #rfq-matrix { position: absolute; left: 0; top: 0; width: 100%; border: 0; }
-  body.rfq-printing #rfq-matrix .rfq-no-print { display: none !important; }
-  body.rfq-printing #rfq-matrix .rfq-scroll { overflow: visible !important; }
-  body.rfq-printing #rfq-matrix tr { break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  /* Form controls cannot wrap text, so print shows their values as wrapping text instead. */
-  body.rfq-printing #rfq-matrix input, body.rfq-printing #rfq-matrix select, body.rfq-printing #rfq-matrix textarea { display: none !important; }
-  body.rfq-printing #rfq-matrix .rfq-print-text { display: block !important; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
-  body.rfq-printing #rfq-matrix table { table-layout: fixed; width: 100%; }
-  body.rfq-printing #rfq-matrix th, body.rfq-printing #rfq-matrix td { position: static !important; min-width: 0 !important; overflow-wrap: anywhere; }
-  @page { size: landscape; margin: 8mm; }
-}
-#rfq-matrix .rfq-print-text { display: none; }
+const printCss = `${sheetPrintCss("rfq-matrix", "rfq-printing")}
 /* Scoped screen styles: the id selector outranks the app-wide table/input rules in index.css. */
 #rfq-matrix table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }
 #rfq-matrix th, #rfq-matrix td { padding: 4px 6px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
@@ -54,10 +41,21 @@ const printCss = `@media print {
 // Printed copy of a form control's value (see printCss).
 const Printed = ({ text, className = "" }: { text: ReactNode; className?: string }) => <span className={`rfq-print-text ${className}`}>{text}</span>;
 
-export default function RfqComparisonMatrix({ matrix: stored, onChange, disabled, isAdmin, shortlist = [] }: { matrix?: RfqMatrix; onChange: (matrix: RfqMatrix) => void; disabled: boolean; isAdmin: boolean; shortlist?: string[] }) {
+// cogs: saved A.B.5 sheet. Manufacturers are shared with A.B.5 and the A.A.5 shortlist (by id); empty cells are filled from
+// A.B.5 automatically while the step is editable, without overwriting anything typed here.
+export default function RfqComparisonMatrix({ matrix: stored, onChange, disabled, isAdmin, shortlist = [], cogs, onGoToCogs }: { matrix?: RfqMatrix; onChange: (matrix: RfqMatrix) => void; disabled: boolean; isAdmin: boolean; shortlist?: ShortlistEntry[]; cogs?: CogsSheet; onGoToCogs?: () => void }) {
   const [fallback] = useState(createMatrix);
   const r = useI18n().t.rfqMatrix, scoreLabels = r.scores;
-  const matrix = stored ?? fallback;
+  const shortlistKey = JSON.stringify(shortlist);
+  const matrix = useMemo(() => {
+    const base = stored ?? fallback;
+    if (disabled) return base;
+    const reconciled = reconcileMatrix(base, shortlist, cogs, r.defaultManufacturer);
+    return cogs ? syncMatrixFromCogs(reconciled, cogs, false) : reconciled;
+  }, [stored, fallback, cogs, shortlistKey, disabled]);
+  // No dependency list on purpose (see CogsBreakdownSheet): re-checked after every render, stops once the draft matches.
+  useEffect(() => { if (!disabled && matrix !== stored) onChange(matrix); });
+  const cogsReady = hasCogsData(cogs), figures = cogs ? cogsFigures(cogs) : {}, alerts = cogs ? varianceAlerts(cogs) : [];
   const result = totals(matrix), m = matrix.manufacturers, columns = 2 + m.length * 3;
   const total = weightTotal(matrix), weightsOk = weightsValid(matrix);
 
@@ -66,15 +64,11 @@ export default function RfqComparisonMatrix({ matrix: stored, onChange, disabled
   const setScore = (item: Criterion, manufacturerId: string, value: string) => setCriterion(item.id, current => { const { [manufacturerId]: _old, ...scores } = current.scores; return { scores: value ? { ...scores, [manufacturerId]: Number(value) } : scores }; });
   const setSection = (id: string, patch: Partial<Section>) => onChange({ ...matrix, sections: matrix.sections.map(section => section.id === id ? { ...section, ...patch } : section) });
   const addManufacturer = () => onChange({ ...matrix, manufacturers: [...m, { id: newId("m"), name: r.defaultManufacturer(m.length + 1) }] });
-  const print = () => { document.body.classList.add("rfq-printing"); const done = () => { document.body.classList.remove("rfq-printing"); window.removeEventListener("afterprint", done); }; window.addEventListener("afterprint", done); window.print(); };
-  const exportCsv = () => {
-    const url = URL.createObjectURL(new Blob(["﻿" + toCsv(matrix)], { type: "text/csv;charset=utf-8" }));
-    const link = Object.assign(document.createElement("a"), { href: url, download: `rfq-comparison-matrix-${(matrix.brief || "export").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40)}.csv` });
-    link.click(); URL.revokeObjectURL(url);
-  };
+  const print = () => printSheet("rfq-printing");
+  const exportCsv = () => downloadCsv("rfq-comparison-matrix", matrix.brief, toCsv(matrix));
 
   const criterionRows = (criteria: Criterion[], weight: number) => criteria.map(item => {
-    const suggested = suggestedScores(item, m), outliers = item.kind === "unitPrice" ? priceOutliers(item, m) : [];
+    const suggested = cogsSuggestions(item, m, cogs, figures, alerts) ?? suggestedScores(item, m), outliers = item.kind === "unitPrice" ? priceOutliers(item, m) : [];
     return <tr key={item.id} className="odd:bg-white even:bg-slate-50">
       <td className="rfq-c1 bg-inherit"><input aria-label={r.criterion} className={`${cellInput} font-medium`} maxLength={120} value={item.label} onChange={e => setCriterion(item.id, () => ({ label: e.target.value }))} /><Printed className="font-medium" text={item.label} /></td>
       <td className="rfq-c2 bg-inherit"><div className="flex items-center gap-1"><input aria-label={`${item.label} ${r.relativeWeight}`} title={r.relativeWeight} className={numberInput} type="number" min={0} step={0.1} value={item.weight} onChange={e => setCriterion(item.id, () => ({ weight: Math.max(0, Number(e.target.value) || 0) }))} /><Printed text={`×${item.weight}`} /><span className="whitespace-nowrap text-[10px] text-slate-500">{formatPercent(criterionShare(criteria, item, weight), 1, 1)}</span></div></td>
@@ -82,6 +76,7 @@ export default function RfqComparisonMatrix({ matrix: stored, onChange, disabled
         const score = item.scores[manufacturer.id], hint = suggested[manufacturer.id];
         return [
           <td key={`${manufacturer.id}-v`} className="rfq-m-start rfq-value"><input title={item.values[manufacturer.id] || undefined} aria-label={r.valueFor(manufacturer.name, item.label)} className={cellInput} maxLength={300} value={item.values[manufacturer.id] ?? ""} onChange={e => setCriterion(item.id, current => ({ values: { ...current.values, [manufacturer.id]: e.target.value } }))} /><Printed text={item.values[manufacturer.id] ?? ""} />
+            {fromCogs(item, manufacturer.id, cogs, figures) && <span title={r.fromCogsHelp} className="mt-1 mr-1 inline-block whitespace-nowrap rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800">{r.fromCogs}</span>}
             {outliers.includes(manufacturer.id) && <span className="mt-1 inline-block whitespace-nowrap rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">{r.priceOutlier}</span>}</td>,
           <td key={`${manufacturer.id}-s`} className="rfq-score"><select aria-label={r.scoreFor(manufacturer.name, item.label)} title={score ? `${score} · ${scoreLabels[score]}` : hint ? r.suggested(hint, scoreLabels[hint]) : r.notScored} className={`${field} w-full px-1 ${score ? "" : "text-slate-400"}`} value={score ?? ""} onChange={e => setScore(item, manufacturer.id, e.target.value)}>
             <option value="">{hint ? `(${hint})` : "–"}</option>{[1, 2, 3, 4, 5].map(value => <option key={value} value={value} title={scoreLabels[value]}>{value}</option>)}</select><Printed text={score ? `${score} · ${scoreLabels[score]}` : "–"} /></td>,
@@ -118,7 +113,7 @@ export default function RfqComparisonMatrix({ matrix: stored, onChange, disabled
       <label className="block text-xs text-slate-600">{r.brief}<input className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900 disabled:bg-slate-50" maxLength={300} placeholder={r.briefPlaceholder} value={matrix.brief} onChange={e => onChange({ ...matrix, brief: e.target.value })} /><Printed className="mt-1 text-sm font-semibold text-slate-900" text={matrix.brief} /></label>
       <div className="rfq-no-print flex flex-wrap items-center gap-2">
         <button type="button" disabled={m.length >= MAX_MANUFACTURERS} title={m.length >= MAX_MANUFACTURERS ? r.maxManufacturers(MAX_MANUFACTURERS) : undefined} onClick={addManufacturer} className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40" style={{ backgroundColor: green }}><Plus className="h-3.5 w-3.5" /> {r.addManufacturer}</button>
-        <button type="button" onClick={() => onChange(applySuggestions(matrix))} title={r.applySuggestionsHelp} className="flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700"><Wand2 className="h-3.5 w-3.5" /> {r.applySuggestions}</button>
+        <button type="button" onClick={() => onChange(applyCogsSuggestions(matrix, cogs, r.inconsistentNote))} title={r.applySuggestionsHelp} className="flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700"><Wand2 className="h-3.5 w-3.5" /> {r.applySuggestions}</button>
         <span className="text-[11px] text-slate-500">{r.scoreLegend}</span>
       </div>
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs" aria-label={r.summary}>
@@ -126,8 +121,9 @@ export default function RfqComparisonMatrix({ matrix: stored, onChange, disabled
         {result.ranking.map((row, index) => <span key={row.id} className={`flex items-center gap-1 rounded-md px-2 py-1 ${result.recommended.includes(row.id) ? "bg-amber-100 font-semibold text-amber-950 ring-1 ring-amber-300" : "bg-white text-slate-700 ring-1 ring-slate-200"}`}>{index + 1}. {row.name || r.unnamed} <strong className="tabular-nums">{row.total.toFixed(1)}</strong>{result.recommended.includes(row.id) && <><Award className="h-3.5 w-3.5" /> {r.recommended}</>}</span>)}
         {!result.recommended.length && <span className="text-slate-500">{r.scoreToSee}</span>}
       </div>
+      {!cogsReady && !matrix.isDemo && <p className="rfq-no-print flex flex-wrap items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 p-2 text-xs text-sky-900"><Info className="h-4 w-4 shrink-0" /> {r.cogsMissing}{onGoToCogs && <button type="button" className="font-semibold underline" onClick={onGoToCogs}>{r.goToCogs}</button>}</p>}
       {!weightsOk && <p role="alert" className="rounded-lg bg-red-50 p-2 text-xs font-semibold text-red-700">{r.weightsInvalid(String(total))}</p>}
-      <datalist id="rfq-shortlist">{shortlist.map(name => <option key={name} value={name} />)}</datalist>
+      <datalist id="rfq-shortlist">{[...new Set(shortlist.map(entry => entry.name).filter(Boolean))].map(name => <option key={name} value={name} />)}</datalist>
       <div className="rfq-scroll overflow-x-auto rounded-lg border border-slate-200">
         <table>
           <thead>
@@ -136,7 +132,7 @@ export default function RfqComparisonMatrix({ matrix: stored, onChange, disabled
               <th rowSpan={2} className="rfq-c2 align-middle">{r.weight}</th>
               {m.map((manufacturer, index) => <th key={manufacturer.id} colSpan={3} className="rfq-m-start">
                 <div className="flex items-center gap-1">
-                  <input aria-label={r.manufacturerN(index + 1)} list="rfq-shortlist" title={manufacturer.name} placeholder={r.manufacturerName} className="rfq-head-input w-full min-w-0 rounded px-1.5 py-1 text-xs font-semibold" maxLength={120} value={manufacturer.name} onChange={e => onChange({ ...matrix, manufacturers: m.map(item => item.id === manufacturer.id ? { ...item, name: e.target.value } : item) })} /><Printed text={manufacturer.name} />
+                  <input aria-label={r.manufacturerN(index + 1)} list="rfq-shortlist" title={manufacturer.name} placeholder={r.manufacturerName} className="rfq-head-input w-full min-w-0 rounded px-1.5 py-1 text-xs font-semibold" maxLength={120} value={manufacturer.name} onChange={e => onChange({ ...matrix, manufacturers: m.map(item => item.id === manufacturer.id ? { ...item, name: e.target.value, renamedAt: Date.now() } : item) })} /><Printed text={manufacturer.name} />
                   {result.recommended.includes(manufacturer.id) && <span title={r.recommended} className="flex shrink-0 items-center gap-0.5 rounded bg-amber-300 px-1 py-0.5 text-[10px] font-bold text-amber-950"><Award className="h-3 w-3" /> {r.best}</span>}
                   <button type="button" aria-label={r.removeManufacturer(manufacturer.name)} disabled={m.length <= MIN_MANUFACTURERS} title={m.length <= MIN_MANUFACTURERS ? r.minManufacturers(MIN_MANUFACTURERS) : undefined} className="rfq-no-print shrink-0 rounded p-1 text-white/80 hover:bg-white/10 disabled:opacity-30" onClick={() => { if (window.confirm(r.removeManufacturerConfirm(manufacturer.name))) onChange(removeManufacturer(matrix, manufacturer.id)); }}><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>

@@ -4,16 +4,23 @@ import { CodedError } from "../i18n/errors";
 export type SectionId = "offer" | "technical" | "commercial" | "company" | "soft";
 // Numeric criteria that get a suggested score: lower values are better for prices/lead time, higher for capacity/experience.
 export type NumericKind = "unitPrice" | "logistics" | "leadTime" | "capacity" | "years";
-export interface Manufacturer { id: string; name: string }
+// renamedAt: set when renamed here; the newer name wins when A.B.5 (COGS) and A.B.6 share their manufacturer list.
+export interface Manufacturer { id: string; name: string; renamedAt?: number }
 export interface Criterion {
   id: string; label: string; weight: number; kind?: NumericKind;
+  // Row filled from the A.B.5 COGS sheet ("unitPrice", "logistics", "primary", "component1"…); optional, older matrices have none.
+  cogsKey?: string;
   values: Record<string, string>;
   // Unscored manufacturers have no key (Firestore rejects undefined values).
   scores: Record<string, number>;
 }
 export interface OfferItem { id: string; name: string; criteria: Criterion[]; notes: Record<string, string> }
 export interface Section { id: SectionId; title: string; weight: number; criteria: Criterion[] }
-export interface RfqMatrix { brief: string; manufacturers: Manufacturer[]; sections: Section[]; items: OfferItem[]; isDemo?: boolean }
+export interface RfqMatrix {
+  brief: string; manufacturers: Manufacturer[]; sections: Section[]; items: OfferItem[]; isDemo?: boolean;
+  // Manufacturers removed here are not re-added from the shortlist or the COGS sheet.
+  removedIds?: string[];
+}
 
 export const MIN_MANUFACTURERS = 3, MAX_MANUFACTURERS = 6;
 export const scoreLabels: Record<number, string> = { 1: "Poor", 2: "Below avg", 3: "Acceptable", 4: "Good", 5: "Excellent" };
@@ -125,7 +132,7 @@ export function applySuggestions(matrix: RfqMatrix): RfqMatrix {
 // Removes a manufacturer and every value, score and note stored for it.
 export function removeManufacturer(matrix: RfqMatrix, id: string): RfqMatrix {
   const strip = (item: Criterion) => { const { [id]: _value, ...values } = item.values; const { [id]: _score, ...scores } = item.scores; return { ...item, values, scores }; };
-  return { ...matrix, manufacturers: matrix.manufacturers.filter(manufacturer => manufacturer.id !== id),
+  return { ...matrix, manufacturers: matrix.manufacturers.filter(manufacturer => manufacturer.id !== id), removedIds: [...(matrix.removedIds ?? []).filter(item => item !== id), id].slice(-50),
     items: matrix.items.map(item => { const { [id]: _note, ...notes } = item.notes; return { ...item, notes, criteria: item.criteria.map(strip) }; }),
     sections: matrix.sections.map(section => ({ ...section, criteria: section.criteria.map(strip) })) };
 }

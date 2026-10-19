@@ -20,7 +20,7 @@ export const steps: Messages["steps"] = {
   "A.B.2": { name: "Supplier Introduction Meeting", kpi: "100% meeting attendance by shortlisted manufacturers", output: "Follow-up notes for each manufacturer" },
   "A.B.3": { name: "Sample Request Form", kpi: "Sample requests processed with a complete, accurate form", output: "Completed and approved sample request form" },
   "A.B.4": { name: "Sample Approval / Rejection", kpi: "Sample review completed", output: "Sample review notes" },
-  "A.B.5": { name: "COGS Breakdown Sheet", kpi: "COGS breakdown received from every shortlisted manufacturer", output: "Cost breakdown for each manufacturer" },
+  "A.B.5": { name: "COGS Breakdown Sheet", kpi: "COGS breakdown received from every shortlisted manufacturer", output: "Open-book cost breakdown (COGS) for each shortlisted manufacturer, reconciled with the quoted EXW price" },
   "A.B.6": { name: "RFQ Comparison Matrix", kpi: "All quotation data entered", output: "Up-to-date RFQ comparison matrix" },
   "A.B.7": { name: "High-Potential Supplier Selection", kpi: "At least 1 high-potential supplier", output: "Selected supplier recorded with selection rationale" },
   "A.B.8": { name: "Product Specification & Formulation", kpi: "Product specification approved with complete formulation and packaging BOM", output: "Signed, version-controlled product specification" },
@@ -75,6 +75,7 @@ export const sourcing: Messages["sourcing"] = {
   },
   roles: { "Project Manager": "Project Manager", "Sourcing Manager": "Sourcing Manager", "General Manager": "General Manager" },
   events: {
+    cogsSent: () => "COGS figures sent to the A.B.6 RFQ matrix",
     shortlisted: (name: string) => `${name} added to the shortlist (A.A.3)`,
     periodClosed: (n: number) => `Period ${n} closed, new period started`,
   },

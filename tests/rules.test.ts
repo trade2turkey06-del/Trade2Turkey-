@@ -5,6 +5,9 @@ import { initializeTestEnvironment, assertFails, assertSucceeds, type RulesTestE
 import { collection, deleteDoc, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
 import { reserve } from "../src/domain/operations";
 import { createSpec } from "../src/domain/productSpec";
+import { createCogsSheet, reconcileCogs, reconcileMatrix, syncMatrixFromCogs } from "../src/domain/cogsBreakdown";
+import { createMatrix } from "../src/domain/rfqMatrix";
+import { en } from "../src/i18n/en";
 
 let env: RulesTestEnvironment;
 before(async()=>{env=await initializeTestEnvironment({projectId:"demo-t2t-security",firestore:{host:"127.0.0.1",port:8085,rules:await fs.readFile("firestore.rules","utf8")}});});
@@ -284,4 +287,28 @@ test("iki dilli rehber admin tarafından yazılır; TR/kimlik korunur ve diğer 
   await assertFails(getDoc(doc(dbFor(uid),'directoryCompanies/bilingual')));
  }
  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(),'sectors/bilingual')));
+});
+
+// ---- COGS (A.B.5) → RFQ (A.B.6) ----
+// Yazımlar uygulamadaki biçimle aynıdır: alan whitelist'i yoktur, yalnızca adım kuralları ve alan sayısı (≤40) geçerlidir.
+const withEvent=async(stepId:string,data:Record<string,unknown>,merge=false)=>{
+  const database=dbFor("admin"),batch=writeBatch(database),eventId=`e-${stepId}-${Math.random().toString(36).slice(2)}`;
+  batch.set(doc(database,`sopSteps/a_sourcing-${stepId}`),{...data,lastEventId:eventId},{merge});
+  batch.set(doc(database,"projects/a/events",eventId),{projectId:"a",actorUid:"admin",at:serverTimestamp(),action:"workflow_save",entityId:stepId,detail:"test"});
+  return batch.commit();
+};
+const cogsShortlist=[{id:"s1",name:"Anadolu Fırın",openBookAgreed:true},{id:"s2",name:"Ege Gıda"}];
+const cogsSheet=()=>{const sheet=reconcileCogs(createCogsSheet(en.cogs.defaults,"Tortilla"),cogsShortlist,undefined,n=>`Manufacturer ${n}`);sheet.lines[0].values.s1="0,40";sheet.manufacturers[0]={...sheet.manufacturers[0],quotedExw:"1,00",openBook:true};return JSON.parse(JSON.stringify(sheet));};
+test("COGS: A.A.5 'open-book' alanı, A.B.5 cogsBreakdown kaydı ve A.B.6'ya gönderim admin için yazılabilir",async()=>{
+  await env.withSecurityRulesDisabled(async context=>{const db=context.firestore();for(const id of ["A.A.4","A.B.4"])await setDoc(doc(db,`sopSteps/a_sourcing-${id}`),sop("a",id));});
+  await assertSucceeds(withEvent("A.A.5",{id:"sourcing-A.A.5",projectId:"a",workflow:"sourcing",stepId:"A.A.5",section:"A",workflowStatus:"in_progress",status:"In Progress",approval:"none",supplierShortList:cogsShortlist.map(item=>({...item,product:"",location:"",contact:"",email:"",phone:"",website:"",notes:""}))}));
+  await assertSucceeds(submit("A.B.5",{cogsBreakdown:cogsSheet()}));
+  const matrix=syncMatrixFromCogs(reconcileMatrix(createMatrix("Tortilla"),cogsShortlist,cogsSheet(),n=>`Manufacturer ${n}`),cogsSheet(),true);
+  await assertSucceeds(withEvent("A.B.6",{id:"sourcing-A.B.6",projectId:"a",workflow:"sourcing",stepId:"A.B.6",section:"A",workflowStatus:"not_started",status:"Pending",approval:"none",rfqComparisonMatrix:JSON.parse(JSON.stringify(matrix))},true));
+  // Müşteri COGS verisini değiştiremez.
+  await assertFails(updateDoc(doc(dbFor("client"),"sopSteps/a_sourcing-A.B.5"),{cogsBreakdown:{}}));
+});
+test("COGS: onaylı A.B.6 matrisine gönderim reddedilir",async()=>{
+  await env.withSecurityRulesDisabled(async context=>{await setDoc(doc(context.firestore(),"sopSteps/a_sourcing-A.B.6"),sop("a","A.B.6"));});
+  await assertFails(withEvent("A.B.6",{rfqComparisonMatrix:{brief:"x"},updatedAt:serverTimestamp()},true));
 });

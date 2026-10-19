@@ -20,7 +20,7 @@ export const steps: Record<string, StepText> = {
   "A.B.2": { name: "Tanışma Toplantısı", kpi: "Kısa listedeki şirketlerin %100 toplantı katılımı", output: "Her üretici için takip notları" },
   "A.B.3": { name: "Numune Talep Formu", kpi: "Doğru form ile numune talebi işlemleri", output: "Tamamlanmış ve Onaylanmış Numune Talep Formu" },
   "A.B.4": { name: "Numune Onay veya Red Güncellemesi", kpi: "Numune incelemesinin tamamlanması", output: "Numune incelemesine ilişkin notlar" },
-  "A.B.5": { name: "SMM (COGS) Detay Sayfası", kpi: "SMM (COGS) Detay Sayfası kısa listedeki her üretici tarafından oluşturulur ve gönderilir", output: "Her üreticinin maliyet detaylarına sahip olma" },
+  "A.B.5": { name: "SMM (COGS) Detay Sayfası", kpi: "SMM (COGS) Detay Sayfası kısa listedeki her üretici tarafından oluşturulur ve gönderilir", output: "Kısa listedeki her üretici için teklif edilen EXW fiyatıyla mutabakatı yapılmış açık maliyet kırılımı (COGS)" },
   "A.B.6": { name: "RFQ Karşılaştırma Matrisi", kpi: "Veri girişinin eksiksiz yapılması", output: "Güncel RFQ Karşılaştırma Matrisi" },
   "A.B.7": { name: "Yüksek Potansiyelli Tedarikçinin Belirlenmesi", kpi: "En az 1 yüksek potansiyelli tedarikçiye sahip olma", output: "En az 1 yüksek potansiyelli tedarikçinin belirlenmesi" },
   "A.B.8": { name: "Ürün Reçetesinin Oluşturulması", kpi: "Formülasyonu ve ambalaj BOM'u eksiksiz, onaylı ürün reçetesi", output: "İmzalı ve versiyonlanmış ürün reçetesi" },
@@ -76,6 +76,7 @@ export const sourcing = {
   roles: { "Project Manager": "Proje Yöneticisi", "Sourcing Manager": "Tedarik Yöneticisi", "General Manager": "Genel Müdür" } as Record<string, string>,
   // İşlem geçmişinde gösterilen olay açıklamaları (yeni kayıtlar anahtarla saklanır).
   events: {
+    cogsSent: () => "COGS verileri A.B.6 RFQ matrisine aktarıldı",
     shortlisted: (name: string) => `${name} kısa listeye eklendi (A.A.3)`,
     periodClosed: (n: number) => `Dönem ${n} kapatıldı, yeni dönem başlatıldı`,
   },
