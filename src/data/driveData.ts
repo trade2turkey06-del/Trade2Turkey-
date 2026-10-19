@@ -79,6 +79,6 @@ export function parseCSVToDriveFiles(csvString: string): DriveFile[] {
 /**
  * Mappings for Project IDs to friendly project naming
  */
-export const PROJECT_NAMES: Record<string, string> = {
-  "PROJE-UNLU MAMÜLLER": "Unlu Mamüller Projesi"
+export const PROJECT_NAMES: Record<string, { name: string; nameEn?: string }> = {
+  "PROJE-UNLU MAMÜLLER": { name: "Unlu Mamüller Projesi", nameEn: "Bakery Products Project" }
 };

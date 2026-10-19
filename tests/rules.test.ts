@@ -319,3 +319,12 @@ test("BOM: A.B.9 bomComparison kaydı admin için yazılabilir, müşteri deği�
   await assertSucceeds(withEvent("A.B.9",{id:"sourcing-A.B.9",projectId:"a",workflow:"sourcing",stepId:"A.B.9",section:"A",workflowStatus:"not_started",status:"Pending",approval:"none",notes:"",recipeCostLines:[],recipeCostSource:null,bomComparison:bom}));
   await assertFails(updateDoc(doc(dbFor("client"),"sopSteps/a_sourcing-A.B.9"),{bomComparison:{}}));
 });
+test("proje adı: nameEn yalnızca admin tarafından ve metin olarak yazılabilir",async()=>{
+  await assertSucceeds(updateDoc(doc(dbFor("admin"),"projects/a"),{nameEn:"Bakery Products Project"}));
+  await assertFails(updateDoc(doc(dbFor("admin"),"projects/a"),{nameEn:123}));
+  await assertFails(updateDoc(doc(dbFor("admin"),"projects/a"),{nameEn:"x".repeat(201)}));
+  await assertFails(updateDoc(doc(dbFor("client"),"projects/a"),{nameEn:"Hacked"}));
+  await assertFails(updateDoc(doc(dbFor("freelancer"),"projects/a"),{nameEn:"Hacked"}));
+  await assertSucceeds(setDoc(doc(dbFor("admin"),"projects/new"),{id:"new",name:"Yeni Proje",nameEn:"New Project"}));
+  await assertFails(setDoc(doc(dbFor("admin"),"projects/new2"),{id:"new2",name:"Yeni",nameEn:["x"]}));
+});

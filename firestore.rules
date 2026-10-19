@@ -159,8 +159,9 @@ service cloud.firestore {
 
     match /projects/{projectId} {
       allow read: if admin() || assigned(projectId);
-      allow create: if admin() && request.resource.data.id == projectId && text(request.resource.data.name,200);
-      allow update: if admin() && request.resource.data.id == resource.data.id && request.resource.data.size() <= 80;
+      // name: Turkish project name (required); nameEn: optional English name shown in the English interface.
+      allow create: if admin() && request.resource.data.id == projectId && text(request.resource.data.name,200) && str(request.resource.data.get('nameEn',''),200);
+      allow update: if admin() && request.resource.data.id == resource.data.id && request.resource.data.size() <= 80 && str(request.resource.data.get('nameEn',''),200);
       allow delete: if false;
 
       match /events/{id} {

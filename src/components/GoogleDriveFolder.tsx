@@ -1,4 +1,5 @@
 import { safeHttps } from "../domain/operations";
+import { useProjectName } from "../lib/projectName";
 import { apiFetch } from "../lib/api";
 import React, { useState, useEffect, useRef } from "react";
 import {
@@ -6,7 +7,7 @@ import {
   Trash2, Download, CheckCircle, Database, ChevronRight, HelpCircle,
   Link2, Unlink
 } from "lucide-react";
-import { parseCSVToDriveFiles, DriveFile, DRIVE_MAPPING_CSV_RAW, PROJECT_NAMES } from "../data/driveData";
+import { parseCSVToDriveFiles, DriveFile, DRIVE_MAPPING_CSV_RAW } from "../data/driveData";
 import { subscribeDriveAuth, setDriveAuth } from "../lib/driveAuth";
 import { db, auth } from "../lib/firebase";
 import { onSnapshot, collection, query, where, doc, setDoc, deleteDoc, getDocs } from "firebase/firestore";
@@ -32,10 +33,7 @@ export default function GoogleDriveFolder({
   const g = useI18n().t.drive;
   const [files, setFiles] = useState<DriveFile[]>([]);
 
-  const getProjectName = (projectId: string) => {
-    const globalNames = (window as any).PROJECT_NAMES || JSON.parse(localStorage.getItem("t2t_project_names") || "{}");
-    return globalNames[projectId] || PROJECT_NAMES[projectId] || projectId;
-  };
+  const getProjectName = useProjectName();
   const [searchQuery, setSearchQuery] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
   const [dragActive, setDragActive] = useState(false);

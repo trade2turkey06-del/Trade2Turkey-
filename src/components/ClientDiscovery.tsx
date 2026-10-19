@@ -1,4 +1,5 @@
 import { message as msg } from "../i18n";
+import { projectDisplayName, useProjectName } from "../lib/projectName";
 import { useI18n } from "../i18n";
 import { userStatusKey, leadStatusKey, companyTypeKey, urgencyKey } from "../domain/statusKeys";
 import { inviteUser } from "../lib/userInvites";
@@ -14,7 +15,6 @@ import { db } from "../lib/firebase";
 import {
   collection, query, onSnapshot, doc, setDoc, where, updateDoc, arrayUnion, arrayRemove, getDocs
 } from "firebase/firestore";
-import { PROJECT_NAMES } from "../data/driveData";
 
 interface ClientDiscoveryProps {
   currentProjectId: string;
@@ -103,10 +103,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
   const [leads, setLeads] = useState<ClientLead[]>([]);
   const [loadingLeads, setLoadingLeads] = useState(true);
 
-  const getProjectName = (projectId: string) => {
-    const globalNames = (window as any).PROJECT_NAMES || JSON.parse(localStorage.getItem("t2t_project_names") || "{}");
-    return globalNames[projectId] || PROJECT_NAMES[projectId] || projectId;
-  };
+  const getProjectName = useProjectName();
 
   // Sync leads with Firestore collection "leads" and seed it if empty
   useEffect(() => {
@@ -1486,7 +1483,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                     {projects
                       .filter(p => !selectedScouterForDetail.assignedProjects?.includes(p.id))
                       .map(p => (
-                        <option key={p.id} value={p.id}>{p.id} ({p.name})</option>
+                        <option key={p.id} value={p.id}>{p.id} ({projectDisplayName(p, lang, p.id)})</option>
                       ))}
                   </select>
                   <button
@@ -1613,7 +1610,7 @@ export default function ClientDiscovery({ currentProjectId, currentUser, project
                 >
                   <option value="">{msg("discovery", "noProjectAssignLater")}</option>
                   {projects.map(p => (
-                    <option key={p.id} value={p.id}>{p.id} ({p.name})</option>
+                    <option key={p.id} value={p.id}>{p.id} ({projectDisplayName(p, lang, p.id)})</option>
                   ))}
                 </select>
               </div>

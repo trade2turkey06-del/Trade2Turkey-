@@ -1,4 +1,5 @@
 import { leadStatusKey, companyTypeKey, urgencyKey } from "../domain/statusKeys";
+import { useProjectName } from "../lib/projectName";
 import { useI18n } from "../i18n";
 import React, { useState, useEffect, useMemo } from "react";
 import SourcingWorkflow from "./SourcingWorkflow";
@@ -14,7 +15,6 @@ import {
   query, collection, where, or, onSnapshot, doc, setDoc, deleteDoc, getDocs, writeBatch
 } from "firebase/firestore";
 import GoogleDriveFolder from "./GoogleDriveFolder";
-import { PROJECT_NAMES } from "../data/driveData";
 import { MarketInsightsView } from "./MarketInsights";
 
 interface FreelancerDashboardProps {
@@ -178,10 +178,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
     }
   };
 
-  const getProjectName = (projectId: string) => {
-    const globalNames = (window as any).PROJECT_NAMES || JSON.parse(localStorage.getItem("t2t_project_names") || "{}");
-    return globalNames[projectId] || PROJECT_NAMES[projectId] || projectId;
-  };
+  const getProjectName = useProjectName();
 
   const getUserDisplayName = () => {
     if (activeUser?.displayName?.trim()) return activeUser.displayName;

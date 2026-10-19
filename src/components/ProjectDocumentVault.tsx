@@ -1,4 +1,5 @@
 import { safeHttps } from "../domain/operations";
+import { nameLocale, useProjectName } from "../lib/projectName";
 import { apiFetch } from "../lib/api";
 import React, { useState, useEffect, useRef } from "react";
 import { 
@@ -10,7 +11,7 @@ import {
 import { subscribeDriveAuth, setDriveAuth } from "../lib/driveAuth";
 import { db, auth } from "../lib/firebase";
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
-import { DriveFile, PROJECT_NAMES } from "../data/driveData";
+import { DriveFile } from "../data/driveData";
 import { emptyVaultDetails, normalizeVaultDetails, shown as shownValue, type ProjectVaultDetails } from "../domain/vaultDetails";
 import { dataLang, useI18n } from "../i18n";
 import { marketFromName, marketLabel } from "../domain/countries";
@@ -114,7 +115,7 @@ const DEFAULT_PACKAGING_CONFIG: PackagingConfig = {
 
 
 export default function ProjectDocumentVault({ currentProjectId, readOnly = false }: ProjectDocumentVaultProps) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const v = t.vault, f = v.fields;
   const market = (item: ProjectVaultDetails["exportMarkets"][number]) => marketLabel(item, t.countries);
   const shown = (value?: string) => shownValue(value, v.notSpecified);
@@ -552,10 +553,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
     }
   };
 
-  const getProjectName = (projectId: string) => {
-    const globalNames = (window as any).PROJECT_NAMES || JSON.parse(localStorage.getItem("t2t_project_names") || "{}");
-    return globalNames[projectId] || PROJECT_NAMES[projectId] || projectId;
-  };
+  const getProjectName = useProjectName();
 
   return (
     <div className="space-y-6"><fieldset disabled={readOnly} className="space-y-6">
@@ -572,7 +570,7 @@ export default function ProjectDocumentVault({ currentProjectId, readOnly = fals
               Trade2Turkey Cloud Storage
             </h3>
           </div>
-          <h2 lang={dataLang(getProjectName(currentProjectId))} className="text-xl font-black text-white font-display uppercase tracking-wide">
+          <h2 lang={nameLocale(lang)} className="text-xl font-black text-white font-display uppercase tracking-wide">
             {v.title(getProjectName(currentProjectId))}
           </h2>
           <p className="text-[11px] text-slate-300 font-mono leading-relaxed max-w-xl">

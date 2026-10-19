@@ -1,4 +1,6 @@
 import { message as msg } from "./i18n";
+import ProjectNamesPanel from "./components/ProjectNamesPanel";
+import { nameLocale, projectDisplayName, rememberProjectNames } from "./lib/projectName";
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -26,7 +28,7 @@ import BackupPanel from "./components/BackupPanel";
 import UserManagement from "./components/UserManagement";
 import { trustedAdministrator } from "./domain/access";
 import { onSnapshot, collection, query, where, doc, setDoc, deleteDoc, writeBatch, getDocs, documentId, runTransaction, updateDoc } from "firebase/firestore";
-import { dataLang, getMessages, useI18n } from "./i18n";
+import { getMessages, useI18n } from "./i18n";
 
 import { 
   INITIAL_TARGET_SPECS, INITIAL_RFQS, 
@@ -48,7 +50,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<UserTenant | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [appError, setAppError] = useState("");
-  const { t, fmt, bindUser } = useI18n();
+  const { t, fmt, lang, bindUser } = useI18n();
 
   useEffect(() => {
     let stopProfile = () => {};
@@ -91,6 +93,7 @@ export default function App() {
   const [projects, setProjects] = useState<any[]>([]);
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [newProjName, setNewProjName] = useState("");
+  const [newProjNameEn, setNewProjNameEn] = useState("");
   const [newProjId, setNewProjId] = useState("");
   const [newProjDesc, setNewProjDesc] = useState("");
   const [newProjFeedback, setNewProjFeedback] = useState<string | null>(null);
@@ -118,13 +121,8 @@ export default function App() {
     const projectsQuery = currentUser.role === "admin" ? collection(db, "projects") : query(collection(db, "projects"), where(documentId(), "in", accessibleIds.length ? accessibleIds : ["__none__"]));
     const unsub = onSnapshot(projectsQuery, snapshot => {
       const items: any[] = snapshot.docs.map(item => ({ ...item.data(), id: item.id }));
-      // Sync PROJECT_NAMES map globally
-      const projectMap: Record<string, string> = {};
-      items.forEach(p => {
-        projectMap[p.id] = p.name;
-      });
-      (window as any).PROJECT_NAMES = projectMap;
-      localStorage.setItem("t2t_project_names", JSON.stringify(projectMap));
+      // Shared name registry for components that only know a project id (see lib/projectName).
+      rememberProjectNames(items);
       setProjects(items);
       setActiveProjectId(previous => items.some(item => item.id === previous) ? previous : items[0]?.id || "");
     }, () => setAppError(getMessages().shell.errors.projectsLoad));
@@ -163,6 +161,8 @@ export default function App() {
       const newProj = {
         id: cleanedProjId,
         name: newProjName.trim(),
+        // Optional English name; empty means the Turkish name is shown in English too.
+        ...(newProjNameEn.trim() ? { nameEn: newProjNameEn.trim() } : {}),
         description: newProjDesc.trim(),
         status: "active",
         createdAt: new Date().toISOString(),
@@ -171,6 +171,7 @@ export default function App() {
       await runTransaction(db,async tx=>{const existing=await tx.get(projRef);if(existing.exists())throw new Error(t.shell.newProjectModal.exists);tx.set(projRef,newProj);});
       
       setNewProjName("");
+      setNewProjNameEn("");
       setNewProjId("");
       setNewProjDesc("");
       setNewProjFeedback(null);
@@ -415,7 +416,7 @@ export default function App() {
       <main id="workspace-content" tabIndex={-1} className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
         <div className="page-intro">
-          <div><p className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.18em] text-teal-700"><span className="h-1.5 w-1.5 rounded-full bg-teal-600" /> <span lang={dataLang(projects.find(project => project.id === activeProjectId)?.name)}>{projects.find(project => project.id === activeProjectId)?.name || t.shell.defaultWorkspaceName}</span></p>
+          <div><p className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.18em] text-teal-700"><span className="h-1.5 w-1.5 rounded-full bg-teal-600" /> <span lang={nameLocale(lang)}>{projectDisplayName(projects.find(project => project.id === activeProjectId), lang, t.shell.defaultWorkspaceName)}</span></p>
             <h2 className="font-display text-3xl font-semibold tracking-tight text-navy sm:text-4xl">{t.shell.intro.titles[currentTab] || t.shell.intro.defaultTitle}</h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">{t.shell.intro.texts[currentTab]}</p>
           </div>
@@ -492,7 +493,7 @@ export default function App() {
                       className="w-full p-2.5 bg-white border rounded-xl text-xs text-slate-800 focus:outline-none focus:border-navy transition font-mono font-bold"
                     >
                       {projects.map(p => (
-                        <option key={p.id} value={p.id}>{p.id} ({p.name})</option>
+                        <option key={p.id} value={p.id}>{p.id} ({projectDisplayName(p, lang, p.id)})</option>
                       ))}
                     </select>
                   </div>
@@ -597,7 +598,7 @@ export default function App() {
             </div>
           )}
 
-          {activeProjectId && currentTab === "overview" && currentUser.role === "admin" && <div className="space-y-6"><AdminOverview projectId={activeProjectId} onNavigate={setCurrentTab} /><UserManagement projects={projects} /><BackupPanel projectId={activeProjectId} /></div>}
+          {activeProjectId && currentTab === "overview" && currentUser.role === "admin" && <div className="space-y-6"><AdminOverview projectId={activeProjectId} onNavigate={setCurrentTab} /><ProjectNamesPanel project={projects.find(project => project.id === activeProjectId)} /><UserManagement projects={projects} /><BackupPanel projectId={activeProjectId} /></div>}
 
           {/* STRATEGIC COORDINATION & LOGISTICS (SECTION B) */}
           {activeProjectId && currentTab === "logistics" && (
@@ -691,6 +692,23 @@ export default function App() {
                   onChange={(e) => setNewProjName(e.target.value)}
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-teal-500 transition"
                 />
+              </div>
+
+              {/* Proje Adı (İngilizce) — opsiyonel */}
+              <div className="space-y-1.5 font-sans">
+                <label htmlFor="new-project-name-en" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
+                  {t.shell.newProjectModal.nameEn}
+                </label>
+                <input
+                  id="new-project-name-en"
+                  type="text"
+                  maxLength={200}
+                  placeholder={t.shell.newProjectModal.nameEnPlaceholder}
+                  value={newProjNameEn}
+                  onChange={(e) => setNewProjNameEn(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-teal-500 transition"
+                />
+                <p className="text-[10px] text-slate-500">{t.shell.newProjectModal.nameEnHint}</p>
               </div>
 
               {/* Proje Kimliği / ID */}
