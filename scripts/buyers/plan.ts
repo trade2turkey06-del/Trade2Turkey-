@@ -1,8 +1,8 @@
 import {createHash} from 'node:crypto';
 import {DEFAULT_BUYER_COUNTRIES,DEFAULT_BUYER_TYPES,BUYER_COLLECTIONS,normalizeBuyerKey,buyerTypeId} from '../../src/domain/buyers';
-export type BuyerRecord={path:string;data:Record<string,any>;updateTime?:string};
+export type BuyerRecord={path:string;data:Record<string,any>;updateTime?:string; createTime?:string};
 export const CSV_HEADERS=['country','company','company_type','contact_name','title','category','email','phone','outreach_batch','notes'];
-export function parseBuyerCsv(source:string):Record<string,string>[] {
+export function parseBuyerCsv(source:string,expectedHeaders:readonly string[]=CSV_HEADERS):Record<string,string>[] {
  const matrix:string[][]=[];let row:string[]=[],cell='',quoted=false,closed=false;
  const input=source.replace(/^\uFEFF/,'');
  for(let i=0;i<input.length;i++){
@@ -16,7 +16,7 @@ export function parseBuyerCsv(source:string):Record<string,string>[] {
  if(quoted)throw Error('Unclosed CSV quote');
  if(cell||row.length){row.push(cell);if(row.some(v=>v.trim()))matrix.push(row);}
  const headers=matrix.shift()?.map(s=>s.trim());
- if(!headers||headers.length!==CSV_HEADERS.length||new Set(headers).size!==headers.length||CSV_HEADERS.some(h=>!headers.includes(h)))throw Error('Unexpected CSV columns');
+ if(!headers||headers.length!==expectedHeaders.length||new Set(headers).size!==headers.length||expectedHeaders.some(h=>!headers.includes(h)))throw Error('Unexpected CSV columns');
  return matrix.map((values,i)=>{if(values.length!==headers.length)throw Error(`Wrong column count on CSV row ${i+2}`);return Object.fromEntries(headers.map((h,j)=>[h,values[j].trim()]));});
 }
 const empty=(v:any)=>v===undefined||v===null||(typeof v==='string'&&!v.trim());

@@ -1,8 +1,13 @@
 {
   "score": 5,
-  "summary": "Buyers rules passed scoped schema and authorization review plus emulator attack tests. Existing unrelated application rules are outside this assessment; this is a tested prototype, not an exhaustive security guarantee.",
+  "summary": "Buyers tracking rules passed scoped schema/authorization and emulator tests. Optional fields preserve old records; trusted admin ACL remains unchanged. Scope is this change, not an exhaustive application security guarantee.",
   "findings": [],
-  "scope": ["buyerCountries", "buyerCompanyTypes", "buyerCompanies", "buyerContacts"],
+  "scope": [
+    "buyerCountries",
+    "buyerCompanyTypes",
+    "buyerCompanies",
+    "buyerContacts"
+  ],
   "attackChecks": {
     "publicListAndMixedContentLeak": "Denied anonymous, client and freelancer get/list on every collection.",
     "unauthorizedWrites": "Denied create/update/delete for non-admin roles on every collection.",
@@ -14,6 +19,8 @@
     "stateTransitions": "All six outreach statuses are editable by admins; unknown statuses denied.",
     "orphanRecordsAndQueryMismatch": "Parent records required for writes; same-batch parent creation and realtime collection lists pass.",
     "pathTraversalCountersAndNumericOverflow": "No storage paths, counters or numeric inputs introduced; IDs are bounded and parent existence checked.",
-    "deletionAndArchives": "Hard deletes denied even to admins; archive updates pass without deleting linked records."
+    "deletionAndArchives": "Hard deletes denied even to admins; archive updates pass without deleting linked records.",
+    "trackingValidation": "37 rule tests include optional tracking enums, dates, integer bounds, LinkedIn host restrictions, text lengths and metadata on create/update.",
+    "importProvenance": "Browser creation cannot forge importedAt; updates preserve importedAt and only set manualUpdatedAt to server request time. Manual field masks accept only bounded known field names."
   }
 }

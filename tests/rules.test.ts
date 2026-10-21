@@ -385,3 +385,20 @@ test('buyers: real-world email and website syntax accepts s characters and rejec
  await assertSucceeds(updateDoc(doc(db,'buyerCompanies','example'),{website:'https://www.suppliers.example',updatedAt:serverTimestamp()}));
  await assertFails(updateDoc(doc(db,'buyerContacts','alex'),{email:'a b@example.invalid',updatedAt:serverTimestamp()}));
 });
+test('buyer tracking: optional fields work on legacy records; admin tracking edits retain import provenance',async()=>{
+ await seedBuyerDirectory();const db=dbFor('admin'),ref=doc(db,'buyerContacts','alex');
+ const tracking={priority:'A',emailStatus:'Sent',plannedSendDate:'2026-10-20',sentDate:'2026-10-20',followUpDate:'2026-10-21',salutation:'Dear Alex',emailSubject:'Example subject',callToAction:'20-min call',replyChannel:'Auto-reply',replySummary:'First event | Second event',linkedinUrl:'https://www.linkedin.com/in/alex',linkedinStatus:'Connected',linkedinMessageSent:'Yes',linkedinDegree:'2nd',linkedinInviteOrder:5,linkedinInviteDate:'2026-10-19',linkedinCurrentTitle:'Buyer',linkedinCurrentCompany:'Example Foods',stillAtCompany:'Left (moved to Example)',lastChecked:'2026-10-21',manualFields:['notes','emailStatus']};
+ await assertSucceeds(updateDoc(ref,{...tracking,updatedAt:serverTimestamp()}));
+ const importDate=new Date('2026-10-20T12:00:00Z');await env.withSecurityRulesDisabled(async context=>{await updateDoc(doc(context.firestore(),'buyerContacts','alex'),{importedAt:importDate});});
+ await assertSucceeds(updateDoc(ref,{notes:'Manual note',manualUpdatedAt:serverTimestamp(),updatedAt:serverTimestamp()}));
+ await assertFails(updateDoc(ref,{importedAt:serverTimestamp(),updatedAt:serverTimestamp()}));
+ for(const role of ['client','freelancer'])await assertFails(updateDoc(doc(dbFor(role),'buyerContacts','alex'),{emailStatus:'Replied',updatedAt:serverTimestamp()}));
+});
+test('buyer tracking: both create and update reject malformed enums, dates, links, metadata and unbounded text',async()=>{
+ await seedBuyerDirectory();const db=dbFor('admin');
+ const invalid=[{priority:'D'},{emailStatus:'Unknown'},{plannedSendDate:'tomorrow'},{sentDate:123},{followUpDate:'21/10/2026'},{salutation:'x'.repeat(251)},{emailSubject:'x'.repeat(1001)},{callToAction:'Spam'},{replyChannel:'SMS'},{replySummary:'x'.repeat(8001)},{linkedinUrl:'https://linkedin.com.evil.invalid/in/a'},{linkedinUrl:'javascript:alert(1)'},{linkedinStatus:'Pending'},{linkedinMessageSent:true},{linkedinDegree:'4th'},{linkedinInviteOrder:-1},{linkedinInviteOrder:1.5},{linkedinInviteOrder:1000001},{linkedinInviteOrder:'2'},{linkedinInviteDate:'today'},{linkedinCurrentTitle:'x'.repeat(501)},{linkedinCurrentCompany:'x'.repeat(251)},{stillAtCompany:'Maybe'},{lastChecked:'today'},{manualFields:['unknownField']},{manualFields:Array(33).fill('notes')},{importedAt:'not-a-timestamp'},{manualUpdatedAt:'not-a-timestamp'},{manualUpdatedAt:new Date('2000-01-01')}];
+ for(const patch of invalid){
+  await assertFails(setDoc(doc(db,'buyerContacts','invalid-tracking'),{...buyerContact,...patch,updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(doc(db,'buyerContacts','alex'),{...patch,updatedAt:serverTimestamp()}));
+ }
+});

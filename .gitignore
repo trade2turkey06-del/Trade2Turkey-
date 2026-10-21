@@ -19,3 +19,5 @@ tmp/
 
 # Private buyer contact import
 /data/buyers_import.csv
+
+/data/buyers_tracking.csv

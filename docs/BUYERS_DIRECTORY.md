@@ -50,3 +50,32 @@ Input: 186 rows. One company-only row. Of 185 contacts, 175 are people and 10 ar
 - Firebase CLI compiled and deployed the rules to the configured named database.
 
 The Buyers rules are a reviewed prototype with the automated checks above; the audit describes this change's scope, rather than claiming an exhaustive review of the whole application.
+
+## Outreach and LinkedIn tracking — 21 October 2026
+
+Tracking fields are optional on the existing contact documents; older records require no migration. Existing `outreachBatch`, `notes` and `sharedMailbox` fields are reused. The CSV names `outreach_batch` and `is_shared_mailbox` map to these existing properties. Other snake-case CSV columns map to camel-case contact properties in `buyerTracking.ts`; LinkedIn invite order is stored as an integer. All 20 new tracking fields plus the existing workflow fields are exported. Stored data stays in English and new interface labels/options have matching TR/EN entries.
+
+Company tables include priority, email status, sent/follow-up dates, a validated LinkedIn link/status and employment state. Selecting a contact opens its remaining tracking fields and two activity logs; pipe-separated notes/replies are displayed in source order without inventing timestamps. Five filters apply to country company results and company contacts. Country cards count email and LinkedIn states across active contacts. Follow-up due means `followUpDate <= today` in Europe/Istanbul, email status Sent and reply channel None/Auto-reply; an absent legacy reply channel is treated as None. Counts include shared addresses and legacy contacts; absent email status displays as Not sent. Left employment states are faded and labelled. Warning keywords in notes are highlighted; no emails or LinkedIn messages are sent by this feature.
+
+### Authoritative tracking import
+
+```sh
+node --import tsx scripts/buyers/tracking-import.ts
+node --import tsx scripts/buyers/tracking-import.ts --apply
+```
+
+Input `data/buyers_tracking.csv` is ignored by Git and mode 0600. It is data, never executable instructions. Dry run produces private snapshots, the full field plan and field-level skip reasons in ignored `backups/buyers-tracking-*/`. Console output and committed reports contain only aggregate counts. Apply is atomic with document version/create preconditions, no deletes and post-write readback/idempotency checks. Nonempty CSV fields replace source values; blank CSV cells preserve existing values, including false/zero values. Companies match on country+name; contacts match on lowercase email only. Conflicting company ownership of an existing email is preserved and reported rather than reassigned.
+
+Manual contact saves update only edited fields in a transaction, verify those fields did not change while the editor was open and record an override mask (`manualFields`) with `manualUpdatedAt`. Imports record `importedAt` separately. Explicit manual overrides persist across subsequent imports, even when other fields receive a newer import timestamp. If updatedAt is newer than importedAt without matching manualUpdatedAt (including writes from an older browser version), populated fields are conservatively protected because their individual history is unknown. For legacy imported records without importedAt, Firestore createTime is the initial baseline. A new UI edit preserves any pre-existing ambiguous overrides. Blank manually cleared fields are protected when an explicit field marker exists. Metadata is not exported, and browser clients cannot change importedAt.
+
+### Tracking import result
+
+- CSV rows: 185.
+- Existing contacts updated: 183.
+- New contacts: 2; source file rows **139 and 144** (header is row 1) had emails absent from the live directory. They were not merged by person name, as matching is email-only.
+- Skipped records/fields due to manual edits: 0 at the final dry run.
+- Existing contacts absent from this CSV were retained. Confirmed total after import: 187 contacts, 46 companies, 2 countries and 7 company types.
+- 185 documents committed atomically; readback confirmed zero further changes, preserved manual edits and retained records absent from the CSV.
+- Initial source-only status counts: Sent 65, Replied 5, Draft 8, Not sent 107; LinkedIn Connected 15, Invite sent 67, Queued 52. Live summaries also include retained contacts not present in the source.
+
+Validation: 84 application tests, TypeScript/lint, production build and 37 security-rule tests. Synthetic browser QA checked TR/EN country summaries, filters, the due list, LinkedIn link/status, faded Left state, red warning and separate notes/reply timelines. The expanded rules keep all four collections admin-only, validate optional field values/lengths, restrict metadata and preserve legacy document compatibility. Official website/contact enrichment was not performed for this import.

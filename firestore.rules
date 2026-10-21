@@ -265,9 +265,39 @@ service cloud.firestore {
         && str(d.website,2000) && (d.website == '' || https(d.website)) && str(d.city,250)
         && str(d.categories,2000) && str(d.notes,4000);
     }
+    function buyerDate(value) { return str(value,10) && (value == '' || value.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')); }
+    function validBuyerTracking(d) {
+      return d.get('priority','') in ['', 'A', 'B', 'C']
+        && d.get('emailStatus','') in ['', 'Not sent', 'Draft', 'Sent', 'Replied', 'Bounced']
+        && d.get('callToAction','') in ['', '20-min call', 'Referral + call']
+        && d.get('replyChannel','') in ['', 'None', 'Auto-reply', 'Email', 'LinkedIn']
+        && d.get('linkedinStatus','') in ['', 'Queued', 'Invite sent', 'Connected', 'No invite', 'Profile not found']
+        && d.get('linkedinMessageSent','') in ['', 'Yes', 'No']
+        && d.get('linkedinDegree','') in ['', '1st', '2nd', '3rd']
+        && buyerDate(d.get('plannedSendDate',''))
+        && buyerDate(d.get('sentDate',''))
+        && buyerDate(d.get('followUpDate',''))
+        && buyerDate(d.get('linkedinInviteDate',''))
+        && buyerDate(d.get('lastChecked',''))
+        && str(d.get('salutation',''),250)
+        && str(d.get('emailSubject',''),1000)
+        && str(d.get('replySummary',''),8000)
+        && str(d.get('linkedinCurrentTitle',''),500)
+        && str(d.get('linkedinCurrentCompany',''),250)
+        && str(d.get('linkedinUrl',''),2000)
+        && (d.get('linkedinUrl','') == '' || d.linkedinUrl.matches('https://([a-zA-Z0-9-]+[.])*linkedin[.]com/[^ <>]*'))
+        && (!('linkedinInviteOrder' in d) || (d.linkedinInviteOrder is int && d.linkedinInviteOrder >= 0 && d.linkedinInviteOrder <= 1000000))
+        && str(d.get('stillAtCompany',''),250)
+        && (d.get('stillAtCompany','') in ['', 'Yes','Unclear','Left'] || d.stillAtCompany.matches('Left [(]moved to .+[)]'))
+        && (!('importedAt' in d) || d.importedAt is timestamp)
+        && (!('manualUpdatedAt' in d) || d.manualUpdatedAt is timestamp)
+        && d.get('manualFields',[]) is list
+        && d.get('manualFields',[]).size() <= 32
+        && d.get('manualFields',[]).hasOnly(['name', 'title', 'category', 'email', 'phone', 'outreachBatch', 'status', 'lastContacted', 'notes', 'sharedMailbox', 'priority', 'emailStatus', 'callToAction', 'replyChannel', 'linkedinStatus', 'linkedinMessageSent', 'linkedinDegree', 'plannedSendDate', 'sentDate', 'followUpDate', 'linkedinInviteDate', 'lastChecked', 'salutation', 'emailSubject', 'replySummary', 'linkedinCurrentTitle', 'linkedinCurrentCompany', 'linkedinUrl', 'linkedinInviteOrder', 'stillAtCompany', 'archived']);
+    }
     function validBuyerContact(d) {
-      return d.keys().hasOnly(['companyId','name','title','category','email','phone','outreachBatch','status','lastContacted','notes','sharedMailbox','archived','updatedAt'])
-        && validBuyerBase(d) && text(d.companyId,100)
+      return d.keys().hasOnly(['companyId','name','title','category','email','phone','outreachBatch','status','lastContacted','notes','sharedMailbox','archived','updatedAt','priority','emailStatus','callToAction','replyChannel','linkedinStatus','linkedinMessageSent','linkedinDegree','plannedSendDate','sentDate','followUpDate','linkedinInviteDate','lastChecked','salutation','emailSubject','replySummary','linkedinCurrentTitle','linkedinCurrentCompany','linkedinUrl','linkedinInviteOrder','stillAtCompany','manualFields','importedAt','manualUpdatedAt'])
+        && validBuyerBase(d) && validBuyerTracking(d) && text(d.companyId,100)
         && existsAfter(/databases/$(database)/documents/buyerCompanies/$(d.companyId))
         && str(d.name,250) && str(d.title,250) && str(d.category,1000) && str(d.email,254)
         && (d.name.size() > 0 || d.email.size() > 0)
@@ -293,8 +323,8 @@ service cloud.firestore {
     }
     match /buyerContacts/{id} {
       allow read: if admin();
-      allow create: if admin() && validBuyerContact(request.resource.data);
-      allow update: if admin() && validBuyerContact(request.resource.data) && request.resource.data.companyId == resource.data.companyId;
+      allow create: if admin() && validBuyerContact(request.resource.data) && !('importedAt' in request.resource.data) && (!('manualUpdatedAt' in request.resource.data) || request.resource.data.manualUpdatedAt == request.time);
+      allow update: if admin() && validBuyerContact(request.resource.data) && request.resource.data.companyId == resource.data.companyId && request.resource.data.get('importedAt',null) == resource.data.get('importedAt',null) && (request.resource.data.get('manualUpdatedAt',null) == resource.data.get('manualUpdatedAt',null) || request.resource.data.manualUpdatedAt == request.time);
       allow delete: if false;
     }
     // Admin-only supplier directory grouped by sector; sectors are archived, never deleted.
