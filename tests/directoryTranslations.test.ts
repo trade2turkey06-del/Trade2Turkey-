@@ -21,7 +21,7 @@ test('English updates preserve identities, all TR fields and unrelated translati
  assert.equal(contactTitle(english,english.contacts[0],'en').text,'Marketing Manager');
  assert.equal(contactTitle(english,english.contacts[0],'tr').text,'Pazarlama Müdürü');
  assert.equal(english.contacts[0].name,'Emel Özler');
- assert.deepEqual(missingTranslations(english),['description']);
+ assert.deepEqual(missingTranslations(english),['location','address','description']);
  const reordered={...english,contacts:[{id:'other',name:'Other',title:'',phone:'',email:''},...english.contacts]};
  assert.equal(contactTitle(reordered,reordered.contacts[1],'en').text,'Marketing Manager');
 });
@@ -35,4 +35,11 @@ test('review has complete unique English entries and preserves numbers and unit 
   const quantities=(s:string)=>s.match(/[+-]?\d+(?:[.,–]\d+)*(?:\+)?|m²|°C|\bkg\b|\bkm\b/g)||[];
   assert.deepEqual(quantities(row.en).sort(),quantities(row.tr).sort(),row.record+':'+row.field);
  }
+});
+
+test('location and address use EN without changing the Turkish source or company identity',()=>{
+ const translated=withEnglish(withEnglish(company,'location','Denizli, Turkey'),'address','Honaz');
+ assert.equal(companyValue(translated,'location','en').text,'Denizli, Turkey');
+ assert.equal(companyValue(translated,'location','tr').text,'Denizli, Honaz');
+ assert.equal(translated.name,company.name);
 });
