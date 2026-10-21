@@ -328,3 +328,60 @@ test("proje adı: nameEn yalnızca admin tarafından ve metin olarak yazılabili
   await assertSucceeds(setDoc(doc(dbFor("admin"),"projects/new"),{id:"new",name:"Yeni Proje",nameEn:"New Project"}));
   await assertFails(setDoc(doc(dbFor("admin"),"projects/new2"),{id:"new2",name:"Yeni",nameEn:["x"]}));
 });
+
+// Buyers use synthetic contacts only; private CSV contents must never enter fixtures.
+const buyerCountry={name:'United Kingdom',isoCode:'GB',archived:false};
+const buyerType={name:'Retailer',archived:false};
+const buyerCompany={name:'Example Foods',countryId:'gb',typeId:'retailer',website:'https://example.invalid',city:'London',categories:'Juices',notes:'',archived:false};
+const buyerContact={companyId:'example',name:'Alex Buyer',title:'Buyer',category:'Juices',email:'alex@example.invalid',phone:'',outreachBatch:'Batch A',status:'Not contacted',lastContacted:'',notes:'',sharedMailbox:false,archived:false};
+const buyerSamples=[['buyerCountries','gb',buyerCountry],['buyerCompanyTypes','retailer',buyerType],['buyerCompanies','example',buyerCompany],['buyerContacts','alex',buyerContact]] as const;
+async function seedBuyerDirectory(){const db=dbFor('admin');const batch=writeBatch(db);for(const [name,id,data]of buyerSamples)batch.set(doc(db,name,id),{...data,updatedAt:serverTimestamp()});await assertSucceeds(batch.commit());}
+test('buyers: admin can list, create, edit and archive all levels; hard deletes are denied',async()=>{
+ await seedBuyerDirectory();const db=dbFor('admin');
+ for(const [name,id]of buyerSamples){await assertSucceeds(getDocs(collection(db,name)));await assertSucceeds(getDoc(doc(db,name,id)));await assertSucceeds(updateDoc(doc(db,name,id),{archived:true,updatedAt:serverTimestamp()}));await assertFails(deleteDoc(doc(db,name,id)));}
+ await assertSucceeds(setDoc(doc(db,'buyerCompanyTypes','distributor'),{...buyerType,name:'Distributor',updatedAt:serverTimestamp()}));
+ await assertSucceeds(updateDoc(doc(db,'buyerCompanies','example'),{typeId:'distributor',updatedAt:serverTimestamp()}));
+ await assertSucceeds(updateDoc(doc(db,'buyerContacts','alex'),{status:'Replied',lastContacted:'2026-10-21',sharedMailbox:true,updatedAt:serverTimestamp()}));
+});
+test('buyers: anonymous users, clients and freelancers cannot get/list/create/update/delete any buyer collection',async()=>{
+ await seedBuyerDirectory();
+ for(const db of [env.unauthenticatedContext().firestore(),dbFor('client'),dbFor('freelancer')])for(const [name,id,data]of buyerSamples){
+  await assertFails(getDocs(collection(db,name)));await assertFails(getDoc(doc(db,name,id)));
+  await assertFails(setDoc(doc(db,name,'unauthorized'),{...data,updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(doc(db,name,id),{archived:true,updatedAt:serverTimestamp()}));await assertFails(deleteDoc(doc(db,name,id)));
+ }
+});
+test('buyers: forged admin claims without admin profile, profile-only admins and suspended admins are rejected',async()=>{
+ await seedBuyerDirectory();
+ const forged=env.authenticatedContext('client',{admin:true}).firestore();await assertFails(getDocs(collection(forged,'buyerContacts')));
+ const noClaim=env.authenticatedContext('admin',{}).firestore();await assertFails(getDocs(collection(noClaim,'buyerContacts')));
+ await updateDoc(doc(dbFor('admin'),'users/admin'),{status:'suspended'});await assertFails(getDocs(collection(dbFor('admin'),'buyerContacts')));
+});
+test('buyers: validators apply on both create and update, reject invalid types, unknown fields and oversized text',async()=>{
+ await seedBuyerDirectory();const db=dbFor('admin');
+ const invalid:[string,string,any][]=[
+  ['buyerCountries','gb',{name:'x'.repeat(101)}],['buyerCountries','gb',{isoCode:'United Kingdom'}],['buyerCountries','gb',{archived:'yes'}],
+  ['buyerCompanyTypes','retailer',{name:5}],['buyerCompanies','example',{website:'javascript:alert(1)'}],['buyerCompanies','example',{city:'x'.repeat(251)}],
+  ['buyerCompanies','example',{categories:'x'.repeat(2001)}],['buyerCompanies','example',{notes:'x'.repeat(4001)}],['buyerCompanies','example',{countryId:'missing'}],['buyerCompanies','example',{typeId:'missing'}],
+  ['buyerContacts','alex',{name:'x'.repeat(251)}],['buyerContacts','alex',{title:'x'.repeat(251)}],['buyerContacts','alex',{category:'x'.repeat(1001)}],
+  ['buyerContacts','alex',{email:'invalid email'}],['buyerContacts','alex',{phone:'x'.repeat(101)}],['buyerContacts','alex',{outreachBatch:'x'.repeat(251)}],
+  ['buyerContacts','alex',{notes:'x'.repeat(4001)}],['buyerContacts','alex',{status:'Secret'}],['buyerContacts','alex',{lastContacted:'yesterday'}],
+  ['buyerContacts','alex',{sharedMailbox:'true'}],['buyerContacts','alex',{companyId:'missing'}],['buyerContacts','alex',{name:'',email:''}],
+  ['buyerContacts','alex',{extra:'unrecognised'}],['buyerContacts','alex',{updatedAt:new Date('2000-01-01')}],
+ ];
+ for(const [name,id,patch]of invalid){const sample=buyerSamples.find(([collection])=>collection===name)![2];
+  await assertFails(setDoc(doc(db,name,'invalid'),{...sample,updatedAt:serverTimestamp(),...patch}));
+  await assertFails(updateDoc(doc(db,name,id),{updatedAt:serverTimestamp(),...patch}));
+ }
+ await assertFails(setDoc(doc(db,'buyerContacts','missing-required'),{name:'Name',updatedAt:serverTimestamp()}));
+ await assertFails(updateDoc(doc(db,'buyerCompanies','example'),{name:'' ,updatedAt:serverTimestamp()}));
+ // A contact cannot silently be reassigned to a different company.
+ await assertSucceeds(setDoc(doc(db,'buyerCompanies','other'),{...buyerCompany,name:'Other Company',updatedAt:serverTimestamp()}));
+ await assertFails(updateDoc(doc(db,'buyerContacts','alex'),{companyId:'other',updatedAt:serverTimestamp()}));
+});
+test('buyers: real-world email and website syntax accepts s characters and rejects whitespace',async()=>{
+ await seedBuyerDirectory();const db=dbFor('admin');
+ await assertSucceeds(updateDoc(doc(db,'buyerContacts','alex'),{email:'sales@suppliers.example',updatedAt:serverTimestamp()}));
+ await assertSucceeds(updateDoc(doc(db,'buyerCompanies','example'),{website:'https://www.suppliers.example',updatedAt:serverTimestamp()}));
+ await assertFails(updateDoc(doc(db,'buyerContacts','alex'),{email:'a b@example.invalid',updatedAt:serverTimestamp()}));
+});

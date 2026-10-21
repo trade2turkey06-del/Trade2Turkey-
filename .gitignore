@@ -16,3 +16,6 @@ dist/
 .npm-cache/
 scratch/
 tmp/
+
+# Private buyer contact import
+/data/buyers_import.csv

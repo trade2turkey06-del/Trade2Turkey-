@@ -8,6 +8,7 @@ import { nameLocale, projectDisplayName, rememberProjectNames } from "./lib/proj
 
 import React, { useState, useEffect } from "react";
 import Navbar from "./components/Navbar";
+import BuyerDirectory from "./components/BuyerDirectory";
 import SectorDirectory from "./components/SectorDirectory";
 import MinorSheets from "./components/MinorSheets";
 import ProjectDocumentVault from "./components/ProjectDocumentVault";
@@ -584,6 +585,8 @@ export default function App() {
         {appError && <div role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-800">{appError}<button className="ml-4 underline" onClick={() => setAppError("")}>{msg("workspaceAdmin", "close")}</button></div>}
         {/* Dynamic active View Renderer Router logic */}
         <div className="space-y-6">
+
+          {currentUser.role === "admin" && currentTab === "buyers" && <BuyerDirectory />}
 
           {currentUser.role === "admin" && currentTab === "sectors" && (
             <SectorDirectory />

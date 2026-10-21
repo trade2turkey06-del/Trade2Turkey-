@@ -1,6 +1,6 @@
 import React from "react";
 import { projectDisplayName } from "../lib/projectName";
-import { Globe, Shield, FileText, Menu, X, Clock, LogOut, Compass, FolderOpen, LayoutDashboard, ChartNoAxesCombined, Truck, Plus, ChevronRight, Layers } from "lucide-react";
+import { Globe, Shield, FileText, Menu, X, Clock, LogOut, Compass, FolderOpen, LayoutDashboard, ChartNoAxesCombined, Truck, Plus, ChevronRight, Layers, Users } from "lucide-react";
 import { UserTenant } from "../data/usersData";
 import BrandLogo from "./BrandLogo";
 import LanguageSwitcher from "./LanguageSwitcher";
@@ -46,6 +46,7 @@ const Navbar = React.memo(function Navbar({
   if (currentUser?.role === "admin") {
     navItems.push({ id: "client-discovery", label: n["client-discovery"], icon: Compass });
     navItems.unshift({ id: "overview", label: n.overview, icon: LayoutDashboard });
+    navItems.push({ id: "buyers", label: n.buyers, icon: Users });
     navItems.push({ id: "sectors", label: n.sectors, icon: Layers });
     navItems.push({ id: "market-insights", label: n["market-insights"], icon: ChartNoAxesCombined });
   }
