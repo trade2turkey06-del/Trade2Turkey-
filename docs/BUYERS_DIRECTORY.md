@@ -1,6 +1,6 @@
 # Buyers directory
 
-Buyers sits between Client Discovery and Sectors in the admin navigation. It follows the Sectors page's real-time Firestore listeners, country sidebar, navy/teal cards and inline editing. Interface labels use the existing typed TR/EN catalogs. Directory data (including countries, company types and contact details) stays in English; workflow status labels are translated without changing the saved English status values.
+Buyers sits between Production, Logistics & Inventory and Sectors in the admin navigation. It follows the Sectors page's real-time Firestore listeners, country sidebar, navy/teal cards and inline editing. Interface labels use the existing typed TR/EN catalogs. Directory data (including countries, company types and contact details) stays in English; workflow status labels are translated without changing the saved English status values.
 
 Countries can be added, renamed and archived. The United Kingdom and United States and seven initial company types are created only when their deterministic records do not exist. Archiving preserves companies and contacts. Company types filter the selected country's companies; All clears the type filter. New types can be added. Company editors allow changing the type and country. Contact editors include the six workflow statuses and a last-contacted date. Shared mailboxes are marked as general addresses, separate from people in country/company counts.
 

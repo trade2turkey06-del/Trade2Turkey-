@@ -117,7 +117,7 @@ test("i18n: logistics has all 21 steps and approved terminology", async () => {
 });
 
 test("i18n: phase 2 catalogs keep interpolation placeholders aligned", () => {
-  for (const group of ["operations","actionCenter","sectors","discovery","workspaceAdmin","api","market","ai"] as const) {
+  for (const group of ["operations","actionCenter","sectors","discovery","api","market","ai"] as const) {
     for (const key of Object.keys(tr[group])) {
       const source = tr[group][key], target = en[group][key];
       assert.equal(typeof target,"string",`${group}.${key}`);

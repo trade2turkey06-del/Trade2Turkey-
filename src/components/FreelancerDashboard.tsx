@@ -1,27 +1,37 @@
-import { leadStatusKey, companyTypeKey, urgencyKey } from "../domain/statusKeys";
-import { useProjectName } from "../lib/projectName";
-import { useI18n } from "../i18n";
-import React, { useState, useEffect, useMemo } from "react";
-import SourcingWorkflow from "./SourcingWorkflow";
-import { 
-  Compass, Search, AlertTriangle, CheckCircle, 
-  MapPin, Sparkles, ChevronDown, ChevronUp, AlertOctagon, 
-  RefreshCw, TrendingUp, ShieldAlert, UserCheck, UserX, LogOut,
-  ShieldCheck, Loader2, FileText, Trash2
-} from "lucide-react";
-import { UserTenant } from "../data/usersData";
-import { db, auth } from "../lib/firebase";
-import { 
-  query, collection, where, or, onSnapshot, doc, setDoc, deleteDoc, getDocs, writeBatch
+import {
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  query,
+  setDoc,
+  where
 } from "firebase/firestore";
+import {
+  AlertOctagon,
+  AlertTriangle,
+  ChevronDown, ChevronUp,
+  Compass,
+  Loader2,
+  LogOut,
+  Search,
+  ShieldCheck,
+  Trash2,
+  TrendingUp
+} from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { UserTenant } from "../data/usersData";
+import { leadStatusKey } from "../domain/statusKeys";
+import { useI18n } from "../i18n";
+import { db } from "../lib/firebase";
+import { useProjectName } from "../lib/projectName";
 import GoogleDriveFolder from "./GoogleDriveFolder";
 import { MarketInsightsView } from "./MarketInsights";
+import SourcingWorkflow from "./SourcingWorkflow";
 
 interface FreelancerDashboardProps {
   currentUser: UserTenant;
   onLogout: () => void;
-  auditMode?: boolean;
-  auditEmail?: string;
 }
 
 interface ClientLead {
@@ -86,7 +96,7 @@ export const freelanceSOPData = [
   { step: "B.14", task: "Purchase Order (PO) and Proforma Invoice (PI)", kpi: "Upload approved PO and approved Proforma Invoice", storage: "Shared Folder - Stage B.14" }
 ];
 
-export default function FreelancerDashboard({ currentUser, onLogout, auditMode = false, auditEmail }: FreelancerDashboardProps) {
+export default function FreelancerDashboard({ currentUser, onLogout }: FreelancerDashboardProps) {
   const { t, fmt } = useI18n();
   const formatPercent = fmt.percent;
   const [leads, setLeads] = useState<ClientLead[]>([]);
@@ -476,7 +486,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
     );
   }
 
-  if (!auditMode && !activeUser?.onboardingCompleted) {
+  if (!activeUser?.onboardingCompleted) {
     return (
       <div className="min-h-screen bg-slate-955 text-slate-100 flex flex-col items-center justify-center p-4 md:p-8 selection:bg-teal-500 selection:text-black relative overflow-hidden">
         {/* Background radial soft light blobs of Navy Ink */}
@@ -709,19 +719,13 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
               <span className="text-[10px] text-slate-500 font-mono">{activeUser?.email ?? ""}</span>
             </div>
 
-            {!auditMode ? (
-              <button 
+            <button
                 onClick={onLogout}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-800 hover:border-red-500/30 hover:bg-red-950/10 text-xs font-bold text-slate-400 hover:text-red-400 transition cursor-pointer"
               >
                 <LogOut className="h-3.5 w-3.5" />
                 <span>Secure Logout</span>
               </button>
-            ) : (
-              <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-xs font-bold text-amber-400 font-mono">
-                🔒 AUDIT VIEW
-              </div>
-            )}
           </div>
         </div>
       </header>
@@ -858,14 +862,12 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
               <Compass className="h-5 w-5 text-teal-400" />
               Prospective Importers & B2B Opportunities
             </h3>
-            {!auditMode && (
-              <button
+            <button
                 onClick={() => setShowAddLeadModal(true)}
                 className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-slate-950 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-2 font-mono"
               >
                 <span>{t.discovery.addLeadShort}</span>
               </button>
-            )}
           </div>
         </div>
 
@@ -945,7 +947,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                               const currentStatus = leadStatusKey(lead.status) || lead.status;
                               return (
                                 <select
-                                  disabled={auditMode || lead.id.startsWith("fallback_")}
+                                  disabled={lead.id.startsWith("fallback_")}
                                   value={currentStatus}
                                   onChange={(e) => handleUpdateStatus(lead.id, e.target.value as any)}
                                   className={`text-[10px] font-black px-2.5 py-1.5 rounded-full font-mono uppercase tracking-wider border cursor-pointer focus:outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
@@ -969,8 +971,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                                 <span>Details</span>
                               </button>
                               
-                              {!auditMode && (
-                                <button
+                              <button
                                   disabled={lead.id.startsWith("fallback_")}
                                   onClick={() => setLeadToDelete(lead)}
                                   className="text-xs font-bold text-red-500 hover:text-red-400 disabled:opacity-30 disabled:hover:text-red-500 transition flex items-center gap-1 cursor-pointer font-mono"
@@ -979,7 +980,6 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                                   <Trash2 className="h-3.5 w-3.5" />
                                   <span>Delete</span>
                                 </button>
-                              )}
                             </div>
                           </td>
                         </tr>
@@ -1158,7 +1158,6 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                                                     </td>
                                                     <td className="p-4" onClick={(e) => e.stopPropagation()}>
                                                       <select
-                                                        disabled={auditMode}
                                                         value={status}
                                                         onChange={(e) => handleUpdateSopStatus(stepId, e.target.value, lead.id)}
                                                         className={`text-[10px] font-black px-2.5 py-1.5 rounded-full font-mono uppercase tracking-wider border cursor-pointer focus:outline-none transition-all ${
@@ -1301,7 +1300,7 @@ export default function FreelancerDashboard({ currentUser, onLogout, auditMode =
                                                         <GoogleDriveFolder
                                                           stepId={stepId}
                                                           storageLocation={templateStep.storage}
-                                                          clientMode={auditMode}
+                                                          clientMode={false}
                                                           currentProjectId={lead.projectId}
                                                           onStatusChange={(id, newStatus) => handleUpdateSopStatus(id, newStatus, lead.id)}
                                                         />

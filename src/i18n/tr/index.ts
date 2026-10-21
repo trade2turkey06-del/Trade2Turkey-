@@ -1,7 +1,6 @@
 import { buyers } from "./buyers";
 import { ai } from "./ai";
 import { market } from "./market";
-import { workspaceAdmin } from "./workspaceAdmin";
 import { api } from "./api";
 import { discovery } from "./discovery";
 import { sectors } from "./sectors";
@@ -18,5 +17,5 @@ import { productSpec } from "./productSpec";
 import { errors } from "./errors";
 import { countries } from "./countries";
 
-export const tr = { buyers, ai, market, workspaceAdmin, api, discovery, sectors, actionCenter, logistics, operations, common, language, shell, login, status, steps, sourcing, editors, rfqMatrix, cogs, bom, drive, vault, productSpec, errors, countries };
+export const tr = { buyers, ai, market, api, discovery, sectors, actionCenter, logistics, operations, common, language, shell, login, status, steps, sourcing, editors, rfqMatrix, cogs, bom, drive, vault, productSpec, errors, countries };
 export type Messages = typeof tr;

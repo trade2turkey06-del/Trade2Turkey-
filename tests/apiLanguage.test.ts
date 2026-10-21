@@ -13,11 +13,11 @@ test('AI output language is explicit and request-local; schema and names stay in
  assert.match(apiMessage(req({language:'en'}),'aiDisabled'),/disabled/);
  const server=fs.readFileSync('server.ts','utf8');
  assert.match(server,/app.use\("\/api\/ai", \(req, res\) => \{ res.status\(503\)/);
- assert.equal((server.match(/const prompt = outputInstruction\(req\)/g)||[]).length,6);
+ assert.equal((server.match(/const prompt = outputInstruction\(req\)/g)||[]).length,5);
 });
 
 test('Generated fallback prose respects the request language and preserves parameter data',()=>{
- assert.equal(aiText(req({language:'en'}),'alignedFruitJuice'),'Aligned (Fruit Juice)');
+ assert.equal(aiText(req({language:'en'}),'manufacturer'),'Manufacturer');
  const name='Türkçe Firma';
  const result=aiText(req({language:'en'}),'recommendationReviewValueAsAPotentialManufacturingPartnerFor',name);
  assert.ok(result.includes(name));assert.ok(result.startsWith('Recommendation:'));

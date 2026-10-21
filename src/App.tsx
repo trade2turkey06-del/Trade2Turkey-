@@ -1,50 +1,44 @@
-import { message as msg } from "./i18n";
 import ProjectNamesPanel from "./components/ProjectNamesPanel";
+import { initialWorkspaceTab, retiredPageRedirect } from "./domain/navigation";
 import { nameLocale, projectDisplayName, rememberProjectNames } from "./lib/projectName";
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from "react";
-import Navbar from "./components/Navbar";
-import BuyerDirectory from "./components/BuyerDirectory";
-import SectorDirectory from "./components/SectorDirectory";
-import MinorSheets from "./components/MinorSheets";
-import ProjectDocumentVault from "./components/ProjectDocumentVault";
-import SourcingWorkflow from "./components/SourcingWorkflow";
-import LogisticsSOP from "./components/LogisticsSOP";
-import ClientDiscovery from "./components/ClientDiscovery";
-import { MarketInsightsManagement } from "./components/MarketInsights";
-import LoginScreen from "./components/LoginScreen";
-import FreelancerDashboard, { freelanceSOPData } from "./components/FreelancerDashboard";
-import { UserTenant, INITIAL_TENANTS } from "./data/usersData";
-import { setDriveAuth } from "./lib/driveAuth";
-import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { inviteUser } from "./lib/userInvites";
-import OperationsHub from "./components/OperationsHub";
+import { collection, deleteDoc, doc, documentId, onSnapshot, query, runTransaction, setDoc, updateDoc, where } from "firebase/firestore";
+import React, { useEffect, useState } from "react";
 import AdminOverview from "./components/AdminOverview";
 import BackupPanel from "./components/BackupPanel";
+import BuyerDirectory from "./components/BuyerDirectory";
+import FreelancerDashboard, { freelanceSOPData } from "./components/FreelancerDashboard";
+import LoginScreen from "./components/LoginScreen";
+import { MarketInsightsManagement } from "./components/MarketInsights";
+import Navbar from "./components/Navbar";
+import OperationsHub from "./components/OperationsHub";
+import ProjectDocumentVault from "./components/ProjectDocumentVault";
+import SectorDirectory from "./components/SectorDirectory";
+import SourcingWorkflow from "./components/SourcingWorkflow";
 import UserManagement from "./components/UserManagement";
+import { UserTenant } from "./data/usersData";
 import { trustedAdministrator } from "./domain/access";
-import { onSnapshot, collection, query, where, doc, setDoc, deleteDoc, writeBatch, getDocs, documentId, runTransaction, updateDoc } from "firebase/firestore";
 import { getMessages, useI18n } from "./i18n";
+import { setDriveAuth } from "./lib/driveAuth";
+import { auth, db } from "./lib/firebase";
 
-import { 
-  INITIAL_TARGET_SPECS, INITIAL_RFQS, 
-  INITIAL_VALUE_CHAIN_COSTINGS, INITIAL_RFQ_MATRICES, 
-  INITIAL_PRODUCT_RECIPES, INITIAL_SUPPLIERS, INITIAL_SHIPMENTS, 
-  INITIAL_INVENTORY_ITEMS, INITIAL_FULFILLMENT_ORDERS,
-  TargetSpecification, RfqSubmission, ValueChainCosting,
-  RfqComparativeMatrix, ProductRecipe, Supplier, ShipmentMilestone,
-  InventoryItem, FulfillmentOrder
+import {
+  FulfillmentOrder,
+  InventoryItem,
+  ProductRecipe,
+  RfqComparativeMatrix,
+  RfqSubmission,
+  ShipmentMilestone,
+  Supplier,
+  TargetSpecification,
+  ValueChainCosting
 } from "./types";
 
-import { 
-  ClipboardList, ShieldAlert, Users, PlusCircle,
-  Compass, Coins, Truck, Settings, FileText, CheckCircle, Eye, ShieldCheck, Mail, Lock
-} from "lucide-react";
 
 export default function App() {
   // Active corporate context state
@@ -98,18 +92,6 @@ export default function App() {
   const [newProjId, setNewProjId] = useState("");
   const [newProjDesc, setNewProjDesc] = useState("");
   const [newProjFeedback, setNewProjFeedback] = useState<string | null>(null);
-
-  // Dynamic user store in localStorage to persist new corporate clients added by the owner
-  const [customUsers, setCustomUsers] = useState<UserTenant[]>([]);
-
-  // Admin Workspace Creation State
-  const [newClientEmail, setNewClientEmail] = useState("");
-  const [newClientCompany, setNewClientCompany] = useState("");
-  const [newClientProject, setNewClientProject] = useState("PROJE-UNLU MAMÜLLER");
-  const [adminFeedback, setAdminFeedback] = useState<string | null>(null);
-
-  // Impersonation / Audit mode state
-  const [auditedFreelancer, setAuditedFreelancer] = useState<UserTenant | null>(null);
 
   useEffect(() => {
     if (currentUser?.role === "client") setActiveProjectId(currentUser.projectId);
@@ -184,8 +166,14 @@ export default function App() {
   };
 
   // Tab control
-  const [currentTab, setCurrentTab] = useState<string>("sourcing");
-  const [clientMode, setClientMode] = useState<boolean>(false);
+  const [currentTab, setCurrentTab] = useState<string>(() => initialWorkspaceTab(window.location.href));
+  useEffect(() => {
+    const redirect = retiredPageRedirect(window.location.href);
+    if (redirect) window.history.replaceState(null, "", redirect);
+  }, []);
+  useEffect(() => {
+    if (currentUser?.role === "client" && currentTab === "overview") setCurrentTab("sourcing");
+  }, [currentUser?.role, currentTab]);
   
   // Embedded Minor sheet key tracker (linked from click on certain Major SOP steps)
   const [activeMinorSheetKey, setActiveMinorSheetKey] = useState<string | null>(null);
@@ -332,9 +320,6 @@ export default function App() {
       snapshot => setter(snapshot.docs.map(item => ({ ...item.data(), id: item.data().id || item.id }))),
       () => setAppError(getMessages().shell.errors.collectionLoad(name))
     ));
-    if (currentUser.role === "admin") unsubscribers.push(onSnapshot(collection(db, "users"), snapshot => {
-      setCustomUsers(snapshot.docs.map(item => ({ ...item.data(), id: item.id } as UserTenant)));
-    }, () => setAppError(msg("workspaceAdmin", "couldNotLoadUsers"))));
     setLoadedProjectId(activeProjectId);
     return () => unsubscribers.forEach(stop => stop());
   }, [activeProjectId, currentUser?.id, currentUser?.role]);
@@ -357,26 +342,7 @@ export default function App() {
     await signOut(auth);
     setDriveAuth(null, null, null);
     setCurrentUser(null);
-    setClientMode(false);
     setCurrentTab("sourcing");
-  }, []);
-
-  // Add Dynamic user workspace as administrator
-  const handleAddClientAction = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAdminFeedback(msg("workspaceAdmin", "creatingAccount"));
-    try {
-      const result = await inviteUser({ email: newClientEmail, companyName: newClientCompany, projectId: newClientProject, role: "client" });
-      setAdminFeedback(result);
-      setNewClientEmail(""); setNewClientCompany("");
-    } catch (error) { setAdminFeedback(error instanceof Error ? error.message : msg("workspaceAdmin", "couldNotCreateTheUserAccount")); }
-  };
-
-  // Switch workspace context and simulate dynamic client login
-  const handleAdminInspectClient = React.useCallback((tenant: UserTenant) => {
-    setActiveProjectId(tenant.projectId);
-    setAdminFeedback(msg("workspaceAdmin", "reviewModeViewingTheWorkspaceAssociatedWithValueUse", tenant.companyName));
-    window.scrollTo({ top: 380, behavior: "smooth" });
   }, []);
 
   // 3. Render login portal screen if un-authenticated
@@ -390,9 +356,6 @@ export default function App() {
     return <FreelancerDashboard currentUser={currentUser} onLogout={handleLogout} />;
   }
 
-  // List of all active tenants (initial defaults + manually added ones)
-  const allCurrentTenantsList = customUsers;
-
   return (
     <div className="workspace-app min-h-screen bg-slate-50 flex flex-col font-sans antialiased">
       
@@ -403,8 +366,6 @@ export default function App() {
           setCurrentTab(tab);
           setActiveMinorSheetKey(null); // Reset focus sheets on tab swap
         }}
-        clientMode={clientMode}
-        setClientMode={setClientMode}
         currentUser={currentUser}
         onLogout={handleLogout}
         activeProjectId={activeProjectId}
@@ -424,165 +385,7 @@ export default function App() {
           <div className="intro-date"><span className="text-[10px] uppercase tracking-widest text-slate-400">{t.shell.today}</span><span className="mt-1 block text-xs font-semibold text-slate-600">{fmt.date(new Date())}</span></div>
         </div>
 
-        {/* ADMIN-ONLY: CORPORATE TENANT MANAGEMENT DESK */}
-        {currentUser.role === "admin" && currentTab === "client-discovery" && (
-          <div id="admin-workspace-container" className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
-              <div>
-                <h4 className="text-base font-bold text-slate-900 flex items-center gap-2 font-display">
-                  <Users className="h-5 w-5 text-navy" /> {msg("workspaceAdmin", "clientWorkspacesAccessManagement")}
-                </h4>
-                <p className="text-xs text-slate-500 mt-1">
-                  {msg("workspaceAdmin", "createSeparateProjectWorkflowsOrganiseDedicatedGoogleDriveFolders")}
-                </p>
-              </div>
-              <span className="text-[10px] bg-navy/5 text-navy font-extrabold px-3 py-1 rounded-full border border-navy/10 uppercase font-mono tracking-wider">
-                {msg("workspaceAdmin", "clientWorkspaceSynchronisationActive")}
-              </span>
-            </div>
-
-            {adminFeedback && (
-              <div className="bg-slate-50 border border-slate-200 text-slate-850 text-xs p-4 rounded-2xl font-mono leading-relaxed shadow-inner">
-                {adminFeedback}
-              </div>
-            )}
-
-            {/* Admin actions grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              
-              {/* Form: Add New Corporate Client */}
-              <form onSubmit={handleAddClientAction} className="lg:col-span-5 bg-slate-50 p-5 rounded-2xl border border-slate-150 space-y-4">
-                <div className="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase font-mono tracking-wider">
-                  <PlusCircle className="h-4.5 w-4.5 text-navy" /> {msg("workspaceAdmin", "assignClientWorkspace")}
-                </div>
-
-                <div className="space-y-3.5">
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                      {msg("workspaceAdmin", "clientCompanyName")}
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder={msg("workspaceAdmin", "eGExampleTradingLtd")}
-                      value={newClientCompany}
-                      onChange={(e) => setNewClientCompany(e.target.value)}
-                      className="w-full p-2.5 bg-white border rounded-xl text-xs text-slate-855 placeholder:text-slate-400 focus:outline-none focus:border-navy transition"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">{msg("workspaceAdmin", "userBusinessEmail")}</label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                      <input
-                        type="email"
-                        required
-                        placeholder="client@company.com"
-                        value={newClientEmail}
-                        onChange={(e) => setNewClientEmail(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2.5 bg-white border rounded-xl text-xs text-slate-855 placeholder:text-slate-400 focus:outline-none focus:border-navy transition font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">{msg("workspaceAdmin", "assignSourcingProject")}</label>
-                    <select
-                      value={newClientProject}
-                      onChange={(e) => setNewClientProject(e.target.value)}
-                      className="w-full p-2.5 bg-white border rounded-xl text-xs text-slate-800 focus:outline-none focus:border-navy transition font-mono font-bold"
-                    >
-                      {projects.map(p => (
-                        <option key={p.id} value={p.id}>{p.id} ({projectDisplayName(p, lang, p.id)})</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="p-3 bg-slate-100 border border-slate-200 rounded-xl text-[11px] leading-relaxed text-slate-700">
-                    {msg("workspaceAdmin", "aPasswordSetupEmailIsSentToTheUser")}
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full bg-navy hover:bg-navy-light text-white font-semibold text-xs py-3 rounded-xl transition cursor-pointer shadow-sm"
-                  >
-                    {msg("workspaceAdmin", "createClientWorkspace")}
-                  </button>
-                </div>
-              </form>
-
-              {/* Grid: View and switch between active corporate clients */}
-              <div className="lg:col-span-7 space-y-3">
-                <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">{msg("workspaceAdmin", "registeredClientWorkspaces")}</span>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[360px] overflow-y-auto pr-1">
-                  {allCurrentTenantsList.map((tenant) => {
-                    const isViewing = activeProjectId === tenant.projectId;
-                    return (
-                      <div
-                        key={tenant.id}
-                        className={`p-4 rounded-2xl border transition flex flex-col justify-between gap-3 ${
-                          isViewing
-                            ? "bg-navy text-white border-navy shadow-md"
-                            : "bg-white text-slate-800 border-slate-200 hover:border-slate-300"
-                        }`}
-                      >
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <h5 className="text-xs font-bold font-display truncate max-w-[170px]">
-                              {tenant.companyName}
-                            </h5>
-                            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded font-mono bg-teal-500/10 text-teal-600">
-                              {tenant.projectId}
-                            </span>
-                          </div>
-                          <span className={`block text-[10px] font-mono truncate ${isViewing ? "text-slate-200" : "text-slate-500"}`}>
-                            {tenant.email}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between border-t border-slate-250/10 pt-2.5 mt-1 select-none">
-                          <span className={`text-[10px] font-mono ${isViewing && tenant.role !== "freelancer" ? "text-sky-300 font-bold" : "text-slate-400"}`}>
-                            {tenant.role === "freelancer" ? msg("workspaceAdmin", "fieldRepresentativeFreelancer") : (isViewing ? msg("workspaceAdmin", "reviewActive") : msg("workspaceAdmin", "reviewInactive"))}
-                          </span>
-                          
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (tenant.role === "freelancer") {
-                                setAuditedFreelancer(tenant);
-                              } else {
-                                handleAdminInspectClient(tenant);
-                              }
-                            }}
-                            className={`px-2.5 py-1 rounded text-[10px] font-bold cursor-pointer transition ${
-                              isViewing && tenant.role !== "freelancer"
-                                ? "bg-white hover:bg-slate-150 text-navy"
-                                : "bg-slate-100 hover:bg-slate-200 text-slate-700"
-                            }`}
-                          >
-                            {msg("workspaceAdmin", "reviewWorkspace")}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex gap-2.5 text-xs text-slate-800 leading-relaxed font-sans">
-                  <ShieldCheck className="h-5 w-5 text-navy mt-0.5 shrink-0" />
-                  <div>
-                    <strong>Dual-Stitch Security Policy Enforcement:</strong> SofaStyle and Velvet Lounge users remain perfectly compartmentalized. When a user with the corporate credentials of SofaStyle logs in, they are locked to Project ID list filters. They cannot access, browse, or perform uploads to alternate pipelines.
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        )}
-
-        {appError && <div role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-800">{appError}<button className="ml-4 underline" onClick={() => setAppError("")}>{msg("workspaceAdmin", "close")}</button></div>}
+        {appError && <div role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-800">{appError}<button className="ml-4 underline" onClick={() => setAppError("")}>{t.common.close}</button></div>}
         {/* Dynamic active View Renderer Router logic */}
         <div className="space-y-6">
 
@@ -612,16 +415,6 @@ export default function App() {
             </div>
           )}
 
-
-
-          {/* CLIENT DISCOVERY PORTAL (FREELANCE NETWORK) */}
-          {currentUser.role === "admin" && currentTab === "client-discovery" && (
-            <ClientDiscovery
-              currentProjectId={activeProjectId}
-              currentUser={currentUser}
-              projects={projects}
-            />
-          )}
 
 
           {/* MARKET INSIGHTS MANAGEMENT PANEL */}
@@ -769,43 +562,6 @@ export default function App() {
         </div>
       )}
 
-      {/* AUDIT MODE OVERLAY */}
-      {auditedFreelancer && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-955/90 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full h-[90vh] max-w-7xl bg-slate-955 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
-            
-            {/* Audit Header */}
-            <div className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <span className="bg-red-500/10 text-red-400 text-[10px] font-black uppercase font-mono px-2.5 py-1 rounded-md border border-red-500/25 tracking-wider animate-pulse">
-                  {msg("workspaceAdmin", "auditModeReadOnly")}
-                </span>
-                <h3 className="text-base font-black text-white font-display">
-                  {msg("workspaceAdmin", "auditMode")} {auditedFreelancer.name || auditedFreelancer.displayName || auditedFreelancer.companyName || auditedFreelancer.email} {msg("workspaceAdmin", "workspace")}
-                </h3>
-              </div>
-              
-              <button
-                onClick={() => setAuditedFreelancer(null)}
-                className="text-slate-400 hover:text-white transition cursor-pointer p-1 rounded-lg hover:bg-slate-850"
-                title={msg("workspaceAdmin", "exitAuditMode")}
-              >
-                <span className="text-lg font-bold">✕</span>
-              </button>
-            </div>
-
-            {/* Audit Content Container */}
-            <div className="flex-1 overflow-y-auto bg-slate-955">
-              <FreelancerDashboard 
-                currentUser={auditedFreelancer} 
-                onLogout={() => {}} 
-                auditMode={true} 
-                auditEmail={auditedFreelancer.email} 
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
