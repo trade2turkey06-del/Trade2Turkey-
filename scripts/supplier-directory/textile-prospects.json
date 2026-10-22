@@ -1,0 +1,372 @@
+{
+  "sectors": [
+    [
+      "havlu",
+      "Towels & Bath Textiles"
+    ],
+    [
+      "hazir-giyim",
+      "Apparel"
+    ],
+    [
+      "bed-linen-bedding",
+      "Bed Linen & Bedding"
+    ],
+    [
+      "home-décor-textiles",
+      "Home Décor Textiles"
+    ],
+    [
+      "kitchen-textiles",
+      "Kitchen Textiles"
+    ],
+    [
+      "hotel-contract-textiles",
+      "Hotel & Contract Textiles"
+    ],
+    [
+      "home-storage-organizers",
+      "Home Storage & Organizers"
+    ],
+    [
+      "baby-kids-textiles",
+      "Baby & Kids Textiles"
+    ],
+    [
+      "underwear-nightwear-loungewear",
+      "Underwear, Nightwear & Loungewear"
+    ],
+    [
+      "socks-accessories",
+      "Socks & Accessories"
+    ],
+    [
+      "yarn-fabrics",
+      "Yarn & Fabrics"
+    ],
+    [
+      "technical-medical-textiles",
+      "Technical & Medical Textiles"
+    ],
+    [
+      "carpets-rugs",
+      "Carpets & Rugs"
+    ]
+  ],
+  "suppliers": [
+    {
+      "sectorId": "havlu",
+      "name": "Hürsan Havlu",
+      "location": "Denizli, Turkey",
+      "products": "Towels, bathrobes, bath mats, kitchen textiles, homewear, beachwear",
+      "website": "",
+      "notes": "GOTS-listed supplier.\nLikely website: hursan.com.tr (unverified)",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "havlu",
+      "name": "Kemal Uğurlu Tekstil",
+      "location": "Honaz OSB, Denizli, Turkey",
+      "products": "Towels, home textiles",
+      "website": "https://www.ugurlutekstil.com.tr",
+      "notes": "Heimtextil exhibitor.",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "havlu",
+      "name": "Vateks (Vatan Tekstil)",
+      "location": "Turkey",
+      "products": "Dobby & jacquard terry and velour towels, bathrobes, ponchos, bibs, cuddle downs, headbands, turbans",
+      "website": "https://www.vateks.com.tr",
+      "notes": "Also fits Baby & Kids (bibs, ponchos, cuddle downs).",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "bed-linen-bedding",
+      "name": "Menderes Tekstil",
+      "location": "Sarayköy, Denizli (factory); head office Bayraklı, İzmir, Turkey",
+      "products": "Bed linen, duvet covers, sheets, bedding",
+      "website": "https://www.menderes.com",
+      "notes": "Listed on Borsa Istanbul (MNDRS). Vertically integrated from yarn to finished product; private label for European retail.",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "bed-linen-bedding",
+      "name": "Zorlu Tekstil",
+      "location": "Bursa, Turkey",
+      "products": "Bed linen, towels, curtains, home textiles",
+      "website": "https://www.zorlu.com.tr",
+      "notes": "Owner of Taç and Linens brands. Also fits Home Décor (curtains).",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "bed-linen-bedding",
+      "name": "Gelin Tekstil",
+      "location": "Denizli, Turkey",
+      "products": "Home textiles",
+      "website": "https://gelintekstil.com",
+      "notes": "Design-focused partner for global home textile brands. UN Global Compact participant. Developing industrial hemp fibre.",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "home-décor-textiles",
+      "name": "Moral Tekstil",
+      "location": "Demirtaş OSB, Osmangazi, Bursa, Turkey",
+      "products": "Curtain fabrics, upholstery fabrics, decorative fabrics",
+      "website": "https://www.moral.com.tr",
+      "notes": "Produces in its own facilities. Heimtextil exhibitor.",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "kitchen-textiles",
+      "name": "Demsan Denizli Mensucat",
+      "location": "Göveçlik, Denizli, Turkey",
+      "products": "Kitchen towels, dobby & jacquard towels, bathrobes, bedspreads, shower curtains, bibs",
+      "website": "",
+      "notes": "Founded 1982. Heimtextil exhibitor.\nProfile: https://www.turkishexporter.com.tr/es/companies/demsan-textile-83030/",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "hotel-contract-textiles",
+      "name": "Varol Tekstil",
+      "location": "Denizli, Turkey",
+      "products": "Hotel, hospital and corporate textiles",
+      "website": "https://varoltekstil.com.tr",
+      "notes": "Focused on the hospitality channel.",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "baby-kids-textiles",
+      "name": "Aksem Baby",
+      "location": "Turkey",
+      "products": "Rompers, bodysuits, pyjamas, dresses, blankets, bibs, socks, towels, hats, gloves, sets",
+      "website": "https://aksem.net",
+      "notes": "",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "hazir-giyim",
+      "name": "Erak Giyim",
+      "location": "Topkapı, Istanbul (HQ); factory in Çerkezköy, Turkey",
+      "products": "Jeans, non-denim woven products (canvas, corduroy), jackets, dresses, skirts",
+      "website": "https://www.erak.com",
+      "notes": "Founded 1984. Leading jeans and woven manufacturer.",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "hazir-giyim",
+      "name": "Yeşim Tekstil",
+      "location": "Bursa, Turkey",
+      "products": "Knitwear, home textiles",
+      "website": "",
+      "notes": "Turnover approx. USD 510M. Also produces in Egypt for the US market.",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "hazir-giyim",
+      "name": "Öztek Hazır Giyim (Oztek Garment)",
+      "location": "Turkey",
+      "products": "Menswear, womenswear, childrenswear, activewear, athleisure, workwear, casual",
+      "website": "",
+      "notes": "Also fits Workwear.\nProfile: https://paris.premierevision.com/partner/d4793b47-50c5-f011-8195-0022487f0371/oztek-garment",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "underwear-nightwear-loungewear",
+      "name": "Penti",
+      "location": "Istanbul, Turkey",
+      "products": "Hosiery, underwear, nightwear, loungewear",
+      "website": "https://www.penti.com",
+      "notes": "Brand and manufacturer.",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "underwear-nightwear-loungewear",
+      "name": "Doreanse (Asry Tekstil)",
+      "location": "Avcılar, Istanbul, Turkey",
+      "products": "Men's and women's underwear, nightwear, pyjamas, homewear",
+      "website": "https://www.doreanse.com",
+      "notes": "Approx. 2.5 million pieces per year. Own brand: Doreanse Underwear.",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "underwear-nightwear-loungewear",
+      "name": "Kom Tekstil",
+      "location": "Yenibosna, Istanbul, Turkey",
+      "products": "Underwear, swimwear, fabrics and lace",
+      "website": "",
+      "notes": "Integrated facility. 2.5–3 million underwear pieces and approx. 1 million swimsuits per year.",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "socks-accessories",
+      "name": "Özge Çorap",
+      "location": "Turkey",
+      "products": "Socks",
+      "website": "https://ozgecorap.com/en",
+      "notes": "Export-focused.",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "socks-accessories",
+      "name": "SPT Textile",
+      "location": "Turkey",
+      "products": "Socks, private label",
+      "website": "https://www.socksproducerturkey.com",
+      "notes": "",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "socks-accessories",
+      "name": "Hetta Tex",
+      "location": "Turkey",
+      "products": "Socks",
+      "website": "https://www.hettatex.com",
+      "notes": "",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "yarn-fabrics",
+      "name": "Kipaş",
+      "location": "Kahramanmaraş, Turkey",
+      "products": "Yarn, denim, woven fabrics",
+      "website": "https://kipas.com.tr",
+      "notes": "Large integrated group. Part of the Lycra sourcing network.",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "yarn-fabrics",
+      "name": "Bossa",
+      "location": "Adana, Turkey",
+      "products": "Denim, woven fabrics",
+      "website": "https://www.bossa.com.tr",
+      "notes": "Listed on Borsa Istanbul.",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "yarn-fabrics",
+      "name": "Altınyıldız",
+      "location": "Çerkezköy, Tekirdağ, Turkey",
+      "products": "Woollen fabrics, yarn, weaving, dyeing and finishing",
+      "website": "https://altinyildiz.com.tr",
+      "notes": "Approx. 10 million metres of fabric per year.",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "yarn-fabrics",
+      "name": "Turkuaz Tekstil",
+      "location": "DOSAB, Bursa, Turkey",
+      "products": "Polyester and polypropylene filament yarns for home textiles, outerwear, technical and automotive uses",
+      "website": "https://www.turktex.net",
+      "notes": "",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "technical-medical-textiles",
+      "name": "Hassan Group",
+      "location": "Esenyurt, Istanbul, Turkey",
+      "products": "Nonwovens for hygiene, medical and industrial uses",
+      "website": "https://www.hassangroup.com",
+      "notes": "Among the world's top nonwoven producers.",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "technical-medical-textiles",
+      "name": "Mogul Nonwovens & Composites",
+      "location": "Gaziantep OSB, Turkey",
+      "products": "Spunbond and meltblown nonwovens, composites",
+      "website": "https://www.mogulsb.com",
+      "notes": "Founded 1997. Three production facilities. Operations in the US.",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "technical-medical-textiles",
+      "name": "Kordsa",
+      "location": "İzmit, Kocaeli, Turkey",
+      "products": "Tyre cord fabrics, reinforcement materials, composites",
+      "website": "https://www.kordsa.com",
+      "notes": "Sabancı Holding company.",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "carpets-rugs",
+      "name": "Merinos Halı",
+      "location": "Şehitkamil, Gaziantep, Turkey",
+      "products": "Machine-made carpets and rugs",
+      "website": "https://www.merinos.com.tr",
+      "notes": "Erdemoğlu Holding company. One of Turkey's largest carpet producers.",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "carpets-rugs",
+      "name": "Royal Halı",
+      "location": "Gaziantep, Turkey",
+      "products": "Machine-made carpets, yarn",
+      "website": "",
+      "notes": "Listed on Borsa Istanbul (ROYAL). Expanding into the Far East.",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    }
+  ]
+}
