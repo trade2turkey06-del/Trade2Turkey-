@@ -1,0 +1,439 @@
+{
+  "sectors": [
+    [
+      "dried-fruit",
+      "Dried Fruit"
+    ],
+    [
+      "nuts",
+      "Nuts"
+    ],
+    [
+      "tomato-paste-roasted-vegetables",
+      "Tomato Paste & Roasted Vegetables"
+    ],
+    [
+      "olives-pickles",
+      "Olives & Pickles"
+    ],
+    [
+      "pulses-bulgur",
+      "Pulses & Bulgur"
+    ],
+    [
+      "fish-seafood",
+      "Fish & Seafood"
+    ]
+  ],
+  "suppliers": [
+    {
+      "sectorId": "dried-fruit",
+      "name": "IFS Food Gıda",
+      "location": "Malatya",
+      "website": "https://www.ifsfood.com.tr",
+      "description": "Since 1985, BRCGS AA+. Processes up to 10,000 t/yr of apricots: sulphured, natural, organic, soft.",
+      "notes": "",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "dried-fruit",
+      "name": "Baktar Tarım",
+      "location": "Malatya",
+      "website": "",
+      "description": "Family company, BRC. Premium 200–500 g packs for EU retail. Also figs, hazelnuts, mulberries.",
+      "notes": "Profile: https://nutrada.com/suppliers/baktar-tarim-urunleri-gida-hayvancilik-kuyumculuk-nakliye-sanayi-ticaret-ltd-sti",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "dried-fruit",
+      "name": "Selçuk Food",
+      "location": "Izmir",
+      "website": "https://www.selcukfood.com",
+      "description": "Since 1932, BRC, IFS. Figs, sultanas, apricots, whole or diced. Bulk and 100–1000 g retail packs.",
+      "notes": "",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "dried-fruit",
+      "name": "Pagysa",
+      "location": "Izmir",
+      "website": "",
+      "description": "Oldest active Turkish dried fruit company. Sultanas, apricots, figs, dates, diced products. Exhibiting at Fi Europe Frankfurt, Nov 17–19.",
+      "notes": "Profile: https://www.ingredientsnetwork.com/pagysa-pamuk-gida-yerli-urunleri-tic-ve-san-a-s-comp304728.html",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "dried-fruit",
+      "name": "Pagmat",
+      "location": "",
+      "website": "",
+      "description": "Sultanas, currants, diced fruit and fruit pastes for bakery & confectionery.",
+      "notes": "Profile: https://www.crunchbase.com/organization/pagmat",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "dried-fruit",
+      "name": "Fruits of Turkey",
+      "location": "Izmir",
+      "website": "",
+      "description": "Sultanas (Manisa), figs & apricots (Aydın). BRC, IFS, Organic. Diced apricots.",
+      "notes": "Profile: https://nutrada.com/suppliers/fruits-of-turkey",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "dried-fruit",
+      "name": "Işık Tarım",
+      "location": "Kemalpaşa, Izmir",
+      "website": "",
+      "description": "Strong in organic, 25,000+ t/yr exports. Soft dried fruit, fruit bars, snacks.",
+      "notes": "Profile: https://www.gulfood.com/exhibitors/isik-tarim-urunleri-sanayi-ve-ticaret-as",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "nuts",
+      "name": "Balsu",
+      "location": "Sakarya & Ordu",
+      "website": "https://www.balsugida.com",
+      "description": "One of the world's largest hazelnut processors. BRC, IFS, Organic.",
+      "notes": "",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "nuts",
+      "name": "Sabırlar Fındık",
+      "location": "",
+      "website": "https://www.sabirhazelnut.com.tr",
+      "description": "Since 1965, BRC A since 2000. ~10,000 t/yr exports.",
+      "notes": "",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "nuts",
+      "name": "Durak Fındık",
+      "location": "",
+      "website": "",
+      "description": "30,000 t/yr capacity, BRC A. Roasted, chopped hazelnuts, hazelnut paste.",
+      "notes": "Profile: https://nutrada.com/suppliers/durak-findik",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "nuts",
+      "name": "Dost Fındık",
+      "location": "Ordu",
+      "website": "",
+      "description": "IFS, BRC. Retail packing facility.",
+      "notes": "Profile: https://app.nutrada.com/suppliers/dost-findik-sanayi",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "nuts",
+      "name": "Erçal Fındık",
+      "location": "Ordu",
+      "website": "",
+      "description": "BRC A+, Organic, Rainforest Alliance. Sliced, chopped hazelnuts, paste.",
+      "notes": "Profile: https://www.gulfood.com/exhibitors/ercal-hazelnut",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "nuts",
+      "name": "Aydın Kuruyemiş",
+      "location": "",
+      "website": "",
+      "description": "Leading Turkish nut exporter. Private label, 10 g–5 kg packs. BRC, IFS, BSCI.",
+      "notes": "Profile: https://delegations.tim.org.tr/event/vietnam-2021/company/aydin-kuruyemis",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "nuts",
+      "name": "Antepsan",
+      "location": "Gaziantep",
+      "website": "",
+      "description": "BRC A, IFS. Pistachios, pistachio cream, mixed nuts, Turkish delight.",
+      "notes": "Profile: https://www.gulfood.com/exhibitors/antepsan-kuruyemis-gida-sanayi-ve-ticaret-as",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "nuts",
+      "name": "Nutagra",
+      "location": "Mersin",
+      "website": "",
+      "description": "Pistachios, pine nuts, apricots, figs, pulses, tahini.",
+      "notes": "Profile: https://www.gulfood.com/exhibitors/nutagra-gida-dis-tic-ltd-sti",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "tomato-paste-roasted-vegetables",
+      "name": "Euro Gıda",
+      "location": "Kemalpaşa, Izmir",
+      "website": "https://www.eurogida.com.tr",
+      "description": "Turkey's largest in roasted peppers, aubergine and pickles; 120M jars/yr. Melis brand sold at Morrisons. Private label for UK & EU.",
+      "notes": "",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "tomato-paste-roasted-vegetables",
+      "name": "Tukaş",
+      "location": "Manisa & Balikesir",
+      "website": "https://www.tukas.com.tr",
+      "description": "Tomato paste, canned food, ready meals, sauces. IFS, BRC.",
+      "notes": "",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "tomato-paste-roasted-vegetables",
+      "name": "Sardes",
+      "location": "Salihli, Manisa",
+      "website": "",
+      "description": "Roasted peppers, sun-dried tomatoes, grilled vegetables. BRC, Organic.",
+      "notes": "Profile: https://www.gulfood.com/exhibitors/sardes-gida-sanayi-ve-tarim-urunleri-tic-ith-ihr-ltd-sti",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "tomato-paste-roasted-vegetables",
+      "name": "Nilbatu",
+      "location": "Kemalpaşa, Izmir",
+      "website": "",
+      "description": "Roasted peppers, sun-dried tomatoes, antipasti. BRC Grade A, private label.",
+      "notes": "Profile: https://www.gulfood.com/exhibitors/nilbatu-foods",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "olives-pickles",
+      "name": "Baktat",
+      "location": "Akhisar, Manisa",
+      "website": "https://www.baktatzeytin.com.tr",
+      "description": "Olives, roasted vegetables, tomato & pepper paste, pickles. IFS, BRC, private label. Also relevant for Tomato Paste.",
+      "notes": "",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "olives-pickles",
+      "name": "Maroli",
+      "location": "Aydin",
+      "website": "https://www.maroli.com.tr",
+      "description": "Table olives and pickles. BRC, IFS. Exports to UK, private label.",
+      "notes": "",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "olives-pickles",
+      "name": "Mare Food",
+      "location": "Izmir & Bursa",
+      "website": "https://www.marefood.com",
+      "description": "Olives, pickles, roasted vegetables. Has a UK distributor.",
+      "notes": "",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "olives-pickles",
+      "name": "Çiçek Salamura",
+      "location": "Kemalpaşa, Izmir",
+      "website": "https://www.ciceksalamura.com.tr",
+      "description": "Pickles and fermented products since 1988.",
+      "notes": "",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "pulses-bulgur",
+      "name": "Armada Foods",
+      "location": "Mersin",
+      "website": "https://www.armadafoods.com",
+      "description": "11 plants, exports to 90+ countries. Lentils, bulgur, chickpeas, conventional and organic.",
+      "notes": "",
+      "tags": [
+        "Prospect"
+      ]
+    },
+    {
+      "sectorId": "pulses-bulgur",
+      "name": "Arbel",
+      "location": "Mersin",
+      "website": "",
+      "description": "AGT Food subsidiary, Turkey's largest pulse exporter. BRC, IFS.",
+      "notes": "Profile: https://nutrada.com/suppliers/arbel-bakliyat-hububat-sanayi-ve-tic-as",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "pulses-bulgur",
+      "name": "Duru Bulgur",
+      "location": "Karaman",
+      "website": "",
+      "description": "Founded 1935, 400 t/day bulgur, exports to 55 countries.",
+      "notes": "",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "pulses-bulgur",
+      "name": "Özsarı",
+      "location": "Gaziantep",
+      "website": "",
+      "description": "350 t/day bulgur, 240 t/day lentils. BRC.",
+      "notes": "Profile: https://nutrada.com/suppliers/ozsari-gida-san",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "fish-seafood",
+      "name": "Lucky Fish",
+      "location": "",
+      "website": "",
+      "description": "Founded 1986. One of Europe's largest integrated sea bass & sea bream producers/processors. 97% of sales exported to major UK, EU and US retailers. Best fit for Myton.",
+      "notes": "Profile: https://www.cbinsights.com/company/lucky-fish\nTarget buyer: Myton Food Group – Fish",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "fish-seafood",
+      "name": "Kılıç Deniz (Kılıç Seafood)",
+      "location": "",
+      "website": "",
+      "description": "Turkey's largest producer, ~65,000 t/yr. Sea bass, sea bream, meagre, trout, tuna. Fresh, frozen, fillets, smoked. BRC, IFS.",
+      "notes": "Profile: https://www.tridge.com/find-suppliers/basic/klc-deniz\nTarget buyer: Myton Food Group – Fish",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "fish-seafood",
+      "name": "Gümüşdoğa",
+      "location": "Milas, Mugla",
+      "website": "",
+      "description": "Integrated, produces its own feed. Sea bass, sea bream, Turkish salmon, meagre. BRC, IFS, ASC. Exports to 50 countries.",
+      "notes": "Profile: https://app.swapcard.com/event/sena26/exhibitor/RXhoaWJpdG9yXzIwOTgwNjU=\nTarget buyer: Myton Food Group – Fish",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "fish-seafood",
+      "name": "Abalıoğlu (AbalıFish)",
+      "location": "Cine, Aydin",
+      "website": "",
+      "description": "Processing plant in Çine. Sea bass, sea bream, trout as fillets, MAP, vacuum-packed, marinated, smoked. BRCGS, IFS, ASC.",
+      "notes": "Profile: https://connectna.seafoodexpo.com/c/seafood-expo/product/UHJvZHVjdF8xMjYwODI0\nTarget buyer: Myton Food Group – Fish",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "fish-seafood",
+      "name": "Fishark",
+      "location": "Izmir & Bingol",
+      "website": "",
+      "description": "25,000 t/yr capacity. Trout, Turkish salmon, hot & cold smoked, sea bream, sea bass. IFS, BRC, ASC, MSC.",
+      "notes": "Profile: https://app.swapcard.com/event/seafood-expo-global-2026/exhibitor/RXhoaWJpdG9yXzIxNzg1ODQ=\nTarget buyer: Myton Food Group – Fish",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "fish-seafood",
+      "name": "Uğurlu Balık",
+      "location": "Didim, Aydin",
+      "website": "",
+      "description": "Farms and processes sea bass & sea bream. Sells frozen fillets to the UK, also ready meals. BRC, IFS.",
+      "notes": "Profile: https://www.worldfishing.net/ugurlu-balik-moves-into-ready-meals/105556.article\nTarget buyer: Myton Food Group – Fish",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "fish-seafood",
+      "name": "Sağun Grup",
+      "location": "",
+      "website": "",
+      "description": "Since 1950, 8 facilities. Sea bass, sea bream, Black Sea salmon, tuna. BRC.",
+      "notes": "Profile: https://www.tridge.com/sellers/group-sagun\nTarget buyer: Myton Food Group – Fish",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    },
+    {
+      "sectorId": "fish-seafood",
+      "name": "Kocaman Balıkçılık",
+      "location": "",
+      "website": "",
+      "description": "Since 1923. Frozen processed products: marinated anchovies & sardines, smoked mackerel, seafood salads. BRC, IFS.",
+      "notes": "Profile: https://eurofish.dk/?p=1476\nTarget buyer: Myton Food Group – Fish",
+      "tags": [
+        "Prospect",
+        "Website unverified"
+      ]
+    }
+  ]
+}
